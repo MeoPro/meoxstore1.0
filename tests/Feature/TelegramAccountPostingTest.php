@@ -6,6 +6,7 @@ use App\Models\GameCategory;
 use App\Models\ItemCategory;
 use App\Models\Product;
 use App\Models\ProductCurrencyRate;
+use App\Models\StoreSetting;
 use App\Models\TelegramAccountDraft;
 use App\Models\TelegramAccountItem;
 use App\Models\TelegramUpdate;
@@ -14,6 +15,7 @@ use App\Services\TelegramAccountPostingBot;
 use App\Services\TelegramBotApi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -251,7 +253,7 @@ it('saves new catalog items and selects multiple items for a listing', function 
         'data' => 'item:done',
     ]]);
 
-    expect($draft->fresh()->step)->toBe('haki')
+    expect($draft->fresh()->step)->toBe('price')
         ->and($draft->fresh()->data['items'])->toBe([
             ['category' => 'Fruit', 'name' => '🦊Kitsune'],
             ['category' => 'Sword', 'name' => '⚓Shark Anchor'],
@@ -318,7 +320,7 @@ it('allows a saved catalog item to be selected in a later draft', function () {
 
     expect($draft->fresh()->data['items'])->toBe([
         ['category' => 'Race', 'name' => '🧍Human'],
-    ]);
+    ])->and($draft->fresh()->step)->toBe('price');
 
     Http::assertSent(function (Request $request) use ($savedItem): bool {
         $requestData = json_encode($request->data(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
@@ -414,11 +416,16 @@ it('sends product photos and formatted account details to the configured Telegra
     Storage::disk('public')->put('products/one.jpg', 'photo-one');
     Storage::disk('public')->put('products/two.jpg', 'photo-two');
     Http::preventStrayRequests();
+    $mediaGroupBody = '';
     Http::fake([
-        'api.telegram.org/*/sendMediaGroup' => Http::response([
-            'ok' => true,
-            'result' => [['message_id' => 1], ['message_id' => 2]],
-        ]),
+        'api.telegram.org/*/sendMediaGroup' => function (Request $request) use (&$mediaGroupBody) {
+            $mediaGroupBody = $request->body();
+
+            return Http::response([
+                'ok' => true,
+                'result' => [['message_id' => 1], ['message_id' => 2]],
+            ]);
+        },
         'api.telegram.org/*/sendMessage' => Http::response([
             'ok' => true,
             'result' => ['message_id' => 3],
@@ -467,11 +474,13 @@ it('sends product photos and formatted account details to the configured Telegra
         ->and($draft->fresh()->channel_media_offset)->toBe(2)
         ->and($draft->fresh()->channel_text_sent)->toBeTrue();
 
+    expect($mediaGroupBody)
+        ->toContain('"caption"')
+        ->toContain('$4.00')
+        ->toContain('jokibloxfruit.roblox')
+        ->toContain(str_replace('/', '\/', route('product-details.show', $product)));
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMediaGroup'));
-    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
-        && (string) $request['chat_id'] === '@store_channel'
-        && str_contains($request['text'], '$4.00')
-        && str_contains($request['text'], 'jokibloxfruit.roblox'));
+    Http::assertSentCount(2);
 });
 
 it('escapes free-text values in the Telegram account template', function () {
@@ -490,4 +499,157 @@ it('escapes free-text values in the Telegram account template', function () {
         ->toContain('&lt;b&gt;unsafe&lt;/b&gt;')
         ->not->toContain('<script>alert(1)</script>')
         ->not->toContain('<b>unsafe</b>');
+});
+
+it('shows all bot commands from help', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*/sendMessage' => Http::response([
+            'ok' => true,
+            'result' => ['message_id' => 21],
+        ]),
+    ]);
+    $update = TelegramUpdate::query()->create([
+        'telegram_update_id' => 900001,
+        'payload' => ['message' => [
+            'from' => ['id' => 12345],
+            'chat' => ['id' => 12345, 'type' => 'private'],
+            'text' => '/help',
+        ]],
+    ]);
+
+    app(TelegramAccountPostingBot::class)->handle($update);
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
+        && str_contains($request['text'], '/setrate RM 3600')
+        && str_contains($request['text'], '/settings')
+        && str_contains(json_encode($request['reply_markup']), 'menu:rates'));
+});
+
+it('lets admins set the RM rate from Telegram', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*/sendMessage' => Http::response([
+            'ok' => true,
+            'result' => ['message_id' => 22],
+        ]),
+    ]);
+    ProductCurrencyRate::current()->update(['idr_per_myr' => 4000]);
+    $update = TelegramUpdate::query()->create([
+        'telegram_update_id' => 900002,
+        'payload' => ['message' => [
+            'from' => ['id' => 12345],
+            'chat' => ['id' => 12345, 'type' => 'private'],
+            'text' => '/setrate RM 3600',
+        ]],
+    ]);
+
+    app(TelegramAccountPostingBot::class)->handle($update);
+
+    expect((float) ProductCurrencyRate::current()->fresh()->idr_per_myr)->toBe(3600.0);
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
+        && str_contains($request['text'], 'RM 1 = Rp 3.600'));
+});
+
+it('lets admins edit a default from the settings menu', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response([
+            'ok' => true,
+            'result' => ['message_id' => 23],
+        ]),
+    ]);
+    $processUpdate = function (int $updateId, array $payload): void {
+        $update = TelegramUpdate::query()->create([
+            'telegram_update_id' => $updateId,
+            'payload' => $payload,
+        ]);
+
+        app(TelegramAccountPostingBot::class)->handle($update);
+    };
+
+    $processUpdate(900003, ['message' => [
+        'from' => ['id' => 12345],
+        'chat' => ['id' => 12345, 'type' => 'private'],
+        'text' => '/settings',
+    ]]);
+    $processUpdate(900004, ['callback_query' => [
+        'id' => 'edit-haki',
+        'from' => ['id' => 12345],
+        'message' => ['message_id' => 23, 'chat' => ['id' => 12345, 'type' => 'private']],
+        'data' => 'settings:edit:haki',
+    ]]);
+    $processUpdate(900005, ['message' => [
+        'from' => ['id' => 12345],
+        'chat' => ['id' => 12345, 'type' => 'private'],
+        'text' => 'Haki pilihan saya',
+    ]]);
+    $processUpdate(900006, ['message' => [
+        'from' => ['id' => 12345],
+        'chat' => ['id' => 12345, 'type' => 'private'],
+        'text' => '/new',
+    ]]);
+
+    expect(StoreSetting::current()->fresh()->telegram_account_defaults['haki'])->toBe('Haki pilihan saya');
+    expect(TelegramAccountDraft::query()->sole()->data['haki'])->toBe('Haki pilihan saya');
+    Cache::forget('telegram-account-bot-input:12345');
+});
+
+it('stores incoming photos without sending a reply for every photo', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Storage::fake('public');
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC', true);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*/sendMessage' => Http::response([
+            'ok' => true,
+            'result' => ['message_id' => 24],
+        ]),
+        'api.telegram.org/*/getFile' => Http::response([
+            'ok' => true,
+            'result' => ['file_path' => 'photos/account.png'],
+        ]),
+        'api.telegram.org/file/*' => Http::response($png),
+    ]);
+    $bot = app(TelegramAccountPostingBot::class);
+    $start = TelegramUpdate::query()->create([
+        'telegram_update_id' => 900006,
+        'payload' => ['message' => [
+            'from' => ['id' => 12345],
+            'chat' => ['id' => 12345, 'type' => 'private'],
+            'text' => '/new',
+        ]],
+    ]);
+    $bot->handle($start);
+    $photo = TelegramUpdate::query()->create([
+        'telegram_update_id' => 900007,
+        'payload' => ['message' => [
+            'message_id' => 25,
+            'from' => ['id' => 12345],
+            'chat' => ['id' => 12345, 'type' => 'private'],
+            'photo' => [['file_id' => 'file-1']],
+        ]],
+    ]);
+
+    $bot->handle($photo);
+
+    $draft = TelegramAccountDraft::query()->sole();
+    expect($draft->images)->toHaveCount(1);
+    Storage::disk('public')->assertExists($draft->images[0]);
+    Http::assertSentCount(3);
 });

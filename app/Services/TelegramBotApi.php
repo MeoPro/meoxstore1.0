@@ -49,6 +49,26 @@ class TelegramBotApi
     }
 
     /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     * @return array<string, mixed>
+     */
+    public function editMessageText(string $chatId, int $messageId, string $text, ?array $replyMarkup = null): array
+    {
+        $parameters = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'disable_web_page_preview' => true,
+        ];
+
+        if ($replyMarkup !== null) {
+            $parameters['reply_markup'] = $replyMarkup;
+        }
+
+        return $this->call('editMessageText', $parameters);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function answerCallbackQuery(string $callbackQueryId, ?string $text = null): array

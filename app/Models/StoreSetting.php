@@ -8,12 +8,14 @@ class StoreSetting extends Model
 {
     protected $fillable = [
         'is_online',
+        'telegram_account_defaults',
     ];
 
     protected function casts(): array
     {
         return [
             'is_online' => 'boolean',
+            'telegram_account_defaults' => 'array',
         ];
     }
 

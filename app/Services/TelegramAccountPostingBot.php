@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Actions\CreateTelegramAccountProduct;
 use App\Jobs\PublishTelegramAccountListing;
 use App\Models\ProductCurrencyRate;
+use App\Models\StoreSetting;
 use App\Models\TelegramAccountDraft;
 use App\Models\TelegramAccountItem;
 use App\Models\TelegramUpdate;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -18,6 +20,36 @@ class TelegramAccountPostingBot
     private const MAX_LISTING_ITEMS = 20;
 
     private const MAX_CATEGORIES = 20;
+
+    /**
+     * @var array<string, mixed>
+     */
+    private const DEFAULT_ACCOUNT_VALUES = [
+        'account_status' => '100% SAFE ANTI HB, NO VERIFIKASI',
+        'status_label' => 'READY✅',
+        'haki' => 'SKY JUMP, BODY, FLASH STEP',
+        'race' => 'V3 HUMAN',
+        'awaken' => '-',
+        'permanent' => '-',
+        'gamepass' => '-',
+        'stat_refund' => 2,
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    private const SETTING_LABELS = [
+        'account_status' => 'Status akun',
+        'status_label' => 'Label posting',
+        'haki' => 'Haki',
+        'race' => 'Race',
+        'awaken' => 'Awaken',
+        'permanent' => 'Permanent',
+        'gamepass' => 'Gamepass',
+        'stat_refund' => 'Stat Refund',
+        'post_chat' => 'Chat',
+        'post_instagram' => 'Instagram',
+    ];
 
     /**
      * @var array<string, string>
@@ -66,16 +98,58 @@ class TelegramAccountPostingBot
         $text = trim((string) ($message['text'] ?? ''));
 
         if ($this->isCommand($text, '/start') || $this->isCommand($text, '/help')) {
-            $this->telegram->sendMessage(
-                $chatId,
-                "Kirim /new untuk membuat posting akun.\nKirim foto satu per satu atau sebagai album, lalu /done.\nKirim /cancel kapan saja untuk membatalkan draft.",
-            );
+            $this->sendHelp($chatId);
+
+            return;
+        }
+
+        if ($this->isCommand($text, '/menu')) {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendMainMenu($chatId);
+
+            return;
+        }
+
+        if ($this->isCommand($text, '/settings')) {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendSettingsMenu($chatId);
+
+            return;
+        }
+
+        if ($this->isCommand($text, '/rates') || $this->isCommand($text, '/rate')) {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendRatesMenu($chatId);
+
+            return;
+        }
+
+        if (preg_match('/^\/setrate(?:@[\w_]+)?(?:\s+([a-zA-Z]+)\s+([0-9]+(?:[.,][0-9]+)?))?$/u', $text, $matches) === 1) {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            if (isset($matches[1], $matches[2])) {
+                $this->setRate($chatId, $matches[1], $matches[2]);
+            } else {
+                $this->telegram->sendMessage($chatId, 'Format: /setrate RM 3600 atau /setrate USD 15000.');
+            }
 
             return;
         }
 
         if ($this->isCommand($text, '/new')) {
+            Cache::forget($this->pendingInputKey($telegramUserId));
             $this->startDraft($telegramUserId, $chatId, $updateId);
+
+            return;
+        }
+
+        if ($this->isCommand($text, '/cancel') && Cache::has($this->pendingInputKey($telegramUserId))) {
+            $this->cancelPendingInput($telegramUserId, $chatId);
+
+            return;
+        }
+
+        if (Cache::has($this->pendingInputKey($telegramUserId)) && $text !== '') {
+            $this->handlePendingInput($telegramUserId, $chatId, $text);
 
             return;
         }
@@ -131,6 +205,275 @@ class TelegramAccountPostingBot
         return preg_match('/^'.preg_quote($command, '/').'(?:@[\w_]+)?$/u', $text) === 1;
     }
 
+    private function sendHelp(string $chatId): void
+    {
+        $this->telegram->sendMessage(
+            $chatId,
+            $this->helpText(),
+            $this->mainMenuMarkup(),
+        );
+    }
+
+    private function helpText(): string
+    {
+        return "Perintah bot:\n".
+            "/start atau /help — tampilkan bantuan\n".
+            "/menu — buka menu utama\n".
+            "/new — mulai posting akun\n".
+            "/done — selesai mengirim foto atau memilih item\n".
+            "/skip — gunakan nilai default untuk kolom opsional\n".
+            "/cancel — batalkan draft atau pengaturan yang sedang diedit\n".
+            "/settings — atur nilai default untuk posting baru\n".
+            "/rates — lihat kurs saat ini\n".
+            "/setrate RM 3600 — atur kurs IDR per 1 RM\n".
+            "/setrate USD 15000 — atur kurs IDR per 1 USD\n\n".
+            'Nilai default Haki, Race, Awaken, Permanent, Gamepass, dan Stat Refund otomatis dipakai. Ubah kapan saja lewat /settings.';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mainMenuMarkup(): array
+    {
+        return [
+            'inline_keyboard' => [
+                [['text' => '➕ Posting akun', 'callback_data' => 'menu:new']],
+                [
+                    ['text' => '⚙️ Default posting', 'callback_data' => 'menu:settings'],
+                    ['text' => '💱 Kurs', 'callback_data' => 'menu:rates'],
+                ],
+                [['text' => '❔ Bantuan', 'callback_data' => 'menu:help']],
+            ],
+        ];
+    }
+
+    private function sendMainMenu(string $chatId): void
+    {
+        $this->telegram->sendMessage($chatId, 'Menu utama bot posting akun:', $this->mainMenuMarkup());
+    }
+
+    private function sendSettingsMenu(string $chatId, ?int $messageId = null, ?string $notice = null): void
+    {
+        $defaults = $this->accountDefaults();
+        $lines = ['Default untuk posting baru:'];
+        foreach (self::SETTING_LABELS as $field => $label) {
+            $lines[] = $label.': '.(string) ($defaults[$field] ?? '-');
+        }
+
+        $text = ($notice === null ? '' : $notice."\n\n").implode("\n", $lines)."\n\nPilih nilai yang ingin diubah. Kirim /skip untuk mengembalikan default awal.";
+        $markup = $this->settingsMenuMarkup();
+
+        $this->sendOrEditMessage($chatId, $messageId, $text, $markup);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function settingsMenuMarkup(): array
+    {
+        $buttons = [];
+        foreach (self::SETTING_LABELS as $field => $label) {
+            $buttons[] = [
+                'text' => $label,
+                'callback_data' => 'settings:edit:'.$field,
+            ];
+        }
+
+        return [
+            'inline_keyboard' => [
+                ...array_chunk($buttons, 2),
+                [['text' => '⬅️ Menu utama', 'callback_data' => 'menu:main']],
+            ],
+        ];
+    }
+
+    private function sendRatesMenu(string $chatId, ?int $messageId = null, ?string $notice = null): void
+    {
+        $rates = ProductCurrencyRate::current();
+        $text = ($notice === null ? '' : $notice."\n\n").
+            'Kurs saat ini:'."\n".
+            'RM 1 = Rp '.rtrim(rtrim(number_format((float) $rates->idr_per_myr, 4, '.', ','), '0'), '.')."\n".
+            'USD 1 = Rp '.rtrim(rtrim(number_format((float) $rates->idr_per_usd, 4, '.', ','), '0'), '.')."\n\n".
+            'Kurs ini dipakai website dan posting Telegram.';
+        $markup = [
+            'inline_keyboard' => [
+                [
+                    ['text' => 'Atur kurs RM', 'callback_data' => 'rates:edit:myr'],
+                    ['text' => 'Atur kurs USD', 'callback_data' => 'rates:edit:usd'],
+                ],
+                [['text' => '⬅️ Menu utama', 'callback_data' => 'menu:main']],
+            ],
+        ];
+
+        $this->sendOrEditMessage($chatId, $messageId, $text, $markup);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     * @return array<string, mixed>
+     */
+    private function sendOrEditMessage(string $chatId, ?int $messageId, string $text, ?array $replyMarkup = null): array
+    {
+        if ($messageId === null) {
+            return $this->telegram->sendMessage($chatId, $text, $replyMarkup);
+        }
+
+        return $this->telegram->editMessageText($chatId, $messageId, $text, $replyMarkup);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function accountDefaults(): array
+    {
+        $defaults = array_merge(self::DEFAULT_ACCOUNT_VALUES, [
+            'post_chat' => (string) config('services.telegram.post_chat', ''),
+            'post_instagram' => (string) config('services.telegram.post_instagram', ''),
+        ]);
+
+        return array_merge($defaults, StoreSetting::current()->telegram_account_defaults ?? []);
+    }
+
+    private function pendingInputKey(string $telegramUserId): string
+    {
+        return 'telegram-account-bot-input:'.$telegramUserId;
+    }
+
+    private function handlePendingInput(string $telegramUserId, string $chatId, string $value): void
+    {
+        $pendingInput = Cache::get($this->pendingInputKey($telegramUserId));
+        if (! is_array($pendingInput)) {
+            return;
+        }
+
+        $messageId = filter_var($pendingInput['message_id'] ?? null, FILTER_VALIDATE_INT);
+        $type = $pendingInput['type'] ?? null;
+
+        if ($this->isCommand($value, '/skip') && $type === 'default') {
+            $this->saveDefaultValue((string) ($pendingInput['field'] ?? ''), null);
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendSettingsMenu($chatId, $messageId === false ? null : $messageId, 'Default dikembalikan ke nilai awal.');
+
+            return;
+        }
+
+        if ($type === 'default') {
+            $field = (string) ($pendingInput['field'] ?? '');
+            if (! array_key_exists($field, self::SETTING_LABELS) || $value === '' || Str::length($value) > 255) {
+                $this->editPendingPrompt(
+                    $chatId,
+                    $messageId === false ? null : $messageId,
+                    'Nilai tidak valid. Maksimal 255 karakter; kirim /skip untuk mengembalikan default.',
+                );
+                Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+
+                return;
+            }
+
+            if ($field === 'stat_refund' && (! ctype_digit($value) || (int) $value > 100)) {
+                $this->editPendingPrompt(
+                    $chatId,
+                    $messageId === false ? null : $messageId,
+                    'Stat Refund harus angka 0–100, atau /skip untuk mengembalikan default.',
+                );
+                Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+
+                return;
+            }
+
+            $this->saveDefaultValue($field, $field === 'stat_refund' ? (int) $value : $value);
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendSettingsMenu($chatId, $messageId === false ? null : $messageId, 'Default berhasil disimpan untuk posting berikutnya.');
+
+            return;
+        }
+
+        if ($type === 'rate') {
+            $currency = (string) ($pendingInput['field'] ?? '');
+            if (! $this->setRate($chatId, $currency, $value, $messageId === false ? null : $messageId)) {
+                Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+
+                return;
+            }
+
+            Cache::forget($this->pendingInputKey($telegramUserId));
+        }
+    }
+
+    private function editPendingPrompt(string $chatId, ?int $messageId, string $text): void
+    {
+        if ($messageId === null) {
+            $this->telegram->sendMessage($chatId, $text);
+
+            return;
+        }
+
+        $this->telegram->editMessageText($chatId, $messageId, $text, ['inline_keyboard' => []]);
+    }
+
+    private function saveDefaultValue(string $field, mixed $value): void
+    {
+        $storedDefaults = StoreSetting::current()->telegram_account_defaults ?? [];
+        if ($value === null) {
+            unset($storedDefaults[$field]);
+        } else {
+            $storedDefaults[$field] = $value;
+        }
+
+        StoreSetting::current()->update(['telegram_account_defaults' => $storedDefaults]);
+    }
+
+    private function cancelPendingInput(string $telegramUserId, string $chatId): void
+    {
+        $pendingInput = Cache::pull($this->pendingInputKey($telegramUserId));
+        $messageId = is_array($pendingInput)
+            ? filter_var($pendingInput['message_id'] ?? null, FILTER_VALIDATE_INT)
+            : false;
+
+        if (is_array($pendingInput) && ($pendingInput['type'] ?? null) === 'rate') {
+            $this->sendRatesMenu($chatId, $messageId === false ? null : $messageId, 'Pengaturan dibatalkan.');
+
+            return;
+        }
+
+        $this->sendSettingsMenu($chatId, $messageId === false ? null : $messageId, 'Pengaturan dibatalkan.');
+    }
+
+    private function setRate(string $chatId, string $currency, string $value, ?int $messageId = null): bool
+    {
+        $normalizedCurrency = mb_strtolower($currency);
+        $field = match ($normalizedCurrency) {
+            'rm', 'myr' => 'idr_per_myr',
+            'usd' => 'idr_per_usd',
+            default => null,
+        };
+        $normalizedValue = str_replace(',', '.', trim($value));
+
+        if ($field === null || preg_match('/^\d+(?:\.\d{1,4})?$/', $normalizedValue) !== 1
+            || (float) $normalizedValue <= 0 || (float) $normalizedValue > 9_999_999_999.9999) {
+            $text = 'Nilai kurs tidak valid. Masukkan angka positif (maksimal 4 desimal), misalnya 3600.';
+            if ($messageId === null) {
+                $this->telegram->sendMessage($chatId, $text);
+            } else {
+                $this->telegram->editMessageText($chatId, $messageId, $text, ['inline_keyboard' => []]);
+            }
+
+            return false;
+        }
+
+        ProductCurrencyRate::current()->update([$field => $normalizedValue]);
+        $label = $field === 'idr_per_myr' ? 'RM 1' : 'USD 1';
+        $notice = 'Kurs tersimpan: '.$label.' = Rp '.number_format((float) $normalizedValue, 0, ',', '.').'.';
+
+        if ($messageId === null) {
+            $this->telegram->sendMessage($chatId, $notice);
+        } else {
+            $this->sendRatesMenu($chatId, $messageId, $notice);
+        }
+
+        return true;
+    }
+
     private function startDraft(string $telegramUserId, string $chatId, int $updateId): void
     {
         $existingDraft = TelegramAccountDraft::query()
@@ -141,38 +484,33 @@ class TelegramAccountPostingBot
 
         if ($existingDraft !== null) {
             $existingDraft->update(['last_update_id' => $updateId, 'chat_id' => $chatId]);
-            $this->telegram->sendMessage($chatId, 'Masih ada draft aktif. Kirim /cancel untuk membatalkan atau lanjutkan draft tersebut.');
+            $this->sendDraftMessage(
+                $existingDraft,
+                'Masih ada draft aktif. Lanjutkan draft tersebut atau kirim /cancel untuk membatalkan.',
+                ['inline_keyboard' => []],
+            );
 
             return;
         }
 
-        TelegramAccountDraft::query()->create([
+        $defaults = $this->accountDefaults();
+        $draft = TelegramAccountDraft::query()->create([
             'telegram_user_id' => $telegramUserId,
             'chat_id' => $chatId,
             'status' => 'active',
             'step' => 'photos',
             'last_update_id' => $updateId,
-            'data' => [
+            'data' => array_merge([
                 'items' => [],
                 'category_options' => self::DEFAULT_CATEGORIES,
                 'selected_categories' => [],
-                'account_status' => '100% SAFE ANTI HB, NO VERIFIKASI',
-                'status_label' => 'READY✅',
-                'haki' => 'SKY JUMP, BODY, FLASH STEP',
-                'race' => 'V3 HUMAN',
-                'awaken' => '-',
-                'permanent' => '-',
-                'gamepass' => '-',
-                'stat_refund' => 2,
-                'post_chat' => (string) config('services.telegram.post_chat', ''),
-                'post_instagram' => (string) config('services.telegram.post_instagram', ''),
-            ],
+            ], $defaults),
             'images' => [],
             'processed_message_ids' => [],
         ]);
 
-        $this->telegram->sendMessage(
-            $chatId,
+        $this->sendDraftMessage(
+            $draft,
             'Kirim foto akun (maksimal 20 foto). Setelah semua foto terkirim, kirim /done. Kirim /cancel untuk membatalkan.',
         );
     }
@@ -183,7 +521,7 @@ class TelegramAccountPostingBot
     private function receivePhoto(TelegramAccountDraft $draft, array $message, int $updateId): void
     {
         if ($draft->step !== 'photos') {
-            $this->telegram->sendMessage($draft->chat_id, 'Foto hanya bisa ditambahkan pada langkah pertama. Lanjutkan dengan jawaban yang diminta atau kirim /cancel.');
+            $this->sendDraftMessage($draft, 'Foto hanya bisa ditambahkan pada langkah pertama. Lanjutkan dengan jawaban yang diminta atau kirim /cancel.');
 
             return;
         }
@@ -196,7 +534,7 @@ class TelegramAccountPostingBot
 
         $images = $draft->images ?? [];
         if (count($images) >= self::MAX_IMAGES) {
-            $this->telegram->sendMessage($draft->chat_id, 'Batas 20 foto tercapai. Kirim /done untuk melanjutkan.');
+            $this->sendDraftMessage($draft, 'Batas 20 foto tercapai. Kirim /done untuk melanjutkan.');
 
             return;
         }
@@ -206,7 +544,7 @@ class TelegramAccountPostingBot
         $fileId = is_array($largestPhoto) ? ($largestPhoto['file_id'] ?? null) : null;
 
         if (! is_string($fileId) || $fileId === '') {
-            $this->telegram->sendMessage($draft->chat_id, 'Foto tidak terbaca. Coba kirim ulang.');
+            $this->sendDraftMessage($draft, 'Foto tidak terbaca. Coba kirim ulang.');
 
             return;
         }
@@ -218,15 +556,13 @@ class TelegramAccountPostingBot
             'processed_message_ids' => $processedMessageIds,
             'last_update_id' => $updateId,
         ]);
-
-        $this->telegram->sendMessage($draft->chat_id, 'Foto diterima ('.count($images).'/'.self::MAX_IMAGES.'). Kirim foto lagi atau /done.');
     }
 
     private function finishCurrentStep(TelegramAccountDraft $draft): void
     {
         if ($draft->step === 'photos') {
             if (($draft->images ?? []) === []) {
-                $this->telegram->sendMessage($draft->chat_id, 'Kirim minimal satu foto sebelum melanjutkan.');
+                $this->sendDraftMessage($draft, 'Kirim minimal satu foto sebelum melanjutkan.');
 
                 return;
             }
@@ -249,19 +585,19 @@ class TelegramAccountPostingBot
             return;
         }
 
-        $this->telegram->sendMessage($draft->chat_id, 'Kirim jawaban untuk melanjutkan langkah ini.');
+        $this->sendDraftMessage($draft, 'Kirim jawaban untuk melanjutkan langkah ini.');
     }
 
     private function receiveText(TelegramAccountDraft $draft, string $text): void
     {
         if ($draft->step === 'photos') {
-            $this->telegram->sendMessage($draft->chat_id, 'Kirim foto, lalu /done jika sudah selesai.');
+            $this->sendDraftMessage($draft, 'Kirim foto, lalu /done jika sudah selesai.');
 
             return;
         }
 
         if ($draft->step === 'categories') {
-            $this->telegram->sendMessage($draft->chat_id, 'Pilih kategori melalui tombol di bawah, lalu tekan Selesai.');
+            $this->sendDraftMessage($draft, 'Pilih kategori melalui tombol di bawah, lalu tekan Selesai.');
 
             return;
         }
@@ -291,7 +627,7 @@ class TelegramAccountPostingBot
         }
 
         if ($draft->step === 'preview') {
-            $this->telegram->sendMessage($draft->chat_id, 'Periksa preview, lalu pilih Posting atau Batal melalui tombol.');
+            $this->sendDraftMessage($draft, 'Periksa preview, lalu pilih Posting atau Batal melalui tombol.');
 
             return;
         }
@@ -305,22 +641,22 @@ class TelegramAccountPostingBot
         $step = $draft->step;
 
         if ($step === 'username' && ($text === '' || Str::length($text) > 40)) {
-            $this->telegram->sendMessage($draft->chat_id, 'Nama akun wajib diisi (maksimal 40 karakter).');
+            $this->sendDraftMessage($draft, 'Nama akun wajib diisi (maksimal 40 karakter).');
 
             return;
         }
 
         if ($step === 'level' && (! ctype_digit($text) || (int) $text < 1 || (int) $text > 100_000)) {
-            $this->telegram->sendMessage($draft->chat_id, 'Level harus berupa angka antara 1 dan 100000.');
+            $this->sendDraftMessage($draft, 'Level harus berupa angka antara 1 dan 100000.');
 
             return;
         }
 
         if ($step === 'stat_refund') {
             if ($this->isCommand($text, '/skip')) {
-                $data['stat_refund'] = 2;
+                $data['stat_refund'] = $this->accountDefaults()['stat_refund'];
             } elseif (! ctype_digit($text) || (int) $text > 100) {
-                $this->telegram->sendMessage($draft->chat_id, 'Stat refund harus angka 0–100, atau /skip untuk memakai default 2.');
+                $this->sendDraftMessage($draft, 'Stat refund harus angka 0–100, atau /skip untuk memakai default.');
 
                 return;
             } else {
@@ -329,7 +665,7 @@ class TelegramAccountPostingBot
         } elseif ($step === 'price') {
             $price = $this->parsePriceInThousands($text);
             if ($price === null) {
-                $this->telegram->sendMessage($draft->chat_id, 'Masukkan harga dalam ribuan, misalnya 50 untuk Rp50.000 (atau 50.5 untuk Rp50.500).');
+                $this->sendDraftMessage($draft, 'Masukkan harga dalam ribuan, misalnya 50 untuk Rp50.000 (atau 50.5 untuk Rp50.500).');
 
                 return;
             }
@@ -339,16 +675,13 @@ class TelegramAccountPostingBot
             $defaults = [
                 'belly' => '-',
                 'fragment' => '-',
-                'haki' => 'SKY JUMP, BODY, FLASH STEP',
-                'race' => 'V3 HUMAN',
-                'awaken' => '-',
-                'permanent' => '-',
-                'gamepass' => '-',
             ];
-            $value = $this->isCommand($text, '/skip') ? ($defaults[$step] ?? '-') : $text;
+            $value = $this->isCommand($text, '/skip')
+                ? ($data[$step] ?? $defaults[$step] ?? '-')
+                : $text;
 
             if (Str::length($value) > 255) {
-                $this->telegram->sendMessage($draft->chat_id, 'Jawaban maksimal 255 karakter.');
+                $this->sendDraftMessage($draft, 'Jawaban maksimal 255 karakter.');
 
                 return;
             }
@@ -411,14 +744,21 @@ class TelegramAccountPostingBot
             return;
         }
 
-        $this->telegram->sendMessage($draft->chat_id, $prompts[$step] ?? 'Kirim jawaban untuk melanjutkan.');
+        $photoNotice = $step === 'username'
+            ? 'Foto tersimpan: '.count($draft->images ?? []).".\n"
+            : '';
+        $this->sendDraftMessage(
+            $draft,
+            $photoNotice.($prompts[$step] ?? 'Kirim jawaban untuk melanjutkan.'),
+            ['inline_keyboard' => []],
+        );
     }
 
     private function addCategory(TelegramAccountDraft $draft, string $category): void
     {
         $category = trim($category);
         if ($category === '' || Str::length($category) > 30 || str_contains($category, ':')) {
-            $this->telegram->sendMessage($draft->chat_id, 'Nama kategori harus 1–30 karakter dan tidak boleh berisi titik dua.');
+            $this->sendDraftMessage($draft, 'Nama kategori harus 1–30 karakter dan tidak boleh berisi titik dua.');
 
             return;
         }
@@ -427,7 +767,7 @@ class TelegramAccountPostingBot
         $key = 'custom_'.substr(sha1(mb_strtolower($category)), 0, 12);
         $options = $data['category_options'] ?? self::DEFAULT_CATEGORIES;
         if (! array_key_exists($key, $options) && count($options) >= self::MAX_CATEGORIES) {
-            $this->telegram->sendMessage($draft->chat_id, 'Maksimal 20 kategori dapat dipilih atau ditambahkan.');
+            $this->sendDraftMessage($draft, 'Maksimal 20 kategori dapat dipilih atau ditambahkan.');
 
             return;
         }
@@ -446,7 +786,7 @@ class TelegramAccountPostingBot
     {
         $selected = $draft->data['selected_categories'] ?? [];
         if ($selected === []) {
-            $this->telegram->sendMessage($draft->chat_id, 'Pilih minimal satu kategori atau tambahkan kategori baru.');
+            $this->sendDraftMessage($draft, 'Pilih minimal satu kategori atau tambahkan kategori baru.');
 
             return;
         }
@@ -477,8 +817,8 @@ class TelegramAccountPostingBot
             ],
         ];
 
-        $this->telegram->sendMessage(
-            $draft->chat_id,
+        $this->sendDraftMessage(
+            $draft,
             ($notice === null ? '' : $notice."\n").'Pilih kategori yang dipakai. Tekan kategori untuk memilih atau membatalkan pilihan.',
             $keyboard,
         );
@@ -526,8 +866,8 @@ class TelegramAccountPostingBot
             ],
         ];
 
-        $this->telegram->sendMessage(
-            $draft->chat_id,
+        $this->sendDraftMessage(
+            $draft,
             ($notice === null ? '' : $notice."\n").'Pilih beberapa item dari daftar. Item baru dapat ditambahkan dan disimpan untuk posting berikutnya.',
             $keyboard,
         );
@@ -543,9 +883,10 @@ class TelegramAccountPostingBot
 
         $data['pending_item_category'] = $data['category_options'][$categoryKey];
         $draft->update(['data' => $data, 'step' => 'new_item_name']);
-        $this->telegram->sendMessage(
-            $draft->chat_id,
+        $this->sendDraftMessage(
+            $draft,
             'Kirim nama item baru untuk kategori '.$data['pending_item_category'].' (maksimal 80 karakter).',
+            ['inline_keyboard' => []],
         );
     }
 
@@ -553,7 +894,7 @@ class TelegramAccountPostingBot
     {
         $name = trim($name);
         if ($name === '' || Str::length($name) > 80) {
-            $this->telegram->sendMessage($draft->chat_id, 'Nama item wajib diisi dan maksimal 80 karakter.');
+            $this->sendDraftMessage($draft, 'Nama item wajib diisi dan maksimal 80 karakter.');
 
             return;
         }
@@ -561,7 +902,11 @@ class TelegramAccountPostingBot
         $data = $draft->data;
         $data['pending_item_name'] = $name;
         $draft->update(['data' => $data, 'step' => 'new_item_emoji']);
-        $this->telegram->sendMessage($draft->chat_id, 'Kirim emoji/icon untuk item ini, atau /skip jika tanpa emoji.');
+        $this->sendDraftMessage(
+            $draft,
+            'Kirim emoji/icon untuk item ini, atau /skip jika tanpa emoji.',
+            ['inline_keyboard' => []],
+        );
     }
 
     private function saveNewItemEmoji(TelegramAccountDraft $draft, string $emoji): void
@@ -572,7 +917,7 @@ class TelegramAccountPostingBot
         }
 
         if (Str::length($emoji) > 8) {
-            $this->telegram->sendMessage($draft->chat_id, 'Emoji maksimal 8 karakter, atau /skip untuk tanpa emoji.');
+            $this->sendDraftMessage($draft, 'Emoji maksimal 8 karakter, atau /skip untuk tanpa emoji.');
 
             return;
         }
@@ -591,8 +936,9 @@ class TelegramAccountPostingBot
         }
 
         $selectedItems = array_map('intval', $data['selected_item_ids'] ?? []);
+        $notice = 'Item tersimpan ke daftar dan dipilih untuk posting ini.';
         if (count($selectedItems) >= self::MAX_LISTING_ITEMS) {
-            $this->telegram->sendMessage($draft->chat_id, 'Maksimal 20 item per posting. Item baru tetap tersimpan di daftar kategori.');
+            $notice = 'Item tersimpan di daftar, tetapi maksimal 20 item dapat dipilih per posting.';
         } elseif (! in_array($item->id, $selectedItems, true)) {
             $selectedItems[] = $item->id;
         }
@@ -600,14 +946,14 @@ class TelegramAccountPostingBot
         $data['selected_item_ids'] = $selectedItems;
         unset($data['pending_item_category'], $data['pending_item_name']);
         $draft->update(['data' => $data, 'step' => 'items']);
-        $this->sendItemKeyboard($draft->fresh(), 'Item tersimpan ke daftar dan dipilih untuk posting ini.');
+        $this->sendItemKeyboard($draft->fresh(), $notice);
     }
 
     private function finishItemSelection(TelegramAccountDraft $draft): void
     {
         $selectedIds = array_map('intval', $draft->data['selected_item_ids'] ?? []);
         if ($selectedIds === []) {
-            $this->telegram->sendMessage($draft->chat_id, 'Pilih minimal satu item sebelum melanjutkan.');
+            $this->sendDraftMessage($draft, 'Pilih minimal satu item sebelum melanjutkan.');
 
             return;
         }
@@ -627,20 +973,20 @@ class TelegramAccountPostingBot
         }
 
         if ($data['items'] === []) {
-            $this->telegram->sendMessage($draft->chat_id, 'Item yang dipilih tidak ditemukan. Pilih item kembali.');
+            $this->sendDraftMessage($draft, 'Item yang dipilih tidak ditemukan. Pilih item kembali.');
 
             return;
         }
 
-        $draft->update(['data' => $data, 'step' => 'haki']);
-        $this->askForStep($draft, 'haki');
+        $draft->update(['data' => $data, 'step' => 'price']);
+        $this->askForStep($draft, 'price');
     }
 
     private function sendPreview(TelegramAccountDraft $draft): void
     {
         $rates = ProductCurrencyRate::current();
-        $this->telegram->sendMessage(
-            $draft->chat_id,
+        $this->sendDraftMessage(
+            $draft,
             $this->formatter->plainText($draft->data, $rates)."\n\nPosting akan membuat produk aktif di website dan mengirim foto serta detail ke channel.",
             [
                 'inline_keyboard' => [[
@@ -667,6 +1013,20 @@ class TelegramAccountPostingBot
         }
 
         $telegramUserId = (string) ($callback['from']['id'] ?? '');
+        $chatId = (string) ($message['chat']['id'] ?? '');
+        $messageId = filter_var($message['message_id'] ?? null, FILTER_VALIDATE_INT);
+        $callbackData = (string) ($callback['data'] ?? '');
+
+        if ($this->handleMenuCallback(
+            $callbackData,
+            $telegramUserId,
+            $chatId,
+            $messageId === false ? null : $messageId,
+            $updateId,
+        )) {
+            return;
+        }
+
         $draft = TelegramAccountDraft::query()
             ->where('telegram_user_id', $telegramUserId)
             ->where('status', 'active')
@@ -678,7 +1038,6 @@ class TelegramAccountPostingBot
         }
 
         $draft->last_update_id = $updateId;
-        $callbackData = (string) ($callback['data'] ?? '');
 
         if (str_starts_with($callbackData, 'cat:')) {
             $draft->save();
@@ -714,11 +1073,96 @@ class TelegramAccountPostingBot
             PublishTelegramAccountListing::dispatch($draft->fresh()->id);
             $productUrl = route('product-details.show', $product);
 
-            $this->telegram->sendMessage(
-                $draft->chat_id,
+            $this->sendDraftMessage(
+                $draft,
                 'Produk sudah tayang di website: '.$productUrl."\nPosting foto dan detail ke channel sedang diproses.",
+                ['inline_keyboard' => []],
             );
         }
+    }
+
+    private function handleMenuCallback(
+        string $callbackData,
+        string $telegramUserId,
+        string $chatId,
+        ?int $messageId,
+        int $updateId,
+    ): bool {
+        if ($callbackData === 'menu:new') {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->startDraft($telegramUserId, $chatId, $updateId);
+
+            return true;
+        }
+
+        if ($callbackData === 'menu:main') {
+            $this->sendOrEditMessage($chatId, $messageId, 'Menu utama bot posting akun:', $this->mainMenuMarkup());
+
+            return true;
+        }
+
+        if ($callbackData === 'menu:settings') {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendSettingsMenu($chatId, $messageId);
+
+            return true;
+        }
+
+        if ($callbackData === 'menu:rates') {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendRatesMenu($chatId, $messageId);
+
+            return true;
+        }
+
+        if ($callbackData === 'menu:help') {
+            $this->sendOrEditMessage($chatId, $messageId, $this->helpText(), $this->mainMenuMarkup());
+
+            return true;
+        }
+
+        if (str_starts_with($callbackData, 'settings:edit:')) {
+            $field = substr($callbackData, strlen('settings:edit:'));
+            if (! array_key_exists($field, self::SETTING_LABELS)) {
+                return true;
+            }
+
+            Cache::put(
+                $this->pendingInputKey($telegramUserId),
+                ['type' => 'default', 'field' => $field, 'message_id' => $messageId],
+                now()->addMinutes(10),
+            );
+            $currentValue = $this->accountDefaults()[$field] ?? '-';
+            $this->editPendingPrompt(
+                $chatId,
+                $messageId,
+                'Kirim nilai default untuk '.self::SETTING_LABELS[$field].'. Saat ini: '.$currentValue.'. /skip untuk mengembalikan default awal, /cancel untuk batal.',
+            );
+
+            return true;
+        }
+
+        if (str_starts_with($callbackData, 'rates:edit:')) {
+            $currency = substr($callbackData, strlen('rates:edit:'));
+            if (! in_array($currency, ['myr', 'usd'], true)) {
+                return true;
+            }
+
+            Cache::put(
+                $this->pendingInputKey($telegramUserId),
+                ['type' => 'rate', 'field' => $currency, 'message_id' => $messageId],
+                now()->addMinutes(10),
+            );
+            $this->editPendingPrompt(
+                $chatId,
+                $messageId,
+                'Kirim nilai IDR untuk 1 '.($currency === 'myr' ? 'RM' : 'USD').', misalnya '.($currency === 'myr' ? '3600' : '15000').'. /cancel untuk batal.',
+            );
+
+            return true;
+        }
+
+        return false;
     }
 
     private function handleCategoryCallback(TelegramAccountDraft $draft, string $action): void
@@ -729,7 +1173,7 @@ class TelegramAccountPostingBot
 
         if ($action === 'add') {
             $draft->update(['step' => 'new_category']);
-            $this->telegram->sendMessage($draft->chat_id, 'Kirim nama kategori baru (maksimal 30 karakter).');
+            $this->sendDraftMessage($draft, 'Kirim nama kategori baru (maksimal 30 karakter).');
 
             return;
         }
@@ -799,7 +1243,7 @@ class TelegramAccountPostingBot
         if (in_array($itemId, $selectedItems, true)) {
             $selectedItems = array_values(array_filter($selectedItems, fn (int $id): bool => $id !== $itemId));
         } elseif (count($selectedItems) >= self::MAX_LISTING_ITEMS) {
-            $this->telegram->sendMessage($draft->chat_id, 'Maksimal 20 item dapat dipilih per posting.');
+            $this->sendDraftMessage($draft, 'Maksimal 20 item dapat dipilih per posting.');
 
             return;
         } else {
@@ -834,6 +1278,41 @@ class TelegramAccountPostingBot
         }
 
         $draft->update(['status' => 'cancelled']);
-        $this->telegram->sendMessage($draft->chat_id, 'Draft dibatalkan.');
+        $this->sendDraftMessage($draft, 'Draft dibatalkan.', ['inline_keyboard' => []]);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $replyMarkup
+     */
+    private function sendDraftMessage(TelegramAccountDraft $draft, string $text, ?array $replyMarkup = null): void
+    {
+        $data = $draft->data ?? [];
+        $messageId = filter_var($data['bot_message_id'] ?? null, FILTER_VALIDATE_INT);
+
+        if ($messageId !== false && $messageId !== null) {
+            $markup = $replyMarkup ?? ($data['bot_message_markup'] ?? ['inline_keyboard' => []]);
+            if (($data['bot_message_text'] ?? null) === $text
+                && ($data['bot_message_markup'] ?? null) === $markup) {
+                return;
+            }
+
+            $this->telegram->editMessageText($draft->chat_id, $messageId, $text, $markup);
+            $data['bot_message_text'] = $text;
+            $data['bot_message_markup'] = $markup;
+            $draft->update(['data' => $data]);
+
+            return;
+        }
+
+        $result = $this->telegram->sendMessage($draft->chat_id, $text, $replyMarkup);
+        $messageId = filter_var($result['message_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($messageId === false || $messageId === null) {
+            return;
+        }
+
+        $data['bot_message_id'] = $messageId;
+        $data['bot_message_text'] = $text;
+        $data['bot_message_markup'] = $replyMarkup;
+        $draft->update(['data' => $data]);
     }
 }

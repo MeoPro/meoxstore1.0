@@ -51,14 +51,29 @@ class PublishTelegramAccountListing implements ShouldBeUnique, ShouldQueue
 
         while ($draft->channel_media_offset < count($images)) {
             $batch = array_slice($images, $draft->channel_media_offset, 10);
-            $telegram->sendPhotoGroup($channelId, $batch);
-            $draft->increment('channel_media_offset', count($batch));
+            $caption = null;
+            if (! $draft->channel_text_sent && $draft->channel_media_offset === 0) {
+                $caption = $formatter->telegramHtml(
+                    $draft->data,
+                    ProductCurrencyRate::current(),
+                    route('product-details.show', $product),
+                );
+            }
+
+            $telegram->sendPhotoGroup($channelId, $batch, $caption);
+            $draft->update([
+                'channel_media_offset' => $draft->channel_media_offset + count($batch),
+                'channel_text_sent' => $draft->channel_text_sent || $caption !== null,
+            ]);
             $draft->refresh();
         }
 
         if (! $draft->channel_text_sent) {
-            $productUrl = route('product-details.show', $product);
-            $text = $formatter->telegramHtml($draft->data, ProductCurrencyRate::current(), $productUrl);
+            $text = $formatter->telegramHtml(
+                $draft->data,
+                ProductCurrencyRate::current(),
+                route('product-details.show', $product),
+            );
             $telegram->sendMessage($channelId, $text, parseMode: 'HTML');
             $draft->update(['channel_text_sent' => true]);
         }
