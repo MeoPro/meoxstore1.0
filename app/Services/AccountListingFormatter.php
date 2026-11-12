@@ -2,14 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\ProductCurrencyRate;
-
 class AccountListingFormatter
 {
     /**
      * @param  array<string, mixed>  $data
+     * @param  array{idr_per_myr: float|int|string, idr_per_usd: float|int|string}  $rates
      */
-    public function plainText(array $data, ProductCurrencyRate $rates, ?string $productUrl = null): string
+    public function plainText(array $data, array $rates, ?string $productUrl = null): string
     {
         return html_entity_decode(
             strip_tags($this->telegramHtml($data, $rates, $productUrl)),
@@ -20,8 +19,9 @@ class AccountListingFormatter
 
     /**
      * @param  array<string, mixed>  $data
+     * @param  array{idr_per_myr: float|int|string, idr_per_usd: float|int|string}  $rates
      */
-    public function telegramHtml(array $data, ProductCurrencyRate $rates, ?string $productUrl = null): string
+    public function telegramHtml(array $data, array $rates, ?string $productUrl = null): string
     {
         $items = $data['items'] ?? [];
         $headlineItems = array_map(fn (array $item): string => $this->escape($item['name']), $items);
@@ -29,8 +29,8 @@ class AccountListingFormatter
         $price = (float) $data['price_idr'];
         $priceInThousands = number_format($price / 1000, 2, '.', ',');
         $priceInThousands = rtrim(rtrim($priceInThousands, '0'), '.');
-        $myrPrice = number_format($price / (float) $rates->idr_per_myr, 2);
-        $usdPrice = number_format(($price + 10_000) / (float) $rates->idr_per_usd, 2);
+        $myrPrice = number_format($price / (float) $rates['idr_per_myr'], 2);
+        $usdPrice = number_format(($price + 10_000) / (float) $rates['idr_per_usd'], 2);
         $lines = [
             '<b>#'.$this->escape($data['status_label'] ?? 'READY✅').'</b>',
             '',

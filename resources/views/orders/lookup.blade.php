@@ -30,7 +30,7 @@
         @media (prefers-reduced-motion: reduce) { .tracking-card { animation: none; } .tracking-submit { transition: none; } }
     </style>
 </head>
-<body>
+<body class="storefront-page">
     <x-storefront-header />
     <main class="tracking-wrap">
         <section class="tracking-card">

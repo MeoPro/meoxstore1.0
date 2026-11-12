@@ -12,6 +12,8 @@ it('renders the sign in page', function () {
         ->assertOk()
         ->assertSee('Masuk')
         ->assertSee('name="email"', false)
+        ->assertSee('data-password-toggle', false)
+        ->assertSee('aria-label="Tampilkan kata sandi"', false)
         ->assertSee(route('register'));
 });
 

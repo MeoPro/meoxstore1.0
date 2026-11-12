@@ -34,7 +34,7 @@ class CreateTelegramAccountProduct
             $product = Product::query()->create([
                 'game_category_id' => $gameCategory->id,
                 'item_category_id' => $itemCategory->id,
-                'name' => 'Blox Fruit Account - '.$data['username'],
+                'name' => $data['website_title'] ?? 'Blox Fruit Account - '.$data['username'],
                 'description' => $data['description'],
                 'image' => $images[0] ?? null,
                 'images' => $images,

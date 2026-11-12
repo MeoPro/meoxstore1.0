@@ -19,7 +19,7 @@
         .settings-divider { border: 0; border-top: 1px solid #e7ebef; margin: 26px 0; }
     </style>
 </head>
-<body>
+<body class="storefront-page">
     <x-storefront-header />
     <div class="page-heading header-text"><div class="container"><div class="row"><div class="col-lg-12">
         <h3>{{ __('store.settings') }}</h3>

@@ -24,6 +24,12 @@
 		.auth-form h2 { font-size: 28px; font-weight: 600; margin-bottom: 8px; }
 		.auth-form .form-control { border-color: #ccd7d6; min-height: 46px; }
 		.auth-form .form-control:focus { border-color: #80a5a2; box-shadow: 0 0 0 .2rem rgba(65, 126, 120, .13); }
+		.auth-password-field { position: relative; }
+		.auth-password-field .form-control { padding-right: 3rem; }
+		.auth-password-field .form-control.is-invalid { background-position: right 2.75rem center; }
+		.auth-password-toggle { align-items: center; background: transparent; border: 0; border-radius: 6px; color: var(--muted); cursor: pointer; display: flex; height: 36px; justify-content: center; padding: 6px; position: absolute; right: 6px; top: 5px; width: 36px; }
+		.auth-password-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+		.auth-password-toggle svg { height: 20px; width: 20px; }
 		.btn-auth { background: var(--accent); border-color: var(--accent); color: #fff; min-height: 46px; }
 		.btn-auth:hover { background: #bd583a; border-color: #bd583a; color: #fff; }
 		.auth-back { color: var(--muted); text-decoration: none; }
@@ -75,8 +81,22 @@
 			</div>
 			<div class="mb-3">
 				<label class="form-label" for="password">{{ __('store.password') }}</label>
-				<input class="form-control @error('password') is-invalid @enderror" id="password" name="password" type="password" autocomplete="current-password" required>
-				@error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+				<div class="auth-password-field">
+					<input class="form-control @error('password') is-invalid @enderror" id="password" name="password" type="password" autocomplete="current-password" required>
+					<button class="auth-password-toggle" type="button" aria-controls="password" aria-label="{{ __('store.show_password') }}" aria-pressed="false" data-password-toggle data-show-label="{{ __('store.show_password') }}" data-hide-label="{{ __('store.hide_password') }}">
+						<svg data-password-show-icon aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24">
+							<path d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6-9.75-6-9.75-6Z"></path>
+							<circle cx="12" cy="12" r="2.5"></circle>
+						</svg>
+						<svg data-password-hide-icon aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24" hidden>
+							<path d="m3 3 18 18"></path>
+							<path d="M10.58 10.58a2 2 0 0 0 2.84 2.84"></path>
+							<path d="M9.88 5.09A10.7 10.7 0 0 1 12 4.88c6.25 0 9.75 7.12 9.75 7.12a15.7 15.7 0 0 1-3.14 3.95"></path>
+							<path d="M6.61 6.61A16.3 16.3 0 0 0 2.25 12s3.5 7.12 9.75 7.12c1.26 0 2.4-.31 3.42-.82"></path>
+						</svg>
+					</button>
+					@error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+				</div>
 			</div>
 			<div class="form-check mb-4">
 				<input class="form-check-input" id="remember" name="remember" type="checkbox" value="1">
@@ -88,5 +108,21 @@
 		</form>
 	</main>
 </div>
+<script>
+	const passwordToggle = document.querySelector('[data-password-toggle]');
+	const passwordInput = document.getElementById(passwordToggle.getAttribute('aria-controls'));
+	const showPasswordIcon = passwordToggle.querySelector('[data-password-show-icon]');
+	const hidePasswordIcon = passwordToggle.querySelector('[data-password-hide-icon]');
+
+	passwordToggle.addEventListener('click', () => {
+		const isVisible = passwordInput.type === 'text';
+
+		passwordInput.type = isVisible ? 'password' : 'text';
+		passwordToggle.setAttribute('aria-pressed', String(!isVisible));
+		passwordToggle.setAttribute('aria-label', isVisible ? passwordToggle.dataset.showLabel : passwordToggle.dataset.hideLabel);
+		showPasswordIcon.hidden = !isVisible;
+		hidePasswordIcon.hidden = isVisible;
+	});
+</script>
 </body>
 </html>

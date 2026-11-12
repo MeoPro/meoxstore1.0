@@ -279,6 +279,8 @@ return [
     'account_access' => 'ACCOUNT ACCESS',
     'welcome_back' => 'Welcome back to Meoxstore',
     'password' => 'Password',
+    'show_password' => 'Show password',
+    'hide_password' => 'Hide password',
     'remember_me' => 'Remember me',
     'no_account' => 'Do not have an account yet?',
     'register' => 'Register',

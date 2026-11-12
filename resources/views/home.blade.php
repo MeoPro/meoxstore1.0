@@ -97,7 +97,7 @@
     -->
     </head>
 
-    <body>
+    <body class="storefront-page">
 
     <!-- ***** Preloader Start ***** -->
     <div id="js-preloader" class="js-preloader">

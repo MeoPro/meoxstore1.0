@@ -135,7 +135,7 @@
     }
   </style>
 </head>
-<body class="product-detail-page">
+<body class="product-detail-page storefront-page">
   <div id="js-preloader" class="js-preloader">
     <div class="preloader-inner">
       <span class="dot"></span>

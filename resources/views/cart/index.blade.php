@@ -55,7 +55,7 @@
         @media (max-width: 650px) { .cart-item { align-items: start; gap: 10px; } .cart-item-main img { height: 70px; width: 76px; } .cart-item-main h2 { font-size: 14px; } .cart-item-price { font-size: 15px; grid-column: 1 / -1; } .cart-item-details form { max-width: calc(100vw - 32px); } .cart-actions { justify-content: flex-end; } .cart-toolbar { align-items: flex-start; flex-direction: column; } }
     </style>
 </head>
-<body>
+<body class="storefront-page">
     <x-storefront-header />
     <div class="page-heading header-text">
         <div class="container"><div class="row"><div class="col-lg-12">

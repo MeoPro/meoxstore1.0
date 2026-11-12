@@ -14,7 +14,7 @@
         'resources/js/app.js',
     ])
 </head>
-<body>
+<body class="storefront-page">
     <x-storefront-header />
     <div class="page-heading header-text">
         <div class="container">

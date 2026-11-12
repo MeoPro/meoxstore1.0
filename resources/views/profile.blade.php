@@ -59,7 +59,7 @@
         }
     </style>
 </head>
-<body>
+<body class="storefront-page">
     <x-storefront-header />
     <main class="container profile-page">
         @if (session('success'))

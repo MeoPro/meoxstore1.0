@@ -51,19 +51,6 @@ class TelegramAccountPostingBot
         'post_instagram' => 'Instagram',
     ];
 
-    /**
-     * @var array<string, string>
-     */
-    private const DEFAULT_CATEGORIES = [
-        'sword' => 'Sword',
-        'gun' => 'Gun',
-        'fruit' => 'Fruit',
-        'gamepass' => 'Gamepass',
-        'perm' => 'Perm',
-        'awaken' => 'Awaken',
-        'race' => 'Race',
-    ];
-
     public function __construct(
         private readonly TelegramBotApi $telegram,
         private readonly AccountListingFormatter $formatter,
@@ -225,9 +212,9 @@ class TelegramAccountPostingBot
             "/cancel — batalkan draft atau pengaturan yang sedang diedit\n".
             "/settings — atur nilai default untuk posting baru\n".
             "/rates — lihat kurs saat ini\n".
-            "/setrate RM 3600 — atur kurs IDR per 1 RM\n".
-            "/setrate USD 15000 — atur kurs IDR per 1 USD\n\n".
-            'Nilai default Haki, Race, Awaken, Permanent, Gamepass, dan Stat Refund otomatis dipakai. Ubah kapan saja lewat /settings.';
+            "/setrate RM 3600 — atur kurs Telegram IDR per 1 RM\n".
+            "/setrate USD 15000 — atur kurs Telegram IDR per 1 USD\n\n".
+            'Kelola kategori dan jenis item dari menu utama. Nilai default Haki, Race, Awaken, Permanent, Gamepass, dan Stat Refund otomatis dipakai; ubah kapan saja lewat /settings.';
     }
 
     /**
@@ -238,6 +225,7 @@ class TelegramAccountPostingBot
         return [
             'inline_keyboard' => [
                 [['text' => '➕ Posting akun', 'callback_data' => 'menu:new']],
+                [['text' => '🗂 Kategori & item', 'callback_data' => 'menu:catalog']],
                 [
                     ['text' => '⚙️ Default posting', 'callback_data' => 'menu:settings'],
                     ['text' => '💱 Kurs', 'callback_data' => 'menu:rates'],
@@ -289,12 +277,12 @@ class TelegramAccountPostingBot
 
     private function sendRatesMenu(string $chatId, ?int $messageId = null, ?string $notice = null): void
     {
-        $rates = ProductCurrencyRate::current();
+        $rates = StoreSetting::current()->telegramAccountRates();
         $text = ($notice === null ? '' : $notice."\n\n").
-            'Kurs saat ini:'."\n".
-            'RM 1 = Rp '.rtrim(rtrim(number_format((float) $rates->idr_per_myr, 4, '.', ','), '0'), '.')."\n".
-            'USD 1 = Rp '.rtrim(rtrim(number_format((float) $rates->idr_per_usd, 4, '.', ','), '0'), '.')."\n\n".
-            'Kurs ini dipakai website dan posting Telegram.';
+            'Kurs Telegram saat ini:'."\n".
+            'RM 1 = Rp '.rtrim(rtrim(number_format((float) $rates['idr_per_myr'], 4, '.', ','), '0'), '.')."\n".
+            'USD 1 = Rp '.rtrim(rtrim(number_format((float) $rates['idr_per_usd'], 4, '.', ','), '0'), '.')."\n\n".
+            'Kurs ini hanya untuk posting Telegram. Kurs website diatur di Admin > Rates.';
         $markup = [
             'inline_keyboard' => [
                 [
@@ -306,6 +294,222 @@ class TelegramAccountPostingBot
         ];
 
         $this->sendOrEditMessage($chatId, $messageId, $text, $markup);
+    }
+
+    private function sendCatalogMenu(string $chatId, ?int $messageId = null, ?string $notice = null): void
+    {
+        $categories = StoreSetting::current()->telegramAccountCategories();
+        $buttons = [];
+
+        foreach ($categories as $key => $label) {
+            $itemCount = TelegramAccountItem::query()->where('category', $label)->count();
+            $buttons[] = [
+                'text' => $label.' ('.$itemCount.')',
+                'callback_data' => 'catalog:category:'.$key,
+            ];
+        }
+
+        $markup = [
+            'inline_keyboard' => [
+                ...array_chunk($buttons, 2),
+                [['text' => '➕ Tambah kategori', 'callback_data' => 'catalog:add-category']],
+                [['text' => '⬅️ Menu utama', 'callback_data' => 'menu:main']],
+            ],
+        ];
+        $text = ($notice === null ? '' : $notice."\n\n").
+            'Kategori dan jenis item untuk posting. Pilih kategori untuk melihat atau menambahkan jenis item.';
+
+        $this->sendOrEditMessage($chatId, $messageId, $text, $markup);
+    }
+
+    private function sendCatalogCategory(
+        string $chatId,
+        ?int $messageId,
+        string $categoryKey,
+        ?string $notice = null,
+    ): void {
+        $categories = StoreSetting::current()->telegramAccountCategories();
+        $category = $categories[$categoryKey] ?? null;
+
+        if ($category === null) {
+            $this->sendCatalogMenu($chatId, $messageId, 'Kategori tidak ditemukan.');
+
+            return;
+        }
+
+        $items = TelegramAccountItem::query()
+            ->where('category', $category)
+            ->orderBy('name')
+            ->get();
+        $itemLines = $items->map(fn (TelegramAccountItem $item): string => '• '.($item->emoji ?? '').$item->name);
+        $text = ($notice === null ? '' : $notice."\n\n").
+            'Kategori: '.$category."\n\n".
+            'Jenis item:'."\n".
+            ($itemLines->isEmpty() ? 'Belum ada. Tambahkan jenis item di bawah.' : $itemLines->implode("\n"));
+        $markup = [
+            'inline_keyboard' => [
+                [['text' => '➕ Tambah jenis item', 'callback_data' => 'catalog:add-item:'.$categoryKey]],
+                [['text' => '⬅️ Kembali ke kategori', 'callback_data' => 'catalog:main']],
+                [['text' => '🏠 Menu utama', 'callback_data' => 'menu:main']],
+            ],
+        ];
+
+        $this->sendOrEditMessage($chatId, $messageId, $text, $markup);
+    }
+
+    /**
+     * @param  array<string, mixed>  $pendingInput
+     */
+    private function saveCatalogCategoryInput(
+        string $telegramUserId,
+        string $chatId,
+        array $pendingInput,
+        string $value,
+    ): void {
+        $category = trim($value);
+        $messageId = filter_var($pendingInput['message_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($category === '' || Str::length($category) > 30 || str_contains($category, ':')) {
+            $this->editPendingPrompt(
+                $chatId,
+                $messageId === false ? null : $messageId,
+                'Nama kategori harus 1–30 karakter dan tidak boleh berisi titik dua. Kirim ulang atau /cancel.',
+            );
+            Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+
+            return;
+        }
+
+        $storeSettings = StoreSetting::current();
+        $categories = $storeSettings->telegramAccountCategories();
+        foreach ($categories as $key => $label) {
+            if (mb_strtolower($label) === mb_strtolower($category)) {
+                Cache::forget($this->pendingInputKey($telegramUserId));
+                $this->sendCatalogMenu(
+                    $chatId,
+                    $messageId === false ? null : $messageId,
+                    'Kategori '.$label.' sudah tersedia.',
+                );
+
+                return;
+            }
+        }
+
+        if (count($categories) >= self::MAX_CATEGORIES) {
+            $this->editPendingPrompt(
+                $chatId,
+                $messageId === false ? null : $messageId,
+                'Maksimal 20 kategori dapat disimpan. Kirim /cancel untuk kembali.',
+            );
+            Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+
+            return;
+        }
+
+        $key = 'custom_'.substr(sha1(mb_strtolower($category)), 0, 12);
+        $categories[$key] = $category;
+        $storeSettings->update(['telegram_account_categories' => $categories]);
+        Cache::forget($this->pendingInputKey($telegramUserId));
+        $this->sendCatalogMenu(
+            $chatId,
+            $messageId === false ? null : $messageId,
+            'Kategori '.$category.' berhasil ditambahkan.',
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $pendingInput
+     */
+    private function saveCatalogItemNameInput(
+        string $telegramUserId,
+        string $chatId,
+        array $pendingInput,
+        string $value,
+    ): void {
+        $name = trim($value);
+        $messageId = filter_var($pendingInput['message_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($name === '' || Str::length($name) > 80) {
+            $this->editPendingPrompt(
+                $chatId,
+                $messageId === false ? null : $messageId,
+                'Nama jenis item wajib diisi dan maksimal 80 karakter. Kirim ulang atau /cancel.',
+            );
+            Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+
+            return;
+        }
+
+        $categoryKey = (string) ($pendingInput['category_key'] ?? '');
+        $category = StoreSetting::current()->telegramAccountCategories()[$categoryKey] ?? null;
+        if ($category === null) {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendCatalogMenu($chatId, $messageId === false ? null : $messageId, 'Kategori tidak ditemukan.');
+
+            return;
+        }
+
+        $pendingInput['type'] = 'catalog_item_emoji';
+        $pendingInput['item_name'] = $name;
+        Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+        $this->editPendingPrompt(
+            $chatId,
+            $messageId === false ? null : $messageId,
+            'Kirim emoji/icon untuk '.$name.' di kategori '.$category.', atau /skip jika tanpa emoji.',
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $pendingInput
+     */
+    private function saveCatalogItemEmojiInput(
+        string $telegramUserId,
+        string $chatId,
+        array $pendingInput,
+        string $value,
+    ): void {
+        $emoji = trim($value);
+        $messageId = filter_var($pendingInput['message_id'] ?? null, FILTER_VALIDATE_INT);
+        if ($this->isCommand($emoji, '/skip') || $emoji === '-') {
+            $emoji = '';
+        }
+
+        if (Str::length($emoji) > 8) {
+            $this->editPendingPrompt(
+                $chatId,
+                $messageId === false ? null : $messageId,
+                'Emoji maksimal 8 karakter, atau /skip untuk tanpa emoji.',
+            );
+            Cache::put($this->pendingInputKey($telegramUserId), $pendingInput, now()->addMinutes(10));
+
+            return;
+        }
+
+        $categoryKey = (string) ($pendingInput['category_key'] ?? '');
+        $category = StoreSetting::current()->telegramAccountCategories()[$categoryKey] ?? null;
+        if ($category === null) {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendCatalogMenu($chatId, $messageId === false ? null : $messageId, 'Kategori tidak ditemukan.');
+
+            return;
+        }
+
+        $item = TelegramAccountItem::query()->firstOrCreate(
+            [
+                'category' => $category,
+                'name' => (string) ($pendingInput['item_name'] ?? ''),
+            ],
+            ['emoji' => $emoji === '' ? null : $emoji],
+        );
+        if ($emoji !== '' && $item->emoji !== $emoji) {
+            $item->update(['emoji' => $emoji]);
+        }
+
+        Cache::forget($this->pendingInputKey($telegramUserId));
+        $this->sendCatalogCategory(
+            $chatId,
+            $messageId === false ? null : $messageId,
+            $categoryKey,
+            'Jenis item '.$item->name.' berhasil disimpan.',
+        );
     }
 
     /**
@@ -397,6 +601,24 @@ class TelegramAccountPostingBot
             }
 
             Cache::forget($this->pendingInputKey($telegramUserId));
+
+            return;
+        }
+
+        if ($type === 'catalog_category') {
+            $this->saveCatalogCategoryInput($telegramUserId, $chatId, $pendingInput, $value);
+
+            return;
+        }
+
+        if ($type === 'catalog_item_name') {
+            $this->saveCatalogItemNameInput($telegramUserId, $chatId, $pendingInput, $value);
+
+            return;
+        }
+
+        if ($type === 'catalog_item_emoji') {
+            $this->saveCatalogItemEmojiInput($telegramUserId, $chatId, $pendingInput, $value);
         }
     }
 
@@ -436,6 +658,24 @@ class TelegramAccountPostingBot
             return;
         }
 
+        if (is_array($pendingInput) && ($pendingInput['type'] ?? null) === 'catalog_category') {
+            $this->sendCatalogMenu($chatId, $messageId === false ? null : $messageId, 'Pengaturan dibatalkan.');
+
+            return;
+        }
+
+        if (is_array($pendingInput) && in_array($pendingInput['type'] ?? null, ['catalog_item_name', 'catalog_item_emoji'], true)) {
+            $categoryKey = (string) ($pendingInput['category_key'] ?? '');
+            $this->sendCatalogCategory(
+                $chatId,
+                $messageId === false ? null : $messageId,
+                $categoryKey,
+                'Pengaturan dibatalkan.',
+            );
+
+            return;
+        }
+
         $this->sendSettingsMenu($chatId, $messageId === false ? null : $messageId, 'Pengaturan dibatalkan.');
     }
 
@@ -461,9 +701,12 @@ class TelegramAccountPostingBot
             return false;
         }
 
-        ProductCurrencyRate::current()->update([$field => $normalizedValue]);
+        $storeSettings = StoreSetting::current();
+        $telegramRates = $storeSettings->telegramAccountRates();
+        $telegramRates[$field] = $normalizedValue;
+        $storeSettings->update(['telegram_account_rates' => $telegramRates]);
         $label = $field === 'idr_per_myr' ? 'RM 1' : 'USD 1';
-        $notice = 'Kurs tersimpan: '.$label.' = Rp '.number_format((float) $normalizedValue, 0, ',', '.').'.';
+        $notice = 'Kurs Telegram tersimpan: '.$label.' = Rp '.number_format((float) $normalizedValue, 0, ',', '.').'.';
 
         if ($messageId === null) {
             $this->telegram->sendMessage($chatId, $notice);
@@ -502,7 +745,7 @@ class TelegramAccountPostingBot
             'last_update_id' => $updateId,
             'data' => array_merge([
                 'items' => [],
-                'category_options' => self::DEFAULT_CATEGORIES,
+                'category_options' => StoreSetting::current()->telegramAccountCategories(),
                 'selected_categories' => [],
             ], $defaults),
             'images' => [],
@@ -652,7 +895,18 @@ class TelegramAccountPostingBot
             return;
         }
 
-        if ($step === 'stat_refund') {
+        if ($step === 'website_title') {
+            $websiteTitle = $this->isCommand($text, '/skip')
+                ? 'Blox Fruit Account - '.$data['username']
+                : trim($text);
+            if ($websiteTitle === '' || Str::length($websiteTitle) > 255) {
+                $this->sendDraftMessage($draft, 'Judul website wajib diisi (maksimal 255 karakter), atau /skip untuk memakai judul otomatis.');
+
+                return;
+            }
+
+            $data['website_title'] = $websiteTitle;
+        } elseif ($step === 'stat_refund') {
             if ($this->isCommand($text, '/skip')) {
                 $data['stat_refund'] = $this->accountDefaults()['stat_refund'];
             } elseif (! ctype_digit($text) || (int) $text > 100) {
@@ -687,6 +941,9 @@ class TelegramAccountPostingBot
             }
 
             $data[$step] = $value;
+            if ($step === 'username') {
+                $data['website_title'] = 'Blox Fruit Account - '.$value;
+            }
         }
 
         $nextStep = $this->nextStep($step);
@@ -707,7 +964,8 @@ class TelegramAccountPostingBot
     private function nextStep(string $step): string
     {
         return match ($step) {
-            'username' => 'level',
+            'username' => 'website_title',
+            'website_title' => 'level',
             'level' => 'belly',
             'belly' => 'fragment',
             'fragment' => 'categories',
@@ -726,6 +984,7 @@ class TelegramAccountPostingBot
     {
         $prompts = [
             'username' => 'Masukkan nama akun yang akan ditampilkan.',
+            'website_title' => 'Masukkan judul produk untuk website (maksimal 255 karakter), atau /skip untuk memakai judul otomatis: '.($draft->data['website_title'] ?? 'Blox Fruit Account - '.($draft->data['username'] ?? 'akun')),
             'level' => 'Masukkan level akun (angka).',
             'belly' => 'Masukkan jumlah Belly, atau /skip jika kosong.',
             'fragment' => 'Masukkan jumlah Fragment, atau /skip jika kosong.',
@@ -764,14 +1023,30 @@ class TelegramAccountPostingBot
         }
 
         $data = $draft->data;
-        $key = 'custom_'.substr(sha1(mb_strtolower($category)), 0, 12);
-        $options = $data['category_options'] ?? self::DEFAULT_CATEGORIES;
-        if (! array_key_exists($key, $options) && count($options) >= self::MAX_CATEGORIES) {
+        $storeSettings = StoreSetting::current();
+        $options = $storeSettings->telegramAccountCategories();
+        $key = null;
+        foreach ($options as $optionKey => $label) {
+            if (mb_strtolower($label) === mb_strtolower($category)) {
+                $key = $optionKey;
+
+                break;
+            }
+        }
+
+        if ($key === null && count($options) >= self::MAX_CATEGORIES) {
             $this->sendDraftMessage($draft, 'Maksimal 20 kategori dapat dipilih atau ditambahkan.');
 
             return;
         }
 
+        if ($key === null) {
+            $key = 'custom_'.substr(sha1(mb_strtolower($category)), 0, 12);
+            $options[$key] = $category;
+            $storeSettings->update(['telegram_account_categories' => $options]);
+        }
+
+        $data['category_options'] = array_replace($options, $data['category_options'] ?? []);
         $data['category_options'][$key] = $category;
         $selected = $data['selected_categories'] ?? [];
         if (! in_array($key, $selected, true)) {
@@ -827,7 +1102,7 @@ class TelegramAccountPostingBot
     private function sendItemKeyboard(TelegramAccountDraft $draft, ?string $notice = null): void
     {
         $data = $draft->data;
-        $categories = $data['category_options'] ?? self::DEFAULT_CATEGORIES;
+        $categories = $data['category_options'] ?? StoreSetting::current()->telegramAccountCategories();
         $selectedCategoryKeys = $data['selected_categories'] ?? [];
         $selectedCategories = array_map(
             fn (string $key): string => $categories[$key] ?? '',
@@ -835,40 +1110,79 @@ class TelegramAccountPostingBot
         );
         $selectedItems = array_map('intval', $data['selected_item_ids'] ?? []);
         $buttons = [];
-
-        foreach (TelegramAccountItem::query()
+        $itemsByCategory = TelegramAccountItem::query()
             ->whereIn('category', $selectedCategories)
             ->orderBy('category')
             ->orderBy('name')
-            ->get() as $item) {
-            $label = $item->category.': '.($item->emoji ?? '').$item->name;
-            $buttons[] = [
-                'text' => (in_array($item->id, $selectedItems, true) ? '✅ ' : '').Str::limit($label, 60),
-                'callback_data' => 'item:select:'.$item->id,
-            ];
-        }
+            ->get()
+            ->groupBy('category');
 
-        $addButtons = [];
         foreach ($selectedCategoryKeys as $key) {
-            if (isset($categories[$key])) {
-                $addButtons[] = [
-                    'text' => '➕ '.$categories[$key],
-                    'callback_data' => 'item:add:'.$key,
-                ];
+            $category = $categories[$key] ?? null;
+            if ($category === null) {
+                continue;
             }
+
+            $categoryItems = $itemsByCategory->get($category, collect());
+            $selectedCount = $categoryItems->whereIn('id', $selectedItems)->count();
+            $buttons[] = [
+                'text' => $category.' ('.$selectedCount.'/'.$categoryItems->count().')',
+                'callback_data' => 'item:category:'.$key,
+            ];
         }
 
         $keyboard = [
             'inline_keyboard' => [
                 ...array_chunk($buttons, 2),
-                ...array_chunk($addButtons, 2),
                 [['text' => '✅ Selesai memilih item', 'callback_data' => 'item:done']],
             ],
         ];
 
         $this->sendDraftMessage(
             $draft,
-            ($notice === null ? '' : $notice."\n").'Pilih beberapa item dari daftar. Item baru dapat ditambahkan dan disimpan untuk posting berikutnya.',
+            ($notice === null ? '' : $notice."\n").'Pilih kategori untuk membuka daftar jenis item. Di dalam kategori, tandai semua item yang dimiliki; kamu bisa memilih lebih dari satu.',
+            $keyboard,
+        );
+    }
+
+    private function sendCategoryItemsKeyboard(
+        TelegramAccountDraft $draft,
+        string $categoryKey,
+        ?string $notice = null,
+    ): void {
+        $data = $draft->data;
+        $categories = $data['category_options'] ?? StoreSetting::current()->telegramAccountCategories();
+        $category = $categories[$categoryKey] ?? null;
+        if ($category === null || ! in_array($categoryKey, $data['selected_categories'] ?? [], true)) {
+            $this->sendItemKeyboard($draft, 'Kategori tidak tersedia untuk posting ini.');
+
+            return;
+        }
+
+        $selectedItems = array_map('intval', $data['selected_item_ids'] ?? []);
+        $buttons = [];
+        foreach (TelegramAccountItem::query()
+            ->where('category', $category)
+            ->orderBy('name')
+            ->get() as $item) {
+            $buttons[] = [
+                'text' => (in_array($item->id, $selectedItems, true) ? '✅ ' : '').Str::limit(($item->emoji ?? '').$item->name, 60),
+                'callback_data' => 'item:select:'.$item->id,
+            ];
+        }
+
+        $keyboard = [
+            'inline_keyboard' => [
+                ...array_chunk($buttons, 2),
+                [['text' => '➕ Tambah jenis item', 'callback_data' => 'item:add:'.$categoryKey]],
+                [['text' => '⬅️ Kembali ke kategori', 'callback_data' => 'item:back']],
+                [['text' => '✅ Selesai memilih item', 'callback_data' => 'item:done']],
+            ],
+        ];
+        $this->sendDraftMessage(
+            $draft,
+            ($notice === null ? '' : $notice."\n").
+                'Pilih satu atau beberapa jenis '.$category.'. Tekan item lagi untuk membatalkan pilihannya.',
             $keyboard,
         );
     }
@@ -882,6 +1196,7 @@ class TelegramAccountPostingBot
         }
 
         $data['pending_item_category'] = $data['category_options'][$categoryKey];
+        $data['active_item_category_key'] = $categoryKey;
         $draft->update(['data' => $data, 'step' => 'new_item_name']);
         $this->sendDraftMessage(
             $draft,
@@ -946,7 +1261,12 @@ class TelegramAccountPostingBot
         $data['selected_item_ids'] = $selectedItems;
         unset($data['pending_item_category'], $data['pending_item_name']);
         $draft->update(['data' => $data, 'step' => 'items']);
-        $this->sendItemKeyboard($draft->fresh(), $notice);
+        $activeCategoryKey = (string) ($data['active_item_category_key'] ?? '');
+        if ($activeCategoryKey !== '') {
+            $this->sendCategoryItemsKeyboard($draft->fresh(), $activeCategoryKey, $notice);
+        } else {
+            $this->sendItemKeyboard($draft->fresh(), $notice);
+        }
     }
 
     private function finishItemSelection(TelegramAccountDraft $draft): void
@@ -984,10 +1304,12 @@ class TelegramAccountPostingBot
 
     private function sendPreview(TelegramAccountDraft $draft): void
     {
-        $rates = ProductCurrencyRate::current();
+        $rates = StoreSetting::current()->telegramAccountRates();
+        $websiteTitle = $draft->data['website_title'] ?? 'Blox Fruit Account - '.$draft->data['username'];
         $this->sendDraftMessage(
             $draft,
-            $this->formatter->plainText($draft->data, $rates)."\n\nPosting akan membuat produk aktif di website dan mengirim foto serta detail ke channel.",
+            'Judul website: '.$websiteTitle."\n\n".
+                $this->formatter->plainText($draft->data, $rates)."\n\nPosting akan membuat produk aktif di website dan mengirim foto serta detail ke channel.",
             [
                 'inline_keyboard' => [[
                     ['text' => '✅ Posting Website + Telegram', 'callback_data' => 'publish'],
@@ -1066,7 +1388,11 @@ class TelegramAccountPostingBot
 
         if ($callbackData === 'publish') {
             $data = $draft->data;
-            $data['description'] = $this->formatter->plainText($data, ProductCurrencyRate::current());
+            $websiteRates = ProductCurrencyRate::current();
+            $data['description'] = $this->formatter->plainText($data, [
+                'idr_per_myr' => $websiteRates->idr_per_myr,
+                'idr_per_usd' => $websiteRates->idr_per_usd,
+            ]);
             $draft->update(['data' => $data]);
             $product = $this->createProduct->execute($draft->fresh());
             $draft->update(['last_update_id' => $updateId]);
@@ -1115,8 +1441,58 @@ class TelegramAccountPostingBot
             return true;
         }
 
+        if ($callbackData === 'menu:catalog') {
+            Cache::forget($this->pendingInputKey($telegramUserId));
+            $this->sendCatalogMenu($chatId, $messageId);
+
+            return true;
+        }
+
         if ($callbackData === 'menu:help') {
             $this->sendOrEditMessage($chatId, $messageId, $this->helpText(), $this->mainMenuMarkup());
+
+            return true;
+        }
+
+        if ($callbackData === 'catalog:main') {
+            $this->sendCatalogMenu($chatId, $messageId);
+
+            return true;
+        }
+
+        if ($callbackData === 'catalog:add-category') {
+            Cache::put(
+                $this->pendingInputKey($telegramUserId),
+                ['type' => 'catalog_category', 'message_id' => $messageId],
+                now()->addMinutes(10),
+            );
+            $this->editPendingPrompt($chatId, $messageId, 'Kirim nama kategori baru (maksimal 30 karakter), atau /cancel untuk batal.');
+
+            return true;
+        }
+
+        if (str_starts_with($callbackData, 'catalog:category:')) {
+            $categoryKey = substr($callbackData, strlen('catalog:category:'));
+            $this->sendCatalogCategory($chatId, $messageId, $categoryKey);
+
+            return true;
+        }
+
+        if (str_starts_with($callbackData, 'catalog:add-item:')) {
+            $categoryKey = substr($callbackData, strlen('catalog:add-item:'));
+            $category = StoreSetting::current()->telegramAccountCategories()[$categoryKey] ?? null;
+            if ($category === null) {
+                $this->sendCatalogMenu($chatId, $messageId, 'Kategori tidak ditemukan.');
+
+                return true;
+            }
+
+            Cache::put(
+                $this->pendingInputKey($telegramUserId),
+                ['type' => 'catalog_item_name', 'category_key' => $categoryKey, 'message_id' => $messageId],
+                now()->addMinutes(10),
+            );
+            $this->editPendingPrompt($chatId, $messageId, 'Kirim nama jenis item untuk kategori '.$category.' (maksimal 80 karakter), atau /cancel untuk batal.');
 
             return true;
         }
@@ -1213,6 +1589,29 @@ class TelegramAccountPostingBot
             return;
         }
 
+        if ($action === 'back') {
+            $data = $draft->data;
+            unset($data['active_item_category_key']);
+            $draft->update(['data' => $data]);
+            $this->sendItemKeyboard($draft->fresh());
+
+            return;
+        }
+
+        if (str_starts_with($action, 'category:')) {
+            $categoryKey = substr($action, strlen('category:'));
+            if (! in_array($categoryKey, $draft->data['selected_categories'] ?? [], true)) {
+                return;
+            }
+
+            $data = $draft->data;
+            $data['active_item_category_key'] = $categoryKey;
+            $draft->update(['data' => $data]);
+            $this->sendCategoryItemsKeyboard($draft->fresh(), $categoryKey);
+
+            return;
+        }
+
         if (str_starts_with($action, 'add:')) {
             $this->startAddingItem($draft, substr($action, 4));
 
@@ -1234,8 +1633,10 @@ class TelegramAccountPostingBot
             fn (string $key): string => $data['category_options'][$key] ?? '',
             $data['selected_categories'] ?? [],
         );
+        $activeCategoryLabel = $data['category_options'][$data['active_item_category_key'] ?? ''] ?? null;
 
-        if ($item === null || ! in_array($item->category, $selectedCategoryLabels, true)) {
+        if ($item === null || ! in_array($item->category, $selectedCategoryLabels, true)
+            || ($activeCategoryLabel !== null && $item->category !== $activeCategoryLabel)) {
             return;
         }
 
@@ -1252,7 +1653,11 @@ class TelegramAccountPostingBot
 
         $data['selected_item_ids'] = $selectedItems;
         $draft->update(['data' => $data]);
-        $this->sendItemKeyboard($draft->fresh());
+        if ($activeCategoryLabel !== null) {
+            $this->sendCategoryItemsKeyboard($draft->fresh(), (string) $data['active_item_category_key']);
+        } else {
+            $this->sendItemKeyboard($draft->fresh());
+        }
     }
 
     private function parsePriceInThousands(string $text): ?float

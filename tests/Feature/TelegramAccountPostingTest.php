@@ -115,6 +115,83 @@ it('starts an admin draft with the requested defaults', function () {
         && str_contains($request['text'], '/done'));
 });
 
+it('asks for a custom website title after the account name', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 2]]),
+    ]);
+    $draft = TelegramAccountDraft::query()->create([
+        'telegram_user_id' => '12345',
+        'chat_id' => '12345',
+        'status' => 'active',
+        'step' => 'username',
+        'data' => ['username' => ''],
+        'images' => ['products/one.jpg'],
+        'processed_message_ids' => [],
+        'last_update_id' => 871236,
+    ]);
+    $update = TelegramUpdate::query()->create([
+        'telegram_update_id' => 871237,
+        'payload' => ['message' => [
+            'from' => ['id' => 12345],
+            'chat' => ['id' => 12345, 'type' => 'private'],
+            'text' => 'Wetoxxa',
+        ]],
+    ]);
+
+    app(TelegramAccountPostingBot::class)->handle($update);
+
+    expect($draft->fresh()->step)->toBe('website_title')
+        ->and($draft->fresh()->data['website_title'])->toBe('Blox Fruit Account - Wetoxxa');
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
+        && str_contains($request['text'], 'judul produk untuk website')
+        && str_contains($request['text'], '/skip'));
+});
+
+it('uses a custom website title or the generated title when skipped', function (string $title, string $expectedTitle) {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 2]]),
+    ]);
+    $draft = TelegramAccountDraft::query()->create([
+        'telegram_user_id' => '12345',
+        'chat_id' => '12345',
+        'status' => 'active',
+        'step' => 'website_title',
+        'data' => [
+            'username' => 'Wetoxxa',
+            'website_title' => 'Blox Fruit Account - Wetoxxa',
+        ],
+        'images' => ['products/one.jpg'],
+        'processed_message_ids' => [],
+        'last_update_id' => 871237,
+    ]);
+    $update = TelegramUpdate::query()->create([
+        'telegram_update_id' => 871238,
+        'payload' => ['message' => [
+            'from' => ['id' => 12345],
+            'chat' => ['id' => 12345, 'type' => 'private'],
+            'text' => $title,
+        ]],
+    ]);
+
+    app(TelegramAccountPostingBot::class)->handle($update);
+
+    expect($draft->fresh()->step)->toBe('level')
+        ->and($draft->fresh()->data['website_title'])->toBe($expectedTitle);
+})->with([
+    'custom title' => ['Premium Blox Fruit Account', 'Premium Blox Fruit Account'],
+    'automatic title' => ['/skip', 'Blox Fruit Account - Wetoxxa'],
+]);
+
 it('converts an entered price in thousands and shows the preview with defaults', function () {
     config(['services.telegram.admin_ids' => ['12345']]);
     config(['services.telegram.bot_token' => 'test-token']);
@@ -125,6 +202,12 @@ it('converts an entered price in thousands and shows the preview with defaults',
     ProductCurrencyRate::current()->update([
         'idr_per_myr' => 4000,
         'idr_per_usd' => 15000,
+    ]);
+    StoreSetting::current()->update([
+        'telegram_account_rates' => [
+            'idr_per_myr' => '2500',
+            'idr_per_usd' => '10000',
+        ],
     ]);
     $draft = TelegramAccountDraft::query()->create([
         'telegram_user_id' => '12345',
@@ -170,7 +253,7 @@ it('converts an entered price in thousands and shows the preview with defaults',
         ->and($draft->data['price_idr'])->toBe(50000);
 
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
-        && str_contains($request['text'], '50K | RM 12.50 | $4.00')
+        && str_contains($request['text'], '50K | RM 20.00 | $6.00')
         && str_contains($request['text'], 'SKY JUMP, BODY, FLASH STEP')
         && str_contains($request['text'], '𝙎𝙏𝘼𝙏 𝙍𝙀𝙁𝙐𝙉𝘿 : 2'));
 });
@@ -266,6 +349,154 @@ it('saves new catalog items and selects multiple items for a listing', function 
     ]);
 });
 
+it('adds persistent categories and item types from the main menu', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 4]]),
+    ]);
+    $processUpdate = function (int $updateId, array $update): void {
+        $telegramUpdate = TelegramUpdate::query()->create([
+            'telegram_update_id' => $updateId,
+            'payload' => $update,
+        ]);
+
+        app(TelegramAccountPostingBot::class)->handle($telegramUpdate);
+    };
+
+    $processUpdate(1, ['message' => [
+        'from' => ['id' => 12345],
+        'chat' => ['id' => 12345, 'type' => 'private'],
+        'text' => '/menu',
+    ]]);
+    $processUpdate(2, ['callback_query' => [
+        'id' => 'open-catalog',
+        'from' => ['id' => 12345],
+        'message' => ['message_id' => 4, 'chat' => ['id' => 12345, 'type' => 'private']],
+        'data' => 'menu:catalog',
+    ]]);
+    $processUpdate(3, ['callback_query' => [
+        'id' => 'add-category',
+        'from' => ['id' => 12345],
+        'message' => ['message_id' => 4, 'chat' => ['id' => 12345, 'type' => 'private']],
+        'data' => 'catalog:add-category',
+    ]]);
+    $processUpdate(4, ['message' => [
+        'from' => ['id' => 12345],
+        'chat' => ['id' => 12345, 'type' => 'private'],
+        'text' => 'Relics',
+    ]]);
+
+    $categories = StoreSetting::current()->telegramAccountCategories();
+    $categoryKey = array_search('Relics', $categories, true);
+    expect($categoryKey)->toBeString();
+
+    $processUpdate(5, ['callback_query' => [
+        'id' => 'open-category',
+        'from' => ['id' => 12345],
+        'message' => ['message_id' => 4, 'chat' => ['id' => 12345, 'type' => 'private']],
+        'data' => 'catalog:category:'.$categoryKey,
+    ]]);
+    $processUpdate(6, ['callback_query' => [
+        'id' => 'add-item',
+        'from' => ['id' => 12345],
+        'message' => ['message_id' => 4, 'chat' => ['id' => 12345, 'type' => 'private']],
+        'data' => 'catalog:add-item:'.$categoryKey,
+    ]]);
+    $processUpdate(7, ['message' => [
+        'from' => ['id' => 12345],
+        'chat' => ['id' => 12345, 'type' => 'private'],
+        'text' => 'Dark Blade',
+    ]]);
+    $processUpdate(8, ['message' => [
+        'from' => ['id' => 12345],
+        'chat' => ['id' => 12345, 'type' => 'private'],
+        'text' => '/skip',
+    ]]);
+    $processUpdate(9, ['callback_query' => [
+        'id' => 'new-post',
+        'from' => ['id' => 12345],
+        'message' => ['message_id' => 4, 'chat' => ['id' => 12345, 'type' => 'private']],
+        'data' => 'menu:new',
+    ]]);
+
+    $this->assertDatabaseHas('telegram_account_items', [
+        'category' => 'Relics',
+        'name' => 'Dark Blade',
+        'emoji' => null,
+    ]);
+    expect(TelegramAccountDraft::query()->sole()->data['category_options'][$categoryKey])->toBe('Relics');
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
+        && str_contains(json_encode($request->data()), 'menu:catalog'));
+});
+
+it('selects multiple item types from an opened category when posting', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 5]]),
+    ]);
+    $firstSword = TelegramAccountItem::query()->create([
+        'category' => 'Sword',
+        'name' => 'Shark Anchor',
+        'emoji' => '⚓',
+    ]);
+    $secondSword = TelegramAccountItem::query()->create([
+        'category' => 'Sword',
+        'name' => 'Dark Blade',
+        'emoji' => '🗡️',
+    ]);
+    $draft = TelegramAccountDraft::query()->create([
+        'telegram_user_id' => '12345',
+        'chat_id' => '12345',
+        'status' => 'active',
+        'step' => 'items',
+        'data' => [
+            'category_options' => ['sword' => 'Sword'],
+            'selected_categories' => ['sword'],
+            'selected_item_ids' => [],
+            'items' => [],
+        ],
+        'images' => ['products/one.jpg'],
+        'processed_message_ids' => [],
+        'last_update_id' => 1,
+    ]);
+    $processUpdate = function (int $updateId, string $callbackId, string $callbackData): void {
+        $telegramUpdate = TelegramUpdate::query()->create([
+            'telegram_update_id' => $updateId,
+            'payload' => ['callback_query' => [
+                'id' => $callbackId,
+                'from' => ['id' => 12345],
+                'message' => ['chat' => ['id' => 12345, 'type' => 'private']],
+                'data' => $callbackData,
+            ]],
+        ]);
+
+        app(TelegramAccountPostingBot::class)->handle($telegramUpdate);
+    };
+
+    $processUpdate(2, 'open-swords', 'item:category:sword');
+    $processUpdate(3, 'select-anchor', 'item:select:'.$firstSword->id);
+    $processUpdate(4, 'select-dark-blade', 'item:select:'.$secondSword->id);
+    $processUpdate(5, 'finish-swords', 'item:done');
+
+    expect($draft->fresh()->step)->toBe('price')
+        ->and($draft->fresh()->data['items'])->toBe([
+            ['category' => 'Sword', 'name' => '⚓Shark Anchor'],
+            ['category' => 'Sword', 'name' => '🗡️Dark Blade'],
+        ]);
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/editMessageText')
+        && str_contains($request['text'], 'Pilih satu atau beberapa jenis Sword')
+        && str_contains(json_encode($request['reply_markup']), 'Shark Anchor')
+        && str_contains(json_encode($request['reply_markup']), 'Dark Blade'));
+});
+
 it('allows a saved catalog item to be selected in a later draft', function () {
     config([
         'services.telegram.admin_ids' => ['12345'],
@@ -298,10 +529,10 @@ it('allows a saved catalog item to be selected in a later draft', function () {
     $telegramUpdate = TelegramUpdate::query()->create([
         'telegram_update_id' => 11,
         'payload' => ['callback_query' => [
-            'id' => 'reuse-item',
+            'id' => 'open-race-category',
             'from' => ['id' => 12345],
             'message' => ['chat' => ['id' => 12345, 'type' => 'private']],
-            'data' => 'item:select:'.$savedItem->id,
+            'data' => 'item:category:race',
         ]],
     ]);
 
@@ -309,6 +540,17 @@ it('allows a saved catalog item to be selected in a later draft', function () {
 
     $telegramUpdate = TelegramUpdate::query()->create([
         'telegram_update_id' => 12,
+        'payload' => ['callback_query' => [
+            'id' => 'reuse-item',
+            'from' => ['id' => 12345],
+            'message' => ['chat' => ['id' => 12345, 'type' => 'private']],
+            'data' => 'item:select:'.$savedItem->id,
+        ]],
+    ]);
+    app(TelegramAccountPostingBot::class)->handle($telegramUpdate);
+
+    $telegramUpdate = TelegramUpdate::query()->create([
+        'telegram_update_id' => 13,
         'payload' => ['callback_query' => [
             'id' => 'finish-reused-item',
             'from' => ['id' => 12345],
@@ -326,6 +568,7 @@ it('allows a saved catalog item to be selected in a later draft', function () {
         $requestData = json_encode($request->data(), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 
         return str_ends_with($request->url(), '/sendMessage')
+            && str_contains($requestData, 'Pilih satu atau beberapa jenis Race')
             && str_contains($requestData, 'item:select:'.$savedItem->id)
             && str_contains($requestData, '🧍Human');
     });
@@ -348,6 +591,12 @@ it('creates an active one-stock product with a gallery when the admin confirms t
     GameCategory::factory()->create(['name' => 'Blox Fruit']);
     ItemCategory::factory()->create(['name' => 'Account']);
     ProductCurrencyRate::current()->update(['idr_per_myr' => 4000, 'idr_per_usd' => 15000]);
+    StoreSetting::current()->update([
+        'telegram_account_rates' => [
+            'idr_per_myr' => '2500',
+            'idr_per_usd' => '10000',
+        ],
+    ]);
     $draft = TelegramAccountDraft::query()->create([
         'telegram_user_id' => '12345',
         'chat_id' => '12345',
@@ -355,6 +604,7 @@ it('creates an active one-stock product with a gallery when the admin confirms t
         'step' => 'preview',
         'data' => [
             'username' => 'Dearamko',
+            'website_title' => 'Dearamko Blox Fruit Account - Premium',
             'level' => '2805',
             'items' => [['category' => 'Fruit', 'name' => '🦊Kitsune']],
             'price_idr' => 50000,
@@ -389,13 +639,15 @@ it('creates an active one-stock product with a gallery when the admin confirms t
     app(TelegramAccountPostingBot::class)->handle($update);
 
     $product = Product::query()->sole();
-    expect($product->is_account_listing)->toBeTrue()
+    expect($product->name)->toBe('Dearamko Blox Fruit Account - Premium')
+        ->and($product->is_account_listing)->toBeTrue()
         ->and($product->images)->toBe(['products/one.jpg', 'products/two.jpg'])
         ->and($product->galleryImages())->toBe(['products/one.jpg', 'products/two.jpg'])
         ->and($product->variants()->sole()->price)->toBe('50000.00')
         ->and($product->variants()->sole()->stock)->toBe(1)
         ->and($draft->fresh()->status)->toBe('publishing')
         ->and($draft->fresh()->data['description'])->toContain('𝙎𝙏𝘼𝙏 𝙍𝙀𝙁𝙐𝙉𝘿 : 2');
+    expect($draft->fresh()->data['description'])->toContain('RM 12.50 | $4.00');
 
     Queue::assertPushed(PublishTelegramAccountListing::class, fn (PublishTelegramAccountListing $job): bool => $job->telegramAccountDraftId === $draft->id);
 
@@ -432,6 +684,12 @@ it('sends product photos and formatted account details to the configured Telegra
         ]),
     ]);
     ProductCurrencyRate::current()->update(['idr_per_myr' => 4000, 'idr_per_usd' => 15000]);
+    StoreSetting::current()->update([
+        'telegram_account_rates' => [
+            'idr_per_myr' => '2500',
+            'idr_per_usd' => '10000',
+        ],
+    ]);
     $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $itemCategory = ItemCategory::factory()->create(['name' => 'Account']);
     $product = Product::factory()
@@ -476,7 +734,7 @@ it('sends product photos and formatted account details to the configured Telegra
 
     expect($mediaGroupBody)
         ->toContain('"caption"')
-        ->toContain('$4.00')
+        ->toContain('RM 20.00 | $6.00')
         ->toContain('jokibloxfruit.roblox')
         ->toContain(str_replace('/', '\/', route('product-details.show', $product)));
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMediaGroup'));
@@ -484,7 +742,10 @@ it('sends product photos and formatted account details to the configured Telegra
 });
 
 it('escapes free-text values in the Telegram account template', function () {
-    $rates = ProductCurrencyRate::current();
+    $rates = [
+        'idr_per_myr' => '4000.0000',
+        'idr_per_usd' => '15000.0000',
+    ];
     $html = app(AccountListingFormatter::class)->telegramHtml([
         'username' => '<script>alert(1)</script>',
         'level' => '1',
@@ -554,9 +815,28 @@ it('lets admins set the RM rate from Telegram', function () {
 
     app(TelegramAccountPostingBot::class)->handle($update);
 
-    expect((float) ProductCurrencyRate::current()->fresh()->idr_per_myr)->toBe(3600.0);
+    ProductCurrencyRate::current()->update(['idr_per_myr' => 5000]);
+    $ratesUpdate = TelegramUpdate::query()->create([
+        'telegram_update_id' => 900003,
+        'payload' => ['message' => [
+            'from' => ['id' => 12345],
+            'chat' => ['id' => 12345, 'type' => 'private'],
+            'text' => '/rates',
+        ]],
+    ]);
+
+    app(TelegramAccountPostingBot::class)->handle($ratesUpdate);
+
+    expect((float) ProductCurrencyRate::current()->fresh()->idr_per_myr)->toBe(5000.0)
+        ->and(StoreSetting::current()->fresh()->telegram_account_rates)->toBe([
+            'idr_per_myr' => '3600',
+            'idr_per_usd' => '15000.0000',
+        ]);
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
-        && str_contains($request['text'], 'RM 1 = Rp 3.600'));
+        && str_contains($request['text'], 'Kurs Telegram saat ini:')
+        && str_contains($request['text'], 'RM 1 = Rp 3,600')
+        && str_contains($request['text'], 'USD 1 = Rp 15,000')
+        && str_contains($request['text'], 'Kurs website diatur di Admin > Rates.'));
 });
 
 it('lets admins edit a default from the settings menu', function () {

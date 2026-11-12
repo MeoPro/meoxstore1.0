@@ -87,7 +87,7 @@ https://templatemo.com/tm-589-lugx-gaming
 -->
   </head>
 
-<body>
+<body class="storefront-page">
 
   <!-- ***** Preloader Start ***** -->
   <div id="js-preloader" class="js-preloader">

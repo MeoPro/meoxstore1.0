@@ -54,7 +54,7 @@
         @media (max-width: 767.98px) { .contact-section { padding: 48px 0; } }
     </style>
 </head>
-<body>
+<body class="storefront-page">
     <x-storefront-header />
     <div class="page-heading header-text">
         <div class="container">

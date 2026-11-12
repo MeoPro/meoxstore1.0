@@ -279,6 +279,8 @@ return [
     'account_access' => 'AKSES AKUN',
     'welcome_back' => 'Selamat datang kembali di Meoxstore',
     'password' => 'Kata sandi',
+    'show_password' => 'Tampilkan kata sandi',
+    'hide_password' => 'Sembunyikan kata sandi',
     'remember_me' => 'Ingat saya',
     'no_account' => 'Belum punya akun?',
     'register' => 'Daftar',

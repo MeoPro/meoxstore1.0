@@ -81,7 +81,7 @@
         @media (prefers-reduced-motion: reduce) { .order-card { animation: none; } .order-back { transition: none; } }
     </style>
 </head>
-<body class="order-detail-page">
+<body class="order-detail-page storefront-page">
     <x-storefront-header />
     <main class="order-page">
         <div class="order-topline">

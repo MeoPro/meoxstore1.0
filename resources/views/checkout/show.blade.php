@@ -41,7 +41,7 @@
         @media (max-width: 767.98px) { .page-heading.header-text { padding: 96px 0 18px; } .page-heading.header-text h3 { font-size: 22px; } }
     </style>
 </head>
-<body>
+<body class="storefront-page">
     <x-storefront-header />
     <div class="page-heading header-text">
         <div class="container"><div class="row"><div class="col-lg-12">

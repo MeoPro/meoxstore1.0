@@ -5,8 +5,8 @@
 @section('content')
     <div class="page-heading">
         <div>
-            <h1>Rates and Bobux transactions</h1>
-            <p class="form-text mb-0">Update currency conversion rates and control purchases for each Bobux delivery type.</p>
+            <h1>Website rates and Bobux transactions</h1>
+            <p class="form-text mb-0">Update website currency conversion rates and control purchases for each Bobux delivery type.</p>
         </div>
     </div>
 
@@ -15,7 +15,7 @@
         @method('PATCH')
 
         <section class="mb-4">
-            <h2 class="fs-5 mb-3">Currency rates</h2>
+            <h2 class="fs-5 mb-3">Website currency rates</h2>
             <div class="row g-3">
                 @foreach ([
                     'idr_per_myr' => ['1 RM = IDR', $currencyRates->idr_per_myr],

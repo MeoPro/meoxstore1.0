@@ -27,7 +27,7 @@
         .game-catalog-link { color: #ee626b !important; font-weight: 600; }
     </style>
 </head>
-<body>
+<body class="storefront-page">
     <div id="js-preloader" class="js-preloader">
         <div class="preloader-inner">
             <span class="dot"></span>

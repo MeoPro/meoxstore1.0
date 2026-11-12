@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Models\ProductCurrencyRate;
+use App\Models\StoreSetting;
 use App\Models\TelegramAccountDraft;
 use App\Services\AccountListingFormatter;
 use App\Services\TelegramBotApi;
@@ -49,13 +49,15 @@ class PublishTelegramAccountListing implements ShouldBeUnique, ShouldQueue
             throw new RuntimeException('The account listing has no photos to publish.');
         }
 
+        $telegramRates = StoreSetting::current()->telegramAccountRates();
+
         while ($draft->channel_media_offset < count($images)) {
             $batch = array_slice($images, $draft->channel_media_offset, 10);
             $caption = null;
             if (! $draft->channel_text_sent && $draft->channel_media_offset === 0) {
                 $caption = $formatter->telegramHtml(
                     $draft->data,
-                    ProductCurrencyRate::current(),
+                    $telegramRates,
                     route('product-details.show', $product),
                 );
             }
@@ -71,7 +73,7 @@ class PublishTelegramAccountListing implements ShouldBeUnique, ShouldQueue
         if (! $draft->channel_text_sent) {
             $text = $formatter->telegramHtml(
                 $draft->data,
-                ProductCurrencyRate::current(),
+                $telegramRates,
                 route('product-details.show', $product),
             );
             $telegram->sendMessage($channelId, $text, parseMode: 'HTML');
