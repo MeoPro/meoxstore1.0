@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
-it('supports QR-only checkout, saves product descriptions, and links payment proofs from the order list', function () {
+it('shows payment logos in checkout while keeping QR instructions on the order page', function () {
     Storage::fake('public');
     Storage::fake('local');
     $admin = User::factory()->create(['is_admin' => true]);
@@ -20,6 +20,13 @@ it('supports QR-only checkout, saves product descriptions, and links payment pro
         ->post(route('admin.payment-settings.store'), [
             'currency' => 'idr',
             'name' => 'Scan to pay',
+            'account_name' => 'Example owner',
+            'account_number' => 'QR-987654',
+            'instructions' => 'Scan this QR code to pay.',
+            'logo' => UploadedFile::fake()->createWithContent(
+                'payment-logo.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true),
+            ),
             'qr_code' => UploadedFile::fake()->createWithContent(
                 'store-qr.png',
                 base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true),
@@ -31,6 +38,7 @@ it('supports QR-only checkout, saves product descriptions, and links payment pro
     $paymentSetting = PaymentSetting::query()->sole();
     expect($paymentSetting->type)->toBe('qris');
     Storage::disk('public')->assertExists($paymentSetting->qr_code_path);
+    Storage::disk('public')->assertExists($paymentSetting->logo_path);
 
     $product = Product::factory()->create([
         'name' => 'QR-only product',
@@ -47,7 +55,11 @@ it('supports QR-only checkout, saves product descriptions, and links payment pro
     $this->get(route('checkout.show'))
         ->assertOk()
         ->assertSee('Scan to pay')
-        ->assertSee(Storage::disk('public')->url($paymentSetting->qr_code_path), false)
+        ->assertSee(Storage::disk('public')->url($paymentSetting->logo_path), false)
+        ->assertDontSee(Storage::disk('public')->url($paymentSetting->qr_code_path), false)
+        ->assertDontSee('Example owner')
+        ->assertDontSee('QR-987654')
+        ->assertDontSee('Scan this QR code to pay.')
         ->assertDontSee(__('store.payment_type'))
         ->assertDontSee(__('store.currency'))
         ->assertDontSee(__('store.payment_provider'));
@@ -67,6 +79,10 @@ it('supports QR-only checkout, saves product descriptions, and links payment pro
         ->put(route('admin.payment-settings.update', $paymentSetting), [
             'currency' => 'idr',
             'name' => 'Scan to pay updated',
+            'logo' => UploadedFile::fake()->createWithContent(
+                'updated-payment-logo.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true),
+            ),
             'qr_code' => UploadedFile::fake()->createWithContent(
                 'updated-store-qr.png',
                 base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true),
@@ -76,11 +92,15 @@ it('supports QR-only checkout, saves product descriptions, and links payment pro
         ])
         ->assertRedirect(route('admin.payment-settings.index'));
     Storage::disk('public')->assertExists($originalQrCodePath);
+    Storage::disk('public')->assertExists($paymentSetting->fresh()->logo_path);
 
     $this->actingAs($buyer);
     $this->get(route('orders.show', $order))
         ->assertOk()
         ->assertSee(Storage::disk('public')->url($paymentSetting->qr_code_path), false)
+        ->assertSee('Example owner')
+        ->assertSee('QR-987654')
+        ->assertSee('Scan this QR code to pay.')
         ->assertSee('A description saved when the order is created.')
         ->assertDontSee(__('store.payment_type'))
         ->assertDontSee(__('store.currency'))

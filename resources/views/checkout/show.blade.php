@@ -28,10 +28,13 @@
         .checkout-total { align-items: center; display: flex; justify-content: space-between; padding-top: 18px; }
         .checkout-total strong { color: #182230; font-size: 20px; }
         .checkout-contact-note { color: #77818e; font-size: 13px; line-height: 1.6; margin: -6px 0 18px; }
-        .payment-method { background: #fff; border: 1px solid #e7ebef; border-radius: 9px; cursor: pointer; display: block; padding: 14px; transition: border-color .15s, background-color .15s; }
+        .payment-method { align-items: center; background: #fff; border: 1px solid #e7ebef; border-radius: 9px; cursor: pointer; display: flex; min-height: 76px; padding: 14px; transition: border-color .15s, background-color .15s; }
         .payment-method:has(input:checked) { background: #f3f8ff; border-color: #4d9ce0; }
         .payment-method + .payment-method { margin-top: 9px; }
-        .payment-method-info { color: #637083; font-size: 13px; line-height: 1.55; }
+        .payment-method-choice { align-items: center; display: flex; gap: 14px; width: 100%; }
+        .payment-method-choice input { flex: 0 0 auto; margin: 0; }
+        .payment-method-logo { flex: 0 0 56px; height: 44px; object-fit: contain; width: 56px; }
+        .payment-method-name { color: #182230; font-size: 15px; }
         .checkout-submit { background: #009b69; border: 0; border-radius: 8px; color: #fff; font-weight: 650; min-height: 48px; }
         .checkout-submit:hover { background: #00845a; color: #fff; }
         .store-closed-warning { background: #fff7e8; border: 1px solid #f6d79c; border-radius: 10px; color: #7a4b00; font-size: 14px; line-height: 1.55; margin: 16px auto 0; max-width: 1080px; padding: 12px 16px; }
@@ -117,25 +120,12 @@
                     <div>
                         @foreach ($paymentSettings as $paymentSetting)
                             <label class="payment-method">
-                                <span class="align-items-start d-flex gap-3">
-                                    <input class="form-check-input mt-1" type="radio" name="payment_method_id" value="{{ $paymentSetting->id }}" @checked(old('payment_method_id') == $paymentSetting->id) required>
-                                    <span>
-                                        <strong>{{ $paymentSetting->name ?: $paymentSetting->bank_name }}</strong>
-                                    @if ($paymentSetting->account_name)
-                                        <span class="payment-method-info d-block mt-2">{{ __('store.account_name') }}: {{ $paymentSetting->account_name }}</span>
+                                <span class="payment-method-choice">
+                                    <input class="form-check-input" type="radio" name="payment_method_id" value="{{ $paymentSetting->id }}" @checked(old('payment_method_id') == $paymentSetting->id) required>
+                                    @if ($paymentSetting->logo_path)
+                                        <img class="payment-method-logo" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentSetting->logo_path) }}" alt="">
                                     @endif
-                                    @if ($paymentSetting->account_number)
-                                        <span class="payment-method-info d-block mt-2">{{ __('store.payment_to') }}: {{ $paymentSetting->account_number }}</span>
-                                    @endif
-                                    @if ($paymentSetting->qr_code_path)
-                                        <span class="d-block mt-3">
-                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentSetting->qr_code_path) }}" alt="{{ $paymentSetting->name }} QR code" style="display: block; height: auto; max-height: 180px; max-width: 100%; object-fit: contain; width: auto">
-                                        </span>
-                                    @endif
-                                        @if ($paymentSetting->instructions)
-                                            <span class="payment-method-info d-block mt-2"><strong>{{ __('store.payment_instructions') }}:</strong> {{ $paymentSetting->instructions }}</span>
-                                        @endif
-                                    </span>
+                                    <strong class="payment-method-name">{{ $paymentSetting->name ?: $paymentSetting->bank_name }}</strong>
                                 </span>
                             </label>
                         @endforeach

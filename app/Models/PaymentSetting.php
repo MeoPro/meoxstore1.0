@@ -13,6 +13,7 @@ class PaymentSetting extends Model
         'bank_name',
         'account_name',
         'account_number',
+        'logo_path',
         'qr_code_path',
         'instructions',
         'is_active',

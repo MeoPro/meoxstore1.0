@@ -10,7 +10,6 @@ use App\Models\ProductCurrencyRate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class ProductDetailsController extends Controller
 {
@@ -40,7 +39,7 @@ class ProductDetailsController extends Controller
 
         $product->load([
             'gameCategory:id,name',
-            'itemCategory:id,name,image,bobux_type,uses_robux',
+            'itemCategory:id,name,bobux_type,uses_robux',
             'reviews' => fn ($query) => $query->where('is_hidden', false)->with('user:id,name')->latest()->limit(20),
             'variants' => fn ($query) => $query
                 ->where('status', 'active')
@@ -141,9 +140,6 @@ class ProductDetailsController extends Controller
             'recommendedProducts' => $recommendedProducts,
             'recommendedGames' => $recommendedGames,
             'recommendedItemCategories' => $recommendedItemCategories,
-            'itemCategoryImageUrl' => $product->itemCategory->image
-                ? Storage::disk('public')->url($product->itemCategory->image)
-                : null,
         ]);
     }
 }

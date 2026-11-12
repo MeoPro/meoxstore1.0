@@ -177,7 +177,7 @@ it('checks out only the selected cart products and keeps the other items in the 
         'type' => 'bank_transfer',
         'name' => 'BCA transfer',
         'bank_name' => 'BCA',
-        'account_name' => 'Meoxstore',
+        'account_name' => 'Example account owner',
         'account_number' => '1234567890',
         'instructions' => 'Transfer the exact amount shown.',
         'is_active' => true,
@@ -200,7 +200,9 @@ it('checks out only the selected cart products and keeps the other items in the 
         ->assertSee(Storage::disk('public')->url('products/selected-product.webp'), false)
         ->assertDontSee('Remaining Product')
         ->assertSee('BCA transfer')
-        ->assertSee('Transfer the exact amount shown.')
+        ->assertDontSee('Example account owner')
+        ->assertDontSee('1234567890')
+        ->assertDontSee('Transfer the exact amount shown.')
         ->assertDontSee('Inactive wallet');
 
     $this->post(route('checkout.store'), [

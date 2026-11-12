@@ -60,5 +60,10 @@
     .header-area.header-scroll-toggle .main-nav .menu-trigger span,
     .header-area.header-scroll-toggle .main-nav .menu-trigger span::before,
     .header-area.header-scroll-toggle .main-nav .menu-trigger span::after { background-color: #fff; }
+    @media (min-width: 768px) and (max-width: 1100px) {
+        .header-area.header-scroll-toggle .main-nav .nav > li > a { color: #1e1e1e !important; }
+        .header-area.header-scroll-toggle .main-nav .nav > li > a:hover,
+        .header-area.header-scroll-toggle .main-nav .nav > li > a.active { background: #f1f0fe !important; color: #ee626b !important; }
+    }
 </style>
 <div class="storefront-cart-notice" data-cart-notice role="status" aria-live="polite" aria-atomic="true"></div>

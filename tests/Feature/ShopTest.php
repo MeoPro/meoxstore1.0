@@ -40,8 +40,8 @@ it('shows active products with game category, image, and starting price', functi
         ->assertDontSee(__('store.variants'))
         ->assertDontSee('shop-item-category', false)
         ->assertSee(route('shop', ['game' => $gameCategory->id]), false)
-        ->assertSee('data-filter=".item-'.$itemCategory->id.'"', false)
-        ->assertSee('data-shop-filter-group="item"', false)
+        ->assertSee(route('shop', ['item_category' => $itemCategory->id]), false)
+        ->assertDontSee('data-shop-filter-group="item"', false)
         ->assertDontSee('<details class="shop-item-category-picker">', false)
         ->assertSee('data-shop-currency="idr"', false)
         ->assertSee('data-myr="RM 11.10"', false)
@@ -369,7 +369,10 @@ it('selects the cheapest active variant by default on the product details page',
 it('shows other item categories on product details and links to that shop filter', function () {
     $currentGame = GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $otherGame = GameCategory::factory()->create(['name' => 'Roblox']);
-    $currentCategory = ItemCategory::factory()->create(['name' => 'Fruit']);
+    $currentCategory = ItemCategory::factory()->create([
+        'name' => 'Fruit',
+        'image' => 'categories/fruit.jpg',
+    ]);
     $recommendedCategory = ItemCategory::factory()->create(['name' => 'Accessories']);
     $product = Product::factory()->create([
         'game_category_id' => $currentGame->id,
@@ -389,11 +392,12 @@ it('shows other item categories on product details and links to that shop filter
         ->assertSee(__('store.recommended_item_categories'))
         ->assertSee('Accessories')
         ->assertSee('item_category='.$recommendedCategory->id, false)
+        ->assertDontSee('/storage/categories/fruit.jpg', false)
         ->assertDontSee('Explore more products')
         ->assertDontSee('Fruit</h3>', false);
 });
 
-it('filters shop products by selected game and keeps item categories as buttons', function () {
+it('filters shop products by selected game and renders server-side item category links', function () {
     $bloxFruit = GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $growtopia = GameCategory::factory()->create(['name' => 'Growtopia']);
     $fruit = ItemCategory::factory()->create(['name' => 'Fruit']);
@@ -418,7 +422,8 @@ it('filters shop products by selected game and keeps item categories as buttons'
         ->assertSee('aria-current="page">Blox Fruit</span>', false)
         ->assertSee('Kitsune')
         ->assertSee(route('shop', ['game' => $bloxFruit->id]), false)
-        ->assertSee('data-shop-filter-group="item"', false)
+        ->assertSee(e(route('shop', ['game' => $bloxFruit->id, 'item_category' => $fruit->id])), false)
+        ->assertDontSee('data-shop-filter-group="item"', false)
         ->assertDontSee('<details class="shop-item-category-picker">', false)
         ->assertSee('Buah')
         ->assertDontSee('World Lock')
@@ -490,7 +495,80 @@ it('filters shop results by a recommended item category', function () {
         ->assertViewHas('selectedItemCategory', fn ($category): bool => $category?->is($accessoryCategory) ?? false)
         ->assertSee('Rare Accessory')
         ->assertDontSee('Kitsune Fruit')
-        ->assertSee('class="is_active" href="#!" data-filter=".item-'.$accessoryCategory->id.'"', false);
+        ->assertSee(e(route('shop', ['game' => $gameCategory->id, 'item_category' => $accessoryCategory->id])), false);
+});
+
+it('searches products only within the selected item category', function () {
+    $accountCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    $fruitCategory = ItemCategory::factory()->create(['name' => 'Fruit']);
+    Product::factory()->create([
+        'item_category_id' => $accountCategory->id,
+        'name' => 'Account Kitsune',
+        'status' => 'active',
+    ]);
+    Product::factory()->create([
+        'item_category_id' => $accountCategory->id,
+        'name' => 'Golden Fruit',
+        'status' => 'active',
+    ]);
+    Product::factory()->create([
+        'item_category_id' => $fruitCategory->id,
+        'name' => 'Account Bundle',
+        'status' => 'active',
+    ]);
+
+    $this->get(route('shop', ['search' => 'Account', 'item_category' => $accountCategory->id]))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertViewHas('selectedItemCategory', fn ($category): bool => $category?->is($accountCategory) ?? false)
+        ->assertViewHas('searchTerm', 'Account')
+        ->assertSee('Account Kitsune')
+        ->assertDontSee('Golden Fruit')
+        ->assertDontSee('Account Bundle')
+        ->assertSee('name="item_category" value="'.$accountCategory->id.'"', false)
+        ->assertSee('value="Account"', false);
+});
+
+it('escapes the product search term in the search field', function () {
+    Product::factory()->create([
+        'name' => 'Available product',
+        'status' => 'active',
+    ]);
+    $searchTerm = '<script>alert(1)</script>';
+
+    $this->get(route('shop', ['search' => $searchTerm]))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 0)
+        ->assertSee('value="'.e($searchTerm).'"', false)
+        ->assertDontSee($searchTerm, false);
+});
+
+it('rejects non-string storefront search queries', function () {
+    $searchQuery = http_build_query(['search' => ['Account']]);
+
+    $this->get(route('shop').'?'.$searchQuery)
+        ->assertBadRequest();
+
+    $this->get(route('games.index').'?'.$searchQuery)
+        ->assertBadRequest();
+});
+
+it('searches the game catalog by game name', function () {
+    $fisch = GameCategory::factory()->create(['name' => 'Fisch']);
+    $bloxFruit = GameCategory::factory()->create(['name' => 'Blox Fruit']);
+    Product::factory()->create([
+        'game_category_id' => $fisch->id,
+        'status' => 'active',
+    ]);
+    Product::factory()->create([
+        'game_category_id' => $bloxFruit->id,
+        'status' => 'active',
+    ]);
+
+    $this->get(route('games.index', ['search' => 'Fisch']))
+        ->assertViewHas('games', fn ($games): bool => $games->pluck('id')->all() === [$fisch->id])
+        ->assertViewHas('searchTerm', 'Fisch')
+        ->assertSee('Fisch')
+        ->assertDontSee('Blox Fruit</h2>', false)
+        ->assertSee('value="Fisch"', false);
 });
 
 it('keeps the selected currency when switching game categories from the storefront menu', function () {
@@ -773,7 +851,7 @@ it('does not show inactive products or products without active variants', functi
         ->assertNotFound();
 });
 
-it('shows same-item recommendations, other games, and uploaded category images', function () {
+it('shows same-item recommendations and other games without a stray category banner', function () {
     $bloxFruit = GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $growtopia = GameCategory::factory()->create([
         'name' => 'Growtopia',
@@ -809,7 +887,7 @@ it('shows same-item recommendations, other games, and uploaded category images',
         ->assertSee('Dragon Fruit')
         ->assertSee('Rekomendasi game lainnya')
         ->assertSee('Growtopia')
-        ->assertSee('/storage/categories/fruit.webp')
+        ->assertDontSee('/storage/categories/fruit.webp')
         ->assertSee('/storage/categories/growtopia.webp');
 });
 

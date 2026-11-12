@@ -33,6 +33,8 @@
       .shop-category-filters { width: 100%; }
       .shop-category-filter-row { justify-content: center; width: 100%; }
       .shop-category-filter-label { display: none; }
+      .shop-search-form { align-items: center; display: flex; gap: 8px; margin: 0 auto 16px; max-width: 560px; width: 100%; }
+      .shop-search-form .form-control { min-width: 0; }
       .trending .shop-category-filter-row ul.trending-filter { display: flex; flex: 0 1 auto; flex-wrap: nowrap; gap: 8px; margin: 0 auto; max-width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 10px; scrollbar-width: thin; text-align: left; white-space: nowrap; width: max-content; -webkit-overflow-scrolling: touch; }
       .shop-category-filter-row .trending-filter li { margin-top: 0; margin-bottom: 0; }
       .shop-category-filter-row .trending-filter li { flex: 0 0 auto; margin: 0; }
@@ -76,6 +78,9 @@
         .shop-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; margin-bottom: 18px; }
 
         .shop-product-list > .trending-items { width: 50%; }
+      }
+      @media (max-width: 575.98px) {
+        .shop-search-form { align-items: stretch; flex-direction: column; }
       }
     </style>
 <!--
@@ -135,12 +140,52 @@ https://templatemo.com/tm-589-lugx-gaming
           </div>
         </div>
         <div class="shop-category-filters">
+          <form class="shop-search-form" method="GET" action="{{ route('shop') }}" role="search">
+            @if ($selectedGameCategory)
+              <input type="hidden" name="game" value="{{ $selectedGameCategory->id }}">
+            @endif
+            @if ($selectedItemCategory)
+              <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
+            @endif
+            @if ($selectedCurrency !== 'idr')
+              <input type="hidden" name="currency" value="{{ $selectedCurrency }}">
+            @endif
+            <label class="visually-hidden" for="product-search">{{ __('store.search_products') }}</label>
+            <input class="form-control" id="product-search" name="search" type="search" value="{{ $searchTerm }}" placeholder="{{ __('store.search_products') }}">
+            <button class="btn btn-primary" type="submit">{{ __('store.search') }}</button>
+            @if ($searchTerm !== '')
+              <a class="btn btn-outline-secondary" href="{{ route('shop', [
+                  'game' => $selectedGameCategory?->id,
+                  'item_category' => $selectedItemCategory?->id,
+                  'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
+              ]) }}">{{ __('store.clear_search') }}</a>
+            @endif
+          </form>
           <div class="shop-category-filter-row">
             <span class="shop-category-filter-label">{{ __('store.item') }}</span>
-            <ul class="trending-filter" data-shop-filter-group="item" aria-label="{{ __('store.filter_item_category') }}">
-              <li><a @class(['is_active' => $selectedItemCategory === null]) href="#!" data-filter="*">{{ __('store.all_items') }}</a></li>
+            <ul class="trending-filter" aria-label="{{ __('store.filter_item_category') }}">
+              <li>
+                <a
+                  @class(['is_active' => $selectedItemCategory === null])
+                  href="{{ route('shop', [
+                      'game' => $selectedGameCategory?->id,
+                      'search' => $searchTerm !== '' ? $searchTerm : null,
+                      'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
+                  ]) }}"
+                >{{ __('store.all_items') }}</a>
+              </li>
               @foreach ($itemCategories as $itemCategory)
-                <li><a @class(['is_active' => $selectedItemCategory?->is($itemCategory)]) href="#!" data-filter=".item-{{ $itemCategory->id }}">{{ $itemCategory->localizedName() }}</a></li>
+                <li>
+                  <a
+                    @class(['is_active' => $selectedItemCategory?->is($itemCategory)])
+                    href="{{ route('shop', [
+                        'game' => $selectedGameCategory?->id,
+                        'item_category' => $itemCategory->id,
+                        'search' => $searchTerm !== '' ? $searchTerm : null,
+                        'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
+                    ]) }}"
+                  >{{ $itemCategory->localizedName() }}</a>
+                </li>
               @endforeach
             </ul>
           </div>
@@ -236,7 +281,7 @@ https://templatemo.com/tm-589-lugx-gaming
           </div>
         @empty
           <div class="col-12 text-center py-5">
-            <h4>{{ __('store.no_products') }}</h4>
+            <h4>{{ $searchTerm !== '' ? __('store.search_no_results') : __('store.no_products') }}</h4>
           </div>
         @endforelse
       </div>

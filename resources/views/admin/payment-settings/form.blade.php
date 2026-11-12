@@ -27,6 +27,15 @@
             @error('currency')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         <div class="mb-3">
+            <label class="form-label" for="logo">Payment provider logo</label>
+            <input class="form-control @error('logo') is-invalid @enderror" id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp">
+            <div class="form-text">Optional. PNG, JPG, or WEBP, up to 2 MB. This logo appears in the checkout payment selector.</div>
+            @error('logo')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            @if ($paymentSetting->logo_path)
+                <img class="mt-3 rounded border" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentSetting->logo_path) }}" alt="Current payment provider logo" style="height: 56px; max-width: 120px; object-fit: contain; width: auto">
+            @endif
+        </div>
+        <div class="mb-3">
             <label class="form-label" for="account_name">Account holder</label>
             <input class="form-control @error('account_name') is-invalid @enderror" id="account_name" name="account_name" value="{{ old('account_name', $paymentSetting->account_name) }}" maxlength="255">
             @error('account_name')<div class="invalid-feedback">{{ $message }}</div>@enderror

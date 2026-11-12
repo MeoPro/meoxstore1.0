@@ -14,17 +14,22 @@
         'resources/js/app.js',
     ])
     <style>
-        .game-catalog-grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+        .game-catalog-grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
         .game-catalog-card { background: #fff; border: 1px solid #eee; border-radius: 18px; height: 100%; overflow: hidden; position: relative; transition: transform .2s ease, box-shadow .2s ease; }
         @media (hover: hover) and (prefers-reduced-motion: no-preference) {
             .game-catalog-card:hover { box-shadow: 0 20px 42px rgba(30, 56, 90, .16); transform: scale(1.035); z-index: 2; }
         }
-        .game-catalog-card img { aspect-ratio: 16 / 10; display: block; object-fit: cover; width: 100%; }
+        .game-catalog-card img { aspect-ratio: 1 / 1; display: block; object-fit: cover; width: 100%; }
         .game-catalog-card-content { padding: 20px; }
         .game-catalog-card h2 { font-size: 19px; margin: 0 0 8px; }
         .game-catalog-card p { color: #7a7a7a; margin: 0 0 16px; }
         .game-catalog-card a { color: inherit; text-decoration: none; }
         .game-catalog-link { color: #ee626b !important; font-weight: 600; }
+        .game-catalog-search { align-items: center; display: flex; gap: 8px; margin: 0 auto 24px; max-width: 560px; }
+        .game-catalog-search .form-control { min-width: 0; }
+        @media (max-width: 575.98px) {
+            .game-catalog-search { align-items: stretch; flex-direction: column; }
+        }
     </style>
 </head>
 <body class="storefront-page">
@@ -55,8 +60,19 @@
                 <h2>{{ __('store.games_title') }}</h2>
                 <p class="text-secondary">{{ __('store.choose_game_help') }}</p>
             </div>
+            <form class="game-catalog-search" method="GET" action="{{ route('games.index') }}" role="search">
+                @if ($selectedCurrency !== 'idr')
+                    <input type="hidden" name="currency" value="{{ $selectedCurrency }}">
+                @endif
+                <label class="visually-hidden" for="game-search">{{ __('store.search_games') }}</label>
+                <input class="form-control" id="game-search" name="search" type="search" value="{{ $searchTerm }}" placeholder="{{ __('store.search_games') }}">
+                <button class="btn btn-primary" type="submit">{{ __('store.search') }}</button>
+                @if ($searchTerm !== '')
+                    <a class="btn btn-outline-secondary" href="{{ route('games.index', ['currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ __('store.clear_search') }}</a>
+                @endif
+            </form>
             @if ($games->isEmpty())
-                <p class="text-center text-secondary">{{ __('store.all_games_empty') }}</p>
+                <p class="text-center text-secondary">{{ $searchTerm !== '' ? __('store.search_no_results') : __('store.all_games_empty') }}</p>
             @else
                 <div class="game-catalog-grid">
                     @foreach ($games as $gameCategory)

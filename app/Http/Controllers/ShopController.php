@@ -19,6 +19,9 @@ class ShopController extends Controller
             $selectedCurrency = 'idr';
         }
 
+        $searchTerm = $request->query('search', '');
+        abort_unless(is_string($searchTerm), 400);
+        $searchTerm = trim($searchTerm);
         $activeVariants = fn ($query) => $query->where('status', 'active');
         $selectedGameCategoryId = $request->integer('game');
         $selectedGameCategory = $selectedGameCategoryId > 0
@@ -40,6 +43,7 @@ class ShopController extends Controller
             ->where('status', 'active')
             ->when($selectedGameCategoryId > 0, fn (Builder $query) => $query->where('game_category_id', $selectedGameCategoryId))
             ->when($selectedItemCategory !== null, fn (Builder $query) => $query->where('item_category_id', $selectedItemCategory->id))
+            ->when($searchTerm !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$searchTerm.'%'))
             ->whereHas('variants', $activeVariants)
             ->with([
                 'gameCategory:id,name',
@@ -68,6 +72,7 @@ class ShopController extends Controller
             'currencyRates' => ProductCurrencyRate::current(),
             'selectedCurrency' => $selectedCurrency,
             'selectedGameCategory' => $selectedGameCategory,
+            'searchTerm' => $searchTerm,
         ]);
     }
 }

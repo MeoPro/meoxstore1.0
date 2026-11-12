@@ -46,7 +46,7 @@
             .home-category-grid { display: grid; gap: 24px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
             .home-category-card { background: #fff; border: 1px solid #e6eaf2; border-radius: 14px; height: 100%; overflow: hidden; }
             .home-category-card-image { display: block; }
-            .home-category-card-image img { aspect-ratio: 16 / 10; display: block; object-fit: cover; width: 100%; }
+            .home-category-card-image img { aspect-ratio: 1 / 1; display: block; object-fit: cover; width: 100%; }
             .home-category-card-content { padding: 16px; }
             .home-category-card h3 { font-size: 17px; margin: 0 0 8px; }
             .home-category-card p { color: #7a7a7a; font-size: 13px; margin: 0 0 10px; }

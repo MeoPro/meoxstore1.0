@@ -17,6 +17,9 @@ class GameCatalogController extends Controller
             $selectedCurrency = 'idr';
         }
 
+        $searchTerm = $request->query('search', '');
+        abort_unless(is_string($searchTerm), 400);
+        $searchTerm = trim($searchTerm);
         $activeVariants = fn (Builder $query) => $query->where('status', 'active');
         $availableProducts = fn (Builder $query) => $query
             ->where('status', 'active')
@@ -24,6 +27,7 @@ class GameCatalogController extends Controller
 
         $games = GameCategory::query()
             ->where('status', 'active')
+            ->when($searchTerm !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$searchTerm.'%'))
             ->whereHas('products', $availableProducts)
             ->withCount(['products as available_products_count' => $availableProducts])
             ->with(['products' => fn (HasMany $query) => $query
@@ -38,6 +42,7 @@ class GameCatalogController extends Controller
         return view('games.index', [
             'games' => $games,
             'selectedCurrency' => $selectedCurrency,
+            'searchTerm' => $searchTerm,
         ]);
     }
 }

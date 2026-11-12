@@ -99,7 +99,7 @@
     .product-recommendation-copy h3 { font-size: 16px; margin: 6px 0; overflow-wrap: anywhere; }
     .product-recommendation-price { color: #0071f8; font-weight: 700; }
     .category-recommendation-card { border-radius: 18px; height: 100%; overflow: hidden; }
-    .category-recommendation-card img { background: #f7f8fb; height: 180px; object-fit: cover; width: 100%; }
+    .category-recommendation-card img { aspect-ratio: 1 / 1; background: #f7f8fb; display: block; height: auto; object-fit: cover; width: 100%; }
     .category-recommendation-card h3 { font-size: 17px; padding: 16px; }
     .review-summary { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 14px; }
     .review-card { background: #fff; border: 1px solid #eee; border-radius: 14px; margin-top: 14px; padding: 18px; }
@@ -333,7 +333,6 @@
             <h6>{{ __('store.similar_products') }}</h6>
             <h2 id="item-recommendations-heading">{{ __('store.more_category_products', ['category' => $product->itemCategory->localizedName()]) }}</h2>
           </div>
-          <img class="mb-4 rounded-4" src="{{ $itemCategoryImageUrl ?: $productImage }}" alt="{{ $product->itemCategory->localizedName() }}" style="height: 130px; object-fit: cover; width: 100%;">
           <div class="row g-3 product-recommendation-items">
             @foreach ($recommendedProducts as $recommendedProduct)
               @php

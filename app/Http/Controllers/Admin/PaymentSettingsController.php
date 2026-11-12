@@ -45,15 +45,21 @@ class PaymentSettingsController extends Controller
     {
         $validated = $this->validatedData($request, true);
         $qrCodePath = $this->storeQrCode($request);
+        $logoPath = $this->storeLogo($request);
         if ($qrCodePath !== null) {
             $validated['qr_code_path'] = $qrCodePath;
+        }
+        if ($logoPath !== null) {
+            $validated['logo_path'] = $logoPath;
         }
 
         try {
             PaymentSetting::query()->create($validated);
         } catch (QueryException $exception) {
-            if ($qrCodePath !== null) {
-                Storage::disk('public')->delete($qrCodePath);
+            foreach ([$qrCodePath, $logoPath] as $uploadedPath) {
+                if ($uploadedPath !== null) {
+                    Storage::disk('public')->delete($uploadedPath);
+                }
             }
 
             throw $exception;
@@ -77,15 +83,21 @@ class PaymentSettingsController extends Controller
     {
         $validated = $this->validatedData($request, false, $paymentSetting);
         $qrCodePath = $this->storeQrCode($request);
+        $logoPath = $this->storeLogo($request);
         if ($qrCodePath !== null) {
             $validated['qr_code_path'] = $qrCodePath;
+        }
+        if ($logoPath !== null) {
+            $validated['logo_path'] = $logoPath;
         }
 
         try {
             $paymentSetting->update($validated);
         } catch (QueryException $exception) {
-            if ($qrCodePath !== null) {
-                Storage::disk('public')->delete($qrCodePath);
+            foreach ([$qrCodePath, $logoPath] as $uploadedPath) {
+                if ($uploadedPath !== null) {
+                    Storage::disk('public')->delete($uploadedPath);
+                }
             }
 
             throw $exception;
@@ -158,11 +170,12 @@ class PaymentSettingsController extends Controller
             'bank_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'account_name' => ['nullable', 'string', 'max:255'],
             'account_number' => ['nullable', 'string', 'max:100'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'qr_code' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:4096'],
             'instructions' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
-        unset($validated['qr_code']);
+        unset($validated['logo'], $validated['qr_code']);
         if (! $request->exists('bank_name')) {
             if ($paymentSetting === null) {
                 $validated['bank_name'] = $validated['name'];
@@ -200,6 +213,20 @@ class PaymentSettingsController extends Controller
         $path = $request->file('qr_code')->store('payment-qr-codes', 'public');
         if ($path === false) {
             throw new \RuntimeException('Unable to store the payment QR image.');
+        }
+
+        return $path;
+    }
+
+    private function storeLogo(Request $request): ?string
+    {
+        if (! $request->hasFile('logo')) {
+            return null;
+        }
+
+        $path = $request->file('logo')->store('payment-method-logos', 'public');
+        if ($path === false) {
+            throw new \RuntimeException('Unable to store the payment method logo.');
         }
 
         return $path;
