@@ -36,40 +36,58 @@
                 <p>{{ __('store.blog_intro') }}</p>
             </header>
 
-            @if ($blogPosts->isNotEmpty())
-                <div class="row g-4">
-                    @foreach ($blogPosts as $blogPost)
-                        <div class="col-12 col-md-6 col-lg-4">
-                            <article class="blog-card">
-                                @if ($blogPost->cover_image)
-                                    <a class="blog-card-cover" href="{{ route('blog.show', $blogPost->slug) }}" tabindex="-1" aria-hidden="true">
-                                        <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="" loading="lazy">
-                                    </a>
-                                @else
-                                    <a class="blog-card-cover blog-card-cover-placeholder" href="{{ route('blog.show', $blogPost->slug) }}" tabindex="-1" aria-hidden="true">
-                                        <span>Meoxstore</span>
-                                    </a>
-                                @endif
-                                <div class="blog-card-content">
-                                    <time class="blog-card-date" datetime="{{ $blogPost->published_at->toAtomString() }}">
-                                        {{ __('store.blog_published_on', ['date' => $blogPost->published_at->format('M j, Y')]) }}
-                                    </time>
-                                    <h2><a href="{{ route('blog.show', $blogPost->slug) }}">{{ $blogPost->title }}</a></h2>
-                                    <p>{{ $blogPost->excerpt }}</p>
-                                    <a class="blog-read-more" href="{{ route('blog.show', $blogPost->slug) }}">
-                                        {{ __('store.blog_read_more') }} <span aria-hidden="true">→</span>
-                                    </a>
+            <div class="row g-4">
+                <div class="col-12 col-lg-8">
+                    @forelse ($blogCategories as $blogCategory)
+                        <section class="blog-category-section" aria-labelledby="blog-category-{{ $blogCategory->id }}">
+                            <header class="blog-category-section-heading">
+                                <div>
+                                    <span class="blog-eyebrow">{{ __('store.blog_category_label') }}</span>
+                                    <h2 id="blog-category-{{ $blogCategory->id }}">{{ $blogCategory->name }}</h2>
                                 </div>
-                            </article>
-                        </div>
-                    @endforeach
+                                <a href="{{ route('blog.categories.show', $blogCategory->slug) }}">
+                                    {{ __('store.blog_view_all') }} <span aria-hidden="true">→</span>
+                                </a>
+                            </header>
+                            <div class="row g-4">
+                                @foreach ($blogCategory->blogPosts as $blogPost)
+                                    <div class="col-12 col-md-6">
+                                        @include('blog._post-card', ['blogPost' => $blogPost])
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+                    @empty
+                        @if ($uncategorizedPosts->isEmpty())
+                            <div class="blog-empty">{{ __('store.blog_empty') }}</div>
+                        @endif
+                    @endforelse
+
+                    @if ($uncategorizedPosts->isNotEmpty())
+                        <section class="blog-category-section" aria-labelledby="blog-uncategorized-heading">
+                            <header class="blog-category-section-heading">
+                                <div>
+                                    <span class="blog-eyebrow">{{ __('store.blog_category_label') }}</span>
+                                    <h2 id="blog-uncategorized-heading">{{ __('store.blog_latest') }}</h2>
+                                </div>
+                            </header>
+                            <div class="row g-4">
+                                @foreach ($uncategorizedPosts as $blogPost)
+                                    <div class="col-12 col-md-6">
+                                        @include('blog._post-card', ['blogPost' => $blogPost])
+                                    </div>
+                                @endforeach
+                            </div>
+                            @if ($uncategorizedPosts->hasPages())
+                                <div class="blog-pagination">{{ $uncategorizedPosts->links('pagination::bootstrap-5') }}</div>
+                            @endif
+                        </section>
+                    @endif
                 </div>
-                @if ($blogPosts->hasPages())
-                    <div class="blog-pagination">{{ $blogPosts->links('pagination::bootstrap-5') }}</div>
-                @endif
-            @else
-                <div class="blog-empty">{{ __('store.blog_empty') }}</div>
-            @endif
+                <div class="col-12 col-lg-4">
+                    @include('blog._sidebar')
+                </div>
+            </div>
         </div>
     </main>
     <footer><div class="container"><div class="col-lg-12"><p>Copyright © {{ date('Y') }} Meoxstore. All rights reserved.</p></div></div></footer>

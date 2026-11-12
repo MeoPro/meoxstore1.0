@@ -10,7 +10,7 @@
                     <a href="{{ route('home') }}" class="logo">
                         <img src="{{ asset('images/logo.png') }}" alt="Meoxstore" style="width: 158px; height: auto; filter: brightness(0) invert(1);">
                     </a>
-                    <ul class="nav">
+                    <ul class="nav" id="storefront-main-navigation">
                         <li><a href="{{ route('home') }}" @class(['active' => request()->routeIs('home')])>{{ __('store.home') }}</a></li>
                         @include('components.storefront-shop-menu', ['featuredGames' => $storefrontFeaturedGames])
                         <li><a href="{{ route('about') }}" @class(['active' => request()->routeIs('about')])>{{ __('store.about_us') }}</a></li>
@@ -30,7 +30,9 @@
                             <x-storefront-language-switcher />
                         </li>
                     </ul>
-                    <a class="menu-trigger"><span>Menu</span></a>
+                    <button class="menu-trigger" type="button" aria-label="{{ __('store.toggle_navigation') }}" aria-expanded="false" aria-controls="storefront-main-navigation">
+                        <span aria-hidden="true">Menu</span>
+                    </button>
                 </nav>
             </div>
         </div>

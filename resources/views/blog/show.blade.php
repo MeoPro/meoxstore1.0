@@ -40,24 +40,38 @@
                 <span aria-current="page">{{ $blogPost->title }}</span>
             </nav>
 
-            <article class="blog-article">
-                <header class="blog-article-heading">
-                    <span class="blog-eyebrow">{{ __('store.blog') }}</span>
-                    <h1>{{ $blogPost->title }}</h1>
-                    <p class="blog-article-excerpt">{{ $blogPost->excerpt }}</p>
-                    <time class="blog-card-date" datetime="{{ $blogPost->published_at->toAtomString() }}">
-                        {{ __('store.blog_published_on', ['date' => $blogPost->published_at->format('M j, Y')]) }}
-                    </time>
-                </header>
+            <div class="row g-4">
+                    <div class="col-12 col-lg-8">
+                        <article class="blog-article">
+                            <header class="blog-article-heading">
+                                <span class="blog-eyebrow">{{ __('store.blog') }}</span>
+                                <h1>{{ $blogPost->title }}</h1>
+                                @if ($blogPost->categories->isNotEmpty())
+                                    <nav class="blog-article-categories" aria-label="{{ __('store.blog_categories') }}">
+                                        @foreach ($blogPost->categories as $category)
+                                            <a href="{{ route('blog.categories.show', $category->slug) }}">{{ $category->name }}</a>
+                                        @endforeach
+                                    </nav>
+                                @endif
+                                <p class="blog-article-excerpt">{{ $blogPost->excerpt }}</p>
+                                <time class="blog-card-date" datetime="{{ $blogPost->published_at->toAtomString() }}">
+                                    {{ __('store.blog_published_on', ['date' => $blogPost->published_at->format('M j, Y')]) }}
+                                </time>
+                            </header>
 
-                @if ($coverImageUrl)
-                    <img class="blog-article-cover" src="{{ $coverImageUrl }}" alt="{{ $blogPost->title }}" fetchpriority="high">
-                @endif
+                            @if ($coverImageUrl)
+                                <img class="blog-article-cover" src="{{ $coverImageUrl }}" alt="{{ $blogPost->title }}" fetchpriority="high">
+                            @endif
 
-                <div class="blog-article-body">{!! $bodyHtml !!}</div>
+                            <div class="blog-article-body">{!! $bodyHtml !!}</div>
 
-                <a class="blog-back-link" href="{{ route('blog.index') }}">← {{ __('store.blog_back_to_list') }}</a>
-            </article>
+                            <a class="blog-back-link" href="{{ route('blog.index') }}">← {{ __('store.blog_back_to_list') }}</a>
+                        </article>
+            </div>
+                    <div class="col-12 col-lg-4">
+                        @include('blog._sidebar')
+                    </div>
+                </div>
         </div>
     </main>
     <footer><div class="container"><div class="col-lg-12"><p>Copyright © {{ date('Y') }} Meoxstore. All rights reserved.</p></div></div></footer>

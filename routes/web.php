@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\BlogCategoryController;
 use App\Http\Controllers\Admin\BlogPostController;
+use App\Http\Controllers\Admin\BlogSidebarBlockController;
 use App\Http\Controllers\Admin\GameCategoryController;
 use App\Http\Controllers\Admin\ItemCategoryController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
@@ -30,6 +32,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
 Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/category/{blogCategory:slug}', [BlogController::class, 'category'])->name('blog.categories.show');
 Route::get('/blog/{blogPost:slug}', [BlogController::class, 'show'])->name('blog.show');
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/robots.txt', function (): Response {
@@ -82,6 +85,8 @@ Route::middleware('auth')->group(function () {
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::resource('blog-posts', BlogPostController::class)->except(['show']);
+    Route::resource('blog-categories', BlogCategoryController::class)->except(['show']);
+    Route::resource('blog-sidebar-blocks', BlogSidebarBlockController::class)->except(['show']);
     Route::patch('store-status', [StoreStatusController::class, 'update'])->name('store-status.update');
     Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('orders/queue', [AdminOrderController::class, 'queue'])->name('orders.queue');

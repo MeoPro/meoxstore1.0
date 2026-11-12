@@ -50,6 +50,13 @@
                             <td>
                                 <span class="d-block fw-semibold">{{ $blogPost->title }}</span>
                                 <span class="small text-muted">/blog/{{ $blogPost->slug }}</span>
+                                @if ($blogPost->categories->isNotEmpty())
+                                    <span class="d-flex flex-wrap gap-1 mt-1">
+                                        @foreach ($blogPost->categories as $category)
+                                            <span class="badge rounded-pill text-bg-light border">{{ $category->name }}</span>
+                                        @endforeach
+                                    </span>
+                                @endif
                             </td>
                             <td>
                                 @if ($blogPost->isPubliclyAvailable())

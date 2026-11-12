@@ -12,4 +12,10 @@
             <lastmod>{{ $blogPost->updated_at->toAtomString() }}</lastmod>
         </url>
     @endforeach
+    @foreach ($blogCategories as $blogCategory)
+        <url>
+            <loc>{{ route('blog.categories.show', $blogCategory->slug) }}</loc>
+            <lastmod>{{ $blogCategory->updated_at->toAtomString() }}</lastmod>
+        </url>
+    @endforeach
 </urlset>

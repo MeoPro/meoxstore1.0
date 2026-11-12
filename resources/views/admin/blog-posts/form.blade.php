@@ -38,6 +38,17 @@
                 @error('excerpt')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="col-12">
+                <label class="form-label" for="categories">Categories</label>
+                <select class="form-select @error('categories') is-invalid @enderror @error('categories.*') is-invalid @enderror" id="categories" name="categories[]" multiple size="5" aria-describedby="categories-help">
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}" @selected(in_array($category->id, old('categories', $blogPost->categories->modelKeys()), false))>{{ $category->name }}{{ $category->is_active ? '' : ' (inactive)' }}</option>
+                    @endforeach
+                </select>
+                <div class="form-text" id="categories-help">Select one or more categories. Hold Ctrl (Windows) or Command (Mac) to select several.</div>
+                @error('categories')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @error('categories.*')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            <div class="col-12">
                 <label class="form-label" for="body">Article content</label>
                 <textarea class="form-control font-monospace @error('body') is-invalid @enderror" id="body" name="body" rows="18" maxlength="100000" required>{{ old('body', $blogPost->body) }}</textarea>
                 <div class="form-text">Markdown is supported: use # for headings, **text** for bold, and [label](https://example.com) for links. Raw HTML is not rendered.</div>

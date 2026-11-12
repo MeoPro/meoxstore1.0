@@ -310,6 +310,8 @@
                 <p class="admin-nav-label">Workspace</p>
                 <a href="{{ route('admin.products.index') }}" class="{{ request()->routeIs('admin.products.*') ? 'active' : '' }}">Products</a>
                 <a href="{{ route('admin.blog-posts.index') }}" class="{{ request()->routeIs('admin.blog-posts.*') ? 'active' : '' }}">Blog posts</a>
+                <a href="{{ route('admin.blog-categories.index') }}" class="{{ request()->routeIs('admin.blog-categories.*') ? 'active' : '' }}">Blog categories</a>
+                <a href="{{ route('admin.blog-sidebar-blocks.index') }}" class="{{ request()->routeIs('admin.blog-sidebar-blocks.*') ? 'active' : '' }}">Blog sidebar</a>
                 <a href="{{ route('admin.orders.index') }}" class="{{ request()->routeIs('admin.orders.index', 'admin.orders.show') ? 'active' : '' }}">Orders</a>
                 <a href="{{ route('admin.orders.queue') }}" class="{{ request()->routeIs('admin.orders.queue') ? 'active' : '' }}">In Queue</a>
                 <a href="{{ route('admin.reviews.index') }}" class="{{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">Reviews</a>

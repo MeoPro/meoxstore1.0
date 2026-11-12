@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BlogCategory;
 use App\Models\BlogPost;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,7 @@ class BlogPostController extends Controller
         $status = is_string($status) && in_array($status, ['draft', 'published'], true) ? $status : '';
 
         $blogPosts = BlogPost::query()
+            ->with('categories:id,name')
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $query) use ($search): void {
                     $query->where('title', 'like', '%'.$search.'%')
@@ -41,6 +43,7 @@ class BlogPostController extends Controller
     {
         return view('admin.blog-posts.form', [
             'blogPost' => new BlogPost,
+            'categories' => BlogCategory::active()->orderBy('sort_order')->orderBy('name')->get(),
         ]);
     }
 
@@ -54,6 +57,7 @@ class BlogPostController extends Controller
         }
 
         $blogPost->save();
+        $blogPost->categories()->sync($validated['categories'] ?? []);
 
         return redirect()
             ->route('admin.blog-posts.index')
@@ -62,7 +66,10 @@ class BlogPostController extends Controller
 
     public function edit(BlogPost $blogPost): View
     {
-        return view('admin.blog-posts.form', compact('blogPost'));
+        return view('admin.blog-posts.form', [
+            'blogPost' => $blogPost->load('categories'),
+            'categories' => BlogCategory::query()->orderBy('sort_order')->orderBy('name')->get(),
+        ]);
     }
 
     public function update(Request $request, BlogPost $blogPost): RedirectResponse
@@ -76,6 +83,7 @@ class BlogPostController extends Controller
         }
 
         $blogPost->save();
+        $blogPost->categories()->sync($validated['categories'] ?? []);
 
         if ($previousCoverImage !== null && $blogPost->cover_image !== $previousCoverImage) {
             Storage::disk('public')->delete($previousCoverImage);
@@ -129,6 +137,8 @@ class BlogPostController extends Controller
             'meta_description' => ['nullable', 'string', 'max:320'],
             'status' => ['required', Rule::in(['draft', 'published'])],
             'published_at' => ['nullable', 'date'],
+            'categories' => ['sometimes', 'array'],
+            'categories.*' => ['required', 'integer', 'distinct', Rule::exists('blog_categories', 'id')],
         ]);
     }
 

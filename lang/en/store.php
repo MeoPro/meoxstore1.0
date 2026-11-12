@@ -2,6 +2,7 @@
 
 return [
     'main_navigation' => 'Main navigation',
+    'toggle_navigation' => 'Toggle navigation',
     'home' => 'Home',
     'shop' => 'Our Shop',
     'about_us' => 'About Us',
@@ -20,6 +21,12 @@ return [
     'blog_read_more' => 'Read article',
     'blog_published_on' => 'Published :date',
     'blog_back_to_list' => 'Back to all articles',
+    'blog_categories' => 'Article categories',
+    'blog_category_label' => 'Category',
+    'blog_category_meta_description' => 'Read the latest :category articles and guides from Meoxstore.',
+    'blog_latest' => 'Latest articles',
+    'blog_sidebar' => 'Blog promotions and categories',
+    'blog_view_all' => 'View all',
     'item' => 'Item',
     'all_items' => 'All items',
     'filter_item_category' => 'Filter by item category',

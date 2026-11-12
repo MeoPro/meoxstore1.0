@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BlogCategory;
 use App\Models\BlogPost;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,6 +89,34 @@ it('rejects duplicate slugs and invalid cover images without creating a post', f
     ])->assertInvalid(['slug', 'cover_image']);
 
     expect(BlogPost::query()->count())->toBe(1);
+});
+
+it('syncs multiple categories when a blog post is created and updated', function () {
+    $this->actingAs(User::factory()->create(['is_admin' => true]));
+    $firstCategory = BlogCategory::factory()->create();
+    $secondCategory = BlogCategory::factory()->create();
+
+    $this->post(route('admin.blog-posts.store'), [
+        'title' => 'A categorized article',
+        'excerpt' => 'A short article summary.',
+        'body' => 'Article body.',
+        'status' => 'draft',
+        'categories' => [$firstCategory->id, $secondCategory->id],
+    ])->assertRedirectToRoute('admin.blog-posts.index');
+
+    $blogPost = BlogPost::query()->where('title', 'A categorized article')->firstOrFail();
+    expect(collect($blogPost->categories->modelKeys())->sort()->values()->all())
+        ->toBe([$firstCategory->id, $secondCategory->id]);
+
+    $this->put(route('admin.blog-posts.update', $blogPost), [
+        'title' => $blogPost->title,
+        'excerpt' => $blogPost->excerpt,
+        'body' => $blogPost->body,
+        'status' => 'draft',
+        'categories' => [$secondCategory->id],
+    ])->assertRedirectToRoute('admin.blog-posts.index');
+
+    expect($blogPost->fresh()->categories->modelKeys())->toBe([$secondCategory->id]);
 });
 
 it('deletes blog posts and their cover images', function () {

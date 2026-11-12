@@ -2,6 +2,7 @@
 
 return [
     'main_navigation' => 'Navigasi utama',
+    'toggle_navigation' => 'Buka atau tutup navigasi',
     'home' => 'Laman Utama',
     'shop' => 'Kedai',
     'about_us' => 'Tentang Kami',
@@ -20,6 +21,12 @@ return [
     'blog_read_more' => 'Baca artikel',
     'blog_published_on' => 'Diterbitkan :date',
     'blog_back_to_list' => 'Kembali ke semua artikel',
+    'blog_categories' => 'Kategori artikel',
+    'blog_category_label' => 'Kategori',
+    'blog_category_meta_description' => 'Baca artikel dan panduan terkini :category daripada Meoxstore.',
+    'blog_latest' => 'Artikel terkini',
+    'blog_sidebar' => 'Promosi dan kategori blog',
+    'blog_view_all' => 'Lihat semua',
     'item' => 'Item',
     'all_items' => 'Semua item',
     'filter_item_category' => 'Tapis kategori item',

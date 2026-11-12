@@ -435,8 +435,11 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 	// Menu Dropdown Toggle
 	if($('.menu-trigger').length){
 		$(".menu-trigger").on('click', function() {	
-			$(this).toggleClass('active');
-			$('.header-area .nav').slideToggle(200);
+			const menuTrigger = $(this);
+			const isExpanded = menuTrigger.attr('aria-expanded') === 'true';
+			menuTrigger.toggleClass('active', !isExpanded);
+			menuTrigger.attr('aria-expanded', String(!isExpanded));
+			$('.header-area .main-nav > .nav').stop(true, true).slideToggle(200);
 		});
 	}
 

@@ -434,7 +434,10 @@ Header Style
 }
 
 .header-area .main-nav .menu-trigger {
+  background: transparent;
+  border: 0;
   cursor: pointer;
+  padding: 0;
   position: absolute;
   top: 33px;
   width: 32px;
