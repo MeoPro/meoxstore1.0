@@ -253,7 +253,7 @@
                             @endif
                         </div>
                         <div class="down-content">
-                            <span class="category">{{ $product->gameCategory?->name ?? $product->itemCategory?->name }}</span>
+                            <span class="category">{{ $product->gameCategory?->name ?? $product->itemCategory?->localizedName() }}</span>
                             <h4>{{ $product->name }}</h4>
                             <div class="shop-product-price">
                                 @if ($product->hasDiscount())
@@ -350,10 +350,10 @@
                                     : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg')))
                             <article class="home-category-card">
                                 <a class="home-category-card-image" href="{{ route('shop', ['item_category' => $itemCategory->id]) }}">
-                                    <img src="{{ $itemImage }}" alt="{{ $itemCategory->name }}">
+                                    <img src="{{ $itemImage }}" alt="{{ $itemCategory->localizedName() }}">
                                 </a>
                                 <div class="home-category-card-content">
-                                    <h3>{{ $itemCategory->name }}</h3>
+                                    <h3>{{ $itemCategory->localizedName() }}</h3>
                                     <p>{{ __('store.products_available', ['count' => $itemCategory->available_products_count]) }}</p>
                                     <a class="home-category-card-link" href="{{ route('shop', ['item_category' => $itemCategory->id]) }}">
                                         {{ __('store.view_products') }} <i class="fa fa-arrow-right" aria-hidden="true"></i>

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class ItemCategory extends Model
 {
@@ -51,6 +52,14 @@ class ItemCategory extends Model
             'gift_ingame',
             'gamepass_5_days',
         ], true);
+    }
+
+    public function localizedName(): string
+    {
+        $translationKey = 'item_categories.'.Str::slug($this->name);
+        $localizedName = __($translationKey);
+
+        return $localizedName === $translationKey ? $this->name : $localizedName;
     }
 
     public function gameCategories(): BelongsToMany

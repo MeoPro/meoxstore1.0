@@ -140,7 +140,7 @@ https://templatemo.com/tm-589-lugx-gaming
             <ul class="trending-filter" data-shop-filter-group="item" aria-label="{{ __('store.filter_item_category') }}">
               <li><a @class(['is_active' => $selectedItemCategory === null]) href="#!" data-filter="*">{{ __('store.all_items') }}</a></li>
               @foreach ($itemCategories as $itemCategory)
-                <li><a @class(['is_active' => $selectedItemCategory?->is($itemCategory)]) href="#!" data-filter=".item-{{ $itemCategory->id }}">{{ $itemCategory->name }}</a></li>
+                <li><a @class(['is_active' => $selectedItemCategory?->is($itemCategory)]) href="#!" data-filter=".item-{{ $itemCategory->id }}">{{ $itemCategory->localizedName() }}</a></li>
               @endforeach
             </ul>
           </div>

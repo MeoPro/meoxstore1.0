@@ -331,9 +331,9 @@
         <section class="product-recommendations" aria-labelledby="item-recommendations-heading">
           <div class="section-heading">
             <h6>{{ __('store.similar_products') }}</h6>
-            <h2 id="item-recommendations-heading">{{ __('store.more_category_products', ['category' => str_contains(strtolower($product->itemCategory->name), 'fruit') ? 'Fruit' : $product->itemCategory->name]) }}</h2>
+            <h2 id="item-recommendations-heading">{{ __('store.more_category_products', ['category' => $product->itemCategory->localizedName()]) }}</h2>
           </div>
-          <img class="mb-4 rounded-4" src="{{ $itemCategoryImageUrl ?: $productImage }}" alt="{{ $product->itemCategory->name }}" style="height: 130px; object-fit: cover; width: 100%;">
+          <img class="mb-4 rounded-4" src="{{ $itemCategoryImageUrl ?: $productImage }}" alt="{{ $product->itemCategory->localizedName() }}" style="height: 130px; object-fit: cover; width: 100%;">
           <div class="row g-3 product-recommendation-items">
             @foreach ($recommendedProducts as $recommendedProduct)
               @php
@@ -402,8 +402,8 @@
               @endphp
               <div class="col-6 col-lg-3">
                 <a class="category-recommendation-card d-block text-decoration-none" href="{{ route('shop', ['currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency, 'item_category' => $recommendedCategory->id]) }}">
-                  <img src="{{ $categoryImage }}" alt="{{ $recommendedCategory->name }}">
-                  <h3>{{ $recommendedCategory->name }}</h3>
+                  <img src="{{ $categoryImage }}" alt="{{ $recommendedCategory->localizedName() }}">
+                  <h3>{{ $recommendedCategory->localizedName() }}</h3>
                 </a>
               </div>
             @endforeach

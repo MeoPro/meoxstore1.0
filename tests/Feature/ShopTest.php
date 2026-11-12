@@ -420,9 +420,52 @@ it('filters shop products by selected game and keeps item categories as buttons'
         ->assertSee(route('shop', ['game' => $bloxFruit->id]), false)
         ->assertSee('data-shop-filter-group="item"', false)
         ->assertDontSee('<details class="shop-item-category-picker">', false)
-        ->assertSee('Fruit')
+        ->assertSee('Buah')
         ->assertDontSee('World Lock')
         ->assertDontSee('data-shop-filter-group="game"', false);
+});
+
+it('translates known item category names in the selected storefront language', function () {
+    $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);
+
+    foreach (['Account', 'Akun', 'Fruit', 'Item', 'Joki', 'Permanent', 'Skin', 'Mystery Category'] as $name) {
+        $itemCategory = ItemCategory::factory()->create(['name' => $name]);
+        Product::factory()->create([
+            'game_category_id' => $gameCategory->id,
+            'item_category_id' => $itemCategory->id,
+            'status' => 'active',
+        ]);
+    }
+
+    $this->withSession(['locale' => 'en'])
+        ->get(route('shop'))
+        ->assertSee('Account')
+        ->assertSee('Fruit')
+        ->assertSee('Item')
+        ->assertSee('Leveling Service')
+        ->assertSee('Permanent')
+        ->assertSee('Skin')
+        ->assertSee('Mystery Category');
+
+    $this->withSession(['locale' => 'id'])
+        ->get(route('shop'))
+        ->assertSee('Akun')
+        ->assertSee('Buah')
+        ->assertSee('Item')
+        ->assertSee('Joki')
+        ->assertSee('Permanen')
+        ->assertSee('Skin')
+        ->assertSee('Mystery Category');
+
+    $this->withSession(['locale' => 'ms'])
+        ->get(route('shop'))
+        ->assertSee('Akaun')
+        ->assertSee('Buah')
+        ->assertSee('Item')
+        ->assertSee('Servis naik level')
+        ->assertSee('Kekal')
+        ->assertSee('Skin')
+        ->assertSee('Mystery Category');
 });
 
 it('filters shop results by a recommended item category', function () {
@@ -717,7 +760,7 @@ it('shows same-item recommendations, other games, and uploaded category images',
 
     $this->get(route('product-details.show', $currentProduct))
         ->assertOk()
-        ->assertSee('Rekomendasi Fruit lainnya')
+        ->assertSee('Rekomendasi Buah lainnya')
         ->assertSee('Dragon Fruit')
         ->assertSee('Rekomendasi game lainnya')
         ->assertSee('Growtopia')
