@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class CheckoutController extends Controller
 {
@@ -171,12 +172,10 @@ class CheckoutController extends Controller
         $items = collect($checkout['items'])->map(function (int $quantity, int|string $variantId) use ($variants, $checkout, $currencyRates): array {
             $variant = $variants->get($variantId);
             $currency = $this->currency($checkout['currencies'][$variantId] ?? 'idr');
-            $idrSubtotal = $variant->product->priceInIdr((float) $variant->price, $currencyRates) * $quantity;
-            [$displaySubtotal, $currencySymbol] = match ($currency) {
-                'myr' => [$idrSubtotal / (float) $currencyRates->idr_per_myr, 'RM'],
-                'usd' => [$idrSubtotal / (float) $currencyRates->idr_per_usd, '$'],
-                default => [$idrSubtotal, 'Rp'],
-            };
+            $unitPriceInIdr = $variant->product->priceInIdr((float) $variant->price, $currencyRates);
+            $idrSubtotal = $unitPriceInIdr * $quantity;
+            $displayUnitPrice = $currencyRates->convertIdrTo($unitPriceInIdr, $currency);
+            $displaySubtotal = $displayUnitPrice * $quantity;
 
             return [
                 'variant' => $variant,
@@ -184,16 +183,13 @@ class CheckoutController extends Controller
                 'subtotal' => $idrSubtotal,
                 'displaySubtotal' => $displaySubtotal,
                 'currency' => $currency,
-                'currencySymbol' => $currencySymbol,
+                'currencySymbol' => $this->currencySymbol($currency),
             ];
         });
         $totalCurrency = $this->checkoutCurrency($checkout);
         $idrTotal = $items->sum('subtotal');
-        [$displayTotal, $totalCurrencySymbol] = match ($totalCurrency) {
-            'myr' => [$idrTotal / (float) $currencyRates->idr_per_myr, 'RM'],
-            'usd' => [$idrTotal / (float) $currencyRates->idr_per_usd, '$'],
-            default => [$idrTotal, 'Rp'],
-        };
+        $displayTotal = $items->sum('displaySubtotal');
+        $totalCurrencySymbol = $this->currencySymbol($totalCurrency);
 
         $buyer = $request->user();
 
@@ -237,18 +233,18 @@ class CheckoutController extends Controller
 
         $checkoutCurrency = $this->checkoutCurrency($checkout);
         $currencyRates = ProductCurrencyRate::current();
-        $idrPerCurrencyUnit = match ($checkoutCurrency) {
-            'myr' => (float) $currencyRates->idr_per_myr,
-            'usd' => (float) $currencyRates->idr_per_usd,
-            default => 1.0,
-        };
         $cartDetails = $request->session()->get('cart_details', []);
 
-        $order = DB::transaction(function () use ($request, $validated, $checkout, $cartDetails, $checkoutCurrency, $idrPerCurrencyUnit, $currencyRates): Order {
+        $order = DB::transaction(function () use ($request, $validated, $checkout, $cartDetails, $checkoutCurrency, $currencyRates): Order {
             $currencyRates = ProductCurrencyRate::query()
                 ->whereKey($currencyRates->id)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $idrPerCurrencyUnit = match ($checkoutCurrency) {
+                'myr' => (float) $currencyRates->idr_per_myr,
+                'usd' => (float) $currencyRates->idr_per_usd,
+                default => 1.0,
+            };
 
             $paymentSetting = PaymentSetting::query()
                 ->whereKey($validated['payment_method_id'])
@@ -278,6 +274,7 @@ class CheckoutController extends Controller
             }
 
             $total = 0.0;
+            $paymentAmount = 0.0;
             foreach ($checkout['items'] as $variantId => $quantity) {
                 $variant = $variants->get($variantId);
                 if (
@@ -294,7 +291,9 @@ class CheckoutController extends Controller
                     ]);
                 }
 
-                $total += $variant->product->priceInIdr((float) $variant->price, $currencyRates) * $quantity;
+                $unitPriceInIdr = $variant->product->priceInIdr((float) $variant->price, $currencyRates);
+                $total += $unitPriceInIdr * $quantity;
+                $paymentAmount += $currencyRates->convertIdrTo($unitPriceInIdr, $checkoutCurrency) * $quantity;
             }
 
             $order = Order::query()->create([
@@ -307,6 +306,7 @@ class CheckoutController extends Controller
                     'type' => $paymentSetting->type,
                     'currency' => $paymentSetting->currency,
                     'idr_per_unit' => $idrPerCurrencyUnit,
+                    'payment_amount' => round($paymentAmount, 2),
                     'name' => $paymentSetting->name ?? $paymentSetting->bank_name,
                     'bank_name' => $paymentSetting->bank_name,
                     'account_name' => $paymentSetting->account_name,
@@ -431,6 +431,16 @@ class CheckoutController extends Controller
     private function currency(string $currency): string
     {
         return in_array($currency, ['idr', 'myr', 'usd'], true) ? $currency : 'idr';
+    }
+
+    private function currencySymbol(string $currency): string
+    {
+        return match ($currency) {
+            'idr' => 'Rp',
+            'myr' => 'RM',
+            'usd' => '$',
+            default => throw new InvalidArgumentException('Unsupported currency: '.$currency),
+        };
     }
 
     private function checkoutCurrency(array $checkout): string

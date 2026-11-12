@@ -200,6 +200,61 @@ it('renders item category management and creates an active item category', funct
     ]);
 });
 
+it('links an existing item category to another game without creating a duplicate', function () {
+    Storage::fake('public');
+    $this->actingAs(User::factory()->create());
+    $bloxFruit = GameCategory::factory()->create(['name' => 'Blox Fruit']);
+    $fisch = GameCategory::factory()->create(['name' => 'Fisch']);
+    $itemCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    $bloxFruit->itemCategories()->attach($itemCategory);
+
+    $this->post(route('admin.item-categories.store'), [
+        'name' => 'Account',
+        'game_category_id' => $fisch->id,
+        'image' => UploadedFile::fake()->create('unused-category.jpg', 1, 'image/jpeg'),
+    ])
+        ->assertRedirectToRoute('admin.item-categories.index')
+        ->assertSessionHas(
+            'success',
+            'Existing item category linked to the selected game; its existing settings were kept.',
+        );
+
+    expect(ItemCategory::query()->where('name', 'Account')->count())->toBe(1);
+    expect(Storage::disk('public')->allFiles('categories'))->toBe([]);
+    $this->assertDatabaseHas('game_category_item_category', [
+        'game_category_id' => $bloxFruit->id,
+        'item_category_id' => $itemCategory->id,
+    ]);
+    $this->assertDatabaseHas('game_category_item_category', [
+        'game_category_id' => $fisch->id,
+        'item_category_id' => $itemCategory->id,
+    ]);
+
+    $this->get(route('admin.game-categories.item-categories', $fisch))
+        ->assertOk()
+        ->assertJsonFragment(['id' => $itemCategory->id, 'name' => 'Account']);
+});
+
+it('does not link an inactive item category to another game', function () {
+    $this->actingAs(User::factory()->create());
+    $fisch = GameCategory::factory()->create(['name' => 'Fisch']);
+    $itemCategory = ItemCategory::factory()->create([
+        'name' => 'Account',
+        'status' => 'inactive',
+    ]);
+
+    $this->post(route('admin.item-categories.store'), [
+        'name' => 'Account',
+        'game_category_id' => $fisch->id,
+    ])->assertInvalid(['name']);
+
+    expect(ItemCategory::query()->where('name', 'Account')->count())->toBe(1);
+    $this->assertDatabaseMissing('game_category_item_category', [
+        'game_category_id' => $fisch->id,
+        'item_category_id' => $itemCategory->id,
+    ]);
+});
+
 it('requires an active game when creating an item category', function () {
     $this->actingAs(User::factory()->create());
     $inactiveGame = GameCategory::factory()->create(['status' => 'inactive']);

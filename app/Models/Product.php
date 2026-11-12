@@ -90,6 +90,22 @@ class Product extends Model
         };
     }
 
+    public function priceInMyr(float $price, ProductCurrencyRate $currencyRates): float
+    {
+        return $currencyRates->convertIdrTo(
+            $this->priceInIdr($price, $currencyRates),
+            'myr',
+        );
+    }
+
+    public function priceBeforeDiscountInMyr(float $price, ProductCurrencyRate $currencyRates): float
+    {
+        return $currencyRates->convertIdrTo(
+            $this->priceBeforeDiscountInIdr($price, $currencyRates),
+            'myr',
+        );
+    }
+
     public function priceInUsd(float $price, ProductCurrencyRate $currencyRates): float
     {
         $priceInIdr = $this->priceInIdr($price, $currencyRates);
@@ -98,7 +114,7 @@ class Product extends Model
             $priceInIdr += 10_000;
         }
 
-        return $priceInIdr / (float) $currencyRates->idr_per_usd;
+        return $currencyRates->convertIdrTo($priceInIdr, 'usd');
     }
 
     public function priceBeforeDiscountInUsd(float $price, ProductCurrencyRate $currencyRates): float
@@ -109,7 +125,7 @@ class Product extends Model
             $priceInIdr += 10_000;
         }
 
-        return $priceInIdr / (float) $currencyRates->idr_per_usd;
+        return $currencyRates->convertIdrTo($priceInIdr, 'usd');
     }
 
     /**

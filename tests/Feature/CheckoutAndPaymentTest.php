@@ -579,6 +579,65 @@ it('shows checkout prices in the currency selected on the product page', functio
     'US dollars' => ['usd', '$ 7,50'],
 ]);
 
+it('rounds cart, checkout, order, and payment email amounts to five-cent increments', function (
+    string $currency,
+    string $idrPrice,
+    float $expectedPaymentAmount,
+    string $expectedDisplay,
+) {
+    ProductCurrencyRate::current()->update([
+        'idr_per_myr' => '1000.0000',
+        'idr_per_usd' => '1000.0000',
+    ]);
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['price' => $idrPrice, 'stock' => 2, 'maximum_quantity' => 2]);
+    $paymentSetting = PaymentSetting::query()->create([
+        'type' => 'e_wallet',
+        'name' => 'Currency wallet',
+        'currency' => $currency,
+        'is_active' => true,
+    ]);
+    Mail::fake();
+
+    $this->post(route('cart.items.store'), [
+        'variant_id' => $variant->id,
+        'quantity' => 1,
+        'currency' => $currency,
+    ])->assertRedirect(route('cart.index'));
+
+    $this->get(route('cart.index'))->assertSee($expectedDisplay);
+
+    $this->post(route('cart.checkout'), [
+        'items' => [$variant->id => '1'],
+    ])->assertRedirect(route('checkout.show'));
+
+    $this->get(route('checkout.show'))->assertSee($expectedDisplay);
+
+    $this->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ])->assertRedirect();
+
+    $order = Order::query()->with('items')->sole();
+    expect($order->total)->toBe($idrPrice)
+        ->and((float) $order->payment_details['payment_amount'])->toBe($expectedPaymentAmount)
+        ->and($order->items->sole()->unit_price)->toBe($idrPrice);
+
+    $this->get(route('orders.show', $order))->assertSee($expectedDisplay);
+
+    (new BuyerOrderUpdate($order, BuyerOrderUpdateType::PaymentRequired))
+        ->assertSeeInHtml($expectedDisplay);
+    (new PaymentProofReceived($order))
+        ->assertSeeInHtml($expectedDisplay);
+})->with([
+    'RM 11.12 rounds down' => ['myr', '11120.00', 11.10, 'RM 11,10'],
+    'RM 11.13 rounds up' => ['myr', '11130.00', 11.15, 'RM 11,15'],
+    'USD 11.12 rounds down' => ['usd', '11120.00', 11.10, '$ 11,10'],
+    'USD 11.13 rounds up' => ['usd', '11130.00', 11.15, '$ 11,15'],
+]);
+
 it('keeps the selected currency for cart items sent to checkout', function () {
     $product = Product::factory()->create(['status' => 'active']);
     $variant = $product->variants()->firstOrFail();

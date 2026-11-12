@@ -4,6 +4,7 @@ use App\Models\GameCategory;
 use App\Models\ItemCategory;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductCurrencyRate;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -43,8 +44,8 @@ it('shows active products with game category, image, and starting price', functi
         ->assertSee('data-shop-filter-group="item"', false)
         ->assertDontSee('<details class="shop-item-category-picker">', false)
         ->assertSee('data-shop-currency="idr"', false)
-        ->assertSee('data-myr="RM 10.00"', false)
-        ->assertSee('data-usd="$2.67"', false)
+        ->assertSee('data-myr="RM 11.10"', false)
+        ->assertSee('data-usd="$2.65"', false)
         ->assertSee(route('product-details.show', $product), false)
         ->assertDontSee('data-cart-add', false)
         ->assertDontSee('shop-add-cart', false)
@@ -52,6 +53,25 @@ it('shows active products with game category, image, and starting price', functi
         ->assertDontSee('shop-view-product', false)
         ->assertDontSee('Draft Product');
 });
+
+it('rounds converted product prices to the nearest five cents', function (string $idrPrice, string $expectedPrice) {
+    ProductCurrencyRate::current()->update([
+        'idr_per_myr' => '1000.0000',
+        'idr_per_usd' => '1000.0000',
+    ]);
+    $product = Product::factory()->create(['status' => 'active']);
+    $product->variants()->firstOrFail()->update(['price' => $idrPrice]);
+
+    $this->get(route('product-details.show', ['product' => $product, 'currency' => 'myr']))
+        ->assertSee('RM '.$expectedPrice);
+
+    $this->get(route('product-details.show', ['product' => $product, 'currency' => 'usd']))
+        ->assertSee('$'.$expectedPrice);
+})->with([
+    '11.11 rounds down' => ['11110.00', '11.10'],
+    '11.12 rounds down' => ['11120.00', '11.10'],
+    '11.13 rounds up' => ['11130.00', '11.15'],
+]);
 
 it('shows product badges on images and prices beneath product names', function () {
     $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);

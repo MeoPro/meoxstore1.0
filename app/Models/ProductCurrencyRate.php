@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 
 class ProductCurrencyRate extends Model
 {
@@ -54,5 +55,20 @@ class ProductCurrencyRate extends Model
             'login' => $this->bobux_login_enabled,
             default => true,
         };
+    }
+
+    public function convertIdrTo(float $idrAmount, string $currency): float
+    {
+        return match ($currency) {
+            'idr' => $idrAmount,
+            'myr' => self::roundToNearestFiveCents($idrAmount / (float) $this->idr_per_myr),
+            'usd' => self::roundToNearestFiveCents($idrAmount / (float) $this->idr_per_usd),
+            default => throw new InvalidArgumentException('Unsupported currency: '.$currency),
+        };
+    }
+
+    public static function roundToNearestFiveCents(float $amount): float
+    {
+        return round($amount * 20, 0, PHP_ROUND_HALF_UP) / 20;
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class Order extends Model
 {
@@ -72,5 +73,50 @@ class Order extends Model
     public function publicNumber(): string
     {
         return (string) $this->public_number;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $paymentDetails
+     */
+    public function paymentAmount(?array $paymentDetails = null): float
+    {
+        $paymentDetails ??= $this->payment_details ?? [];
+
+        if (array_key_exists('payment_amount', $paymentDetails)) {
+            return (float) $paymentDetails['payment_amount'];
+        }
+
+        if ($this->items->isNotEmpty()) {
+            return $this->items->sum(
+                fn (OrderItem $item): float => $this->itemPaymentAmount($item, $paymentDetails),
+            );
+        }
+
+        return $this->amountInPaymentCurrency((float) $this->total, $paymentDetails);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $paymentDetails
+     */
+    public function itemPaymentAmount(OrderItem $item, ?array $paymentDetails = null): float
+    {
+        $paymentDetails ??= $this->payment_details ?? [];
+
+        return $this->amountInPaymentCurrency((float) $item->unit_price, $paymentDetails) * $item->quantity;
+    }
+
+    /**
+     * @param  array<string, mixed>  $paymentDetails
+     */
+    private function amountInPaymentCurrency(float $idrAmount, array $paymentDetails): float
+    {
+        $currency = $paymentDetails['currency'] ?? 'idr';
+        $amount = $idrAmount / (float) ($paymentDetails['idr_per_unit'] ?? 1);
+
+        return match ($currency) {
+            'idr' => $amount,
+            'myr', 'usd' => ProductCurrencyRate::roundToNearestFiveCents($amount),
+            default => throw new InvalidArgumentException('Unsupported currency: '.$currency),
+        };
     }
 }

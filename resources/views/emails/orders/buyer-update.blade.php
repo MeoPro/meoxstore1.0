@@ -17,7 +17,7 @@
 
     $customerName = $order->user?->name ?? 'Pelanggan Meoxstore';
     $formattedTotal = $currencySymbol.' '.number_format(
-        (float) $order->total / $currencyRate,
+        $order->paymentAmount(),
         $currencySymbol === 'Rp' ? 0 : 2,
         ',',
         '.',
@@ -72,7 +72,7 @@
                                 <span style="color:#64748b;">{{ $item->variant_name }} &times; {{ $item->quantity }}</span>
                             </td>
                             <td align="right" style="color:#334155; font-size:13px; line-height:19px; white-space:nowrap;">
-                                {{ $currencySymbol }} {{ number_format(((float) $item->unit_price * $item->quantity) / $currencyRate, $currencySymbol === 'Rp' ? 0 : 2, ',', '.') }}
+                                {{ $currencySymbol }} {{ number_format($order->itemPaymentAmount($item), $currencySymbol === 'Rp' ? 0 : 2, ',', '.') }}
                             </td>
                         </tr>
                     </table>

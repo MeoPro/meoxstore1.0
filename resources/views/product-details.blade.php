@@ -195,7 +195,7 @@
                     <button class="btn btn-sm" type="button" data-product-currency="usd" aria-pressed="{{ $selectedCurrency === 'usd' ? 'true' : 'false' }}">USD</button>
                   </div>
                   <div class="product-detail-price mt-2" data-product-price aria-live="polite">{{ match ($selectedCurrency) {
-                      'myr' => 'RM '.number_format($product->priceInIdr((float) $selectedVariant->price, $currencyRates) / (float) $currencyRates->idr_per_myr, 2),
+                      'myr' => 'RM '.number_format($product->priceInMyr((float) $selectedVariant->price, $currencyRates), 2),
                       'usd' => '$'.number_format($product->priceInUsd((float) $selectedVariant->price, $currencyRates), 2),
                       default => $selectedIdrPrice,
                   } }}</div>
@@ -243,7 +243,7 @@
                     @php
                       $idrPriceInIdr = $product->priceInIdr((float) $variant->price, $currencyRates);
                       $idrPrice = 'Rp '.rtrim(rtrim(number_format($idrPriceInIdr, 2, '.', ','), '0'), '.');
-                      $myrPrice = 'RM '.number_format($idrPriceInIdr / (float) $currencyRates->idr_per_myr, 2);
+                      $myrPrice = 'RM '.number_format($product->priceInMyr((float) $variant->price, $currencyRates), 2);
                       $usdPrice = '$'.number_format($product->priceInUsd((float) $variant->price, $currencyRates), 2);
                     @endphp
                     <button

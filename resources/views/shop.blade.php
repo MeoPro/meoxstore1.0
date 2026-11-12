@@ -155,6 +155,12 @@ https://templatemo.com/tm-589-lugx-gaming
             $minimumPriceBeforeDiscount = $product->variants->min(
               fn ($variant) => $product->priceBeforeDiscountInIdr((float) $variant->price, $currencyRates),
             );
+            $minimumMyrPrice = $product->variants->min(
+              fn ($variant) => $product->priceInMyr((float) $variant->price, $currencyRates),
+            );
+            $minimumMyrPriceBeforeDiscount = $product->variants->min(
+              fn ($variant) => $product->priceBeforeDiscountInMyr((float) $variant->price, $currencyRates),
+            );
             $minimumUsdPrice = $product->variants->min(
               fn ($variant) => $product->priceInUsd((float) $variant->price, $currencyRates),
             );
@@ -193,10 +199,10 @@ https://templatemo.com/tm-589-lugx-gaming
                       class="shop-product-price-before"
                       data-shop-price
                       data-idr="Rp {{ rtrim(rtrim(number_format($minimumPriceBeforeDiscount, 2, '.', ','), '0'), '.') }}"
-                      data-myr="RM {{ number_format($minimumPriceBeforeDiscount / $currencyRates->idr_per_myr, 2) }}"
+                      data-myr="RM {{ number_format($minimumMyrPriceBeforeDiscount, 2) }}"
                       data-usd="${{ number_format($minimumUsdPriceBeforeDiscount, 2) }}"
                     >{{ match ($selectedCurrency) {
-                        'myr' => 'RM '.number_format($minimumPriceBeforeDiscount / $currencyRates->idr_per_myr, 2),
+                        'myr' => 'RM '.number_format($minimumMyrPriceBeforeDiscount, 2),
                         'usd' => '$'.number_format($minimumUsdPriceBeforeDiscount, 2),
                         default => 'Rp '.rtrim(rtrim(number_format($minimumPriceBeforeDiscount, 2, '.', ','), '0'), '.'),
                     } }}</span>
@@ -205,10 +211,10 @@ https://templatemo.com/tm-589-lugx-gaming
                     class="shop-product-price-current"
                     data-shop-price
                     data-idr="Rp {{ rtrim(rtrim(number_format($minimumPrice, 2, '.', ','), '0'), '.') }}"
-                    data-myr="RM {{ number_format($minimumPrice / $currencyRates->idr_per_myr, 2) }}"
+                    data-myr="RM {{ number_format($minimumMyrPrice, 2) }}"
                     data-usd="${{ number_format($minimumUsdPrice, 2) }}"
                   >{{ match ($selectedCurrency) {
-                      'myr' => 'RM '.number_format($minimumPrice / $currencyRates->idr_per_myr, 2),
+                      'myr' => 'RM '.number_format($minimumMyrPrice, 2),
                       'usd' => '$'.number_format($minimumUsdPrice, 2),
                       default => 'Rp '.rtrim(rtrim(number_format($minimumPrice, 2, '.', ','), '0'), '.'),
                   } }}</span>

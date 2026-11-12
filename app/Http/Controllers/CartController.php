@@ -12,6 +12,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class CartController extends Controller
 {
@@ -56,7 +57,7 @@ class CartController extends Controller
                 : $variant->product->priceInIdr((float) $variant->price, $currencyRates);
             $subtotal = $unitPrice * $quantity;
             [$displayUnitPrice, $currencySymbol] = $this->convertPrice($unitPrice, $currency, $currencyRates);
-            [$displaySubtotal, $currencySymbol] = $this->convertPrice($subtotal, $currency, $currencyRates);
+            $displaySubtotal = $displayUnitPrice * $quantity;
 
             return [
                 'variant' => $variant,
@@ -72,7 +73,8 @@ class CartController extends Controller
                 'currencySymbol' => $currencySymbol,
             ];
         });
-        [$displayTotal, $currencySymbol] = $this->convertPrice($items->sum('subtotal'), $currency, $currencyRates);
+        $displayTotal = $items->sum('displaySubtotal');
+        $currencySymbol = $this->currencySymbol($currency);
 
         return view('cart.index', [
             'items' => $items,
@@ -317,10 +319,16 @@ class CartController extends Controller
      */
     private function convertPrice(float $idrPrice, string $currency, ProductCurrencyRate $rates): array
     {
+        return [$rates->convertIdrTo($idrPrice, $currency), $this->currencySymbol($currency)];
+    }
+
+    private function currencySymbol(string $currency): string
+    {
         return match ($currency) {
-            'myr' => [$idrPrice / (float) $rates->idr_per_myr, 'RM'],
-            'usd' => [$idrPrice / (float) $rates->idr_per_usd, '$'],
-            default => [$idrPrice, 'Rp'],
+            'idr' => 'Rp',
+            'myr' => 'RM',
+            'usd' => '$',
+            default => throw new InvalidArgumentException('Unsupported currency: '.$currency),
         };
     }
 

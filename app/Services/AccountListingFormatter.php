@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\ProductCurrencyRate;
+
 class AccountListingFormatter
 {
     /**
@@ -29,8 +31,14 @@ class AccountListingFormatter
         $price = (float) $data['price_idr'];
         $priceInThousands = number_format($price / 1000, 2, '.', ',');
         $priceInThousands = rtrim(rtrim($priceInThousands, '0'), '.');
-        $myrPrice = number_format($price / (float) $rates['idr_per_myr'], 2);
-        $usdPrice = number_format(($price + 10_000) / (float) $rates['idr_per_usd'], 2);
+        $myrPrice = number_format(
+            ProductCurrencyRate::roundToNearestFiveCents($price / (float) $rates['idr_per_myr']),
+            2,
+        );
+        $usdPrice = number_format(
+            ProductCurrencyRate::roundToNearestFiveCents(($price + 10_000) / (float) $rates['idr_per_usd']),
+            2,
+        );
         $lines = [
             '<b>#'.$this->escape($data['status_label'] ?? 'READY✅').'</b>',
             '',

@@ -37,7 +37,6 @@ class PaymentProofReceived extends Mailable implements ShouldQueue
                     'usd' => '$',
                     default => 'Rp',
                 },
-                'currencyRate' => (float) ($this->order->payment_details['idr_per_unit'] ?? 1),
             ],
         );
     }

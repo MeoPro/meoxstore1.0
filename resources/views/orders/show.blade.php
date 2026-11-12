@@ -93,7 +93,6 @@
         <section class="order-card">
             @php
                 $paymentCurrency = $paymentDetails['currency'] ?? 'idr';
-                $paymentCurrencyRate = (float) ($paymentDetails['idr_per_unit'] ?? 1);
                 $paymentCurrencySymbol = match ($paymentCurrency) {
                     'myr' => 'RM',
                     'usd' => '$',
@@ -190,10 +189,10 @@
                         @endif
                         <span class="order-item-info"><span class="fw-semibold">{{ $item->product_name }}</span><span class="order-note">{{ $item->variant_name }} × {{ $item->quantity }}</span>@if (filled($productDescription))<span class="order-note">{{ $productDescription }}</span>@endif</span>
                     </div>
-                    <strong>{{ $paymentCurrencySymbol }} {{ number_format(((float) $item->unit_price * $item->quantity) / $paymentCurrencyRate, $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                    <strong>{{ $paymentCurrencySymbol }} {{ number_format($order->itemPaymentAmount($item, $paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
                 </div>
             @endforeach
-            <div class="order-total"><span>{{ __('store.total') }}</span><strong>{{ $paymentCurrencySymbol }} {{ number_format((float) $order->total / $paymentCurrencyRate, $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong></div>
+            <div class="order-total"><span>{{ __('store.total') }}</span><strong>{{ $paymentCurrencySymbol }} {{ number_format($order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong></div>
         </section>
         @if ($order->customer_completed_at)
             <section class="order-card">
@@ -266,7 +265,7 @@
                         <div class="payment-details-list">
                             <div class="payment-detail-row">
                                 <span class="payment-detail-label">{{ __('store.total') }}</span>
-                                <strong class="payment-detail-value">{{ $paymentCurrencySymbol }} {{ number_format((float) $order->total / $paymentCurrencyRate, $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                                <strong class="payment-detail-value">{{ $paymentCurrencySymbol }} {{ number_format($order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
                             </div>
                         </div>
                     @else
@@ -295,7 +294,7 @@
                             @if ($paymentDetails['account_number'] ?? null)
                                 <div class="order-meta-row"><span class="order-meta-label">{{ __('store.payment_to') }}</span><strong>{{ $paymentDetails['account_number'] }}</strong></div>
                             @endif
-                            <div class="order-meta-row"><span class="order-meta-label">{{ __('store.total') }}</span><strong>{{ $paymentCurrencySymbol }} {{ number_format((float) $order->total / $paymentCurrencyRate, $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong></div>
+                            <div class="order-meta-row"><span class="order-meta-label">{{ __('store.total') }}</span><strong>{{ $paymentCurrencySymbol }} {{ number_format($order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong></div>
                         </div>
                     @else
                         <p class="order-note mb-0">{{ __('store.payment_not_configured') }}</p>

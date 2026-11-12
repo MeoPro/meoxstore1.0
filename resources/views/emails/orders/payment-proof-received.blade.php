@@ -12,7 +12,7 @@
         <tr>
             <td style="padding:18px 20px;">
                 <div style="color:#64748b; font-size:12px; line-height:18px;">TOTAL PESANAN</div>
-                <div style="padding-top:4px; color:#1d4ed8; font-size:24px; font-weight:bold; line-height:31px;">{{ $currencySymbol }} {{ number_format((float) $order->total / $currencyRate, $currencySymbol === 'Rp' ? 0 : 2, ',', '.') }}</div>
+                <div style="padding-top:4px; color:#1d4ed8; font-size:24px; font-weight:bold; line-height:31px;">{{ $currencySymbol }} {{ number_format($order->paymentAmount(), $currencySymbol === 'Rp' ? 0 : 2, ',', '.') }}</div>
             </td>
             <td align="right" style="padding:18px 20px;">
                 <div style="color:#64748b; font-size:12px; line-height:18px;">STATUS</div>

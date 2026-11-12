@@ -103,7 +103,7 @@ class ItemCategoryController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('item_categories', 'name')],
+            'name' => ['required', 'string', 'max:255'],
             'game_category_id' => [
                 'required',
                 'integer',
@@ -121,19 +121,29 @@ class ItemCategoryController extends Controller
         $imagePath = $request->file('image')?->store('categories', 'public');
 
         try {
-            DB::transaction(function () use ($validated, $imagePath, $bobuxType): void {
-                $category = ItemCategory::create([
-                    'name' => $validated['name'],
-                    'bobux_type' => $bobuxType,
-                    'uses_robux' => in_array($bobuxType, ['gift_ingame', 'gamepass_5_days'], true),
-                    'status' => $validated['status'] ?? 'active',
-                    'image' => $imagePath,
-                ]);
+            $category = DB::transaction(function () use ($validated, $imagePath, $bobuxType): ItemCategory {
+                $category = ItemCategory::query()->firstOrCreate(
+                    ['name' => $validated['name']],
+                    [
+                        'bobux_type' => $bobuxType,
+                        'uses_robux' => in_array($bobuxType, ['gift_ingame', 'gamepass_5_days'], true),
+                        'status' => $validated['status'] ?? 'active',
+                        'image' => $imagePath,
+                    ],
+                );
+
+                if (! $category->wasRecentlyCreated && $category->status !== 'active') {
+                    throw ValidationException::withMessages([
+                        'name' => ['This item category is inactive.'],
+                    ]);
+                }
 
                 GameCategory::query()
                     ->findOrFail($validated['game_category_id'])
                     ->itemCategories()
                     ->syncWithoutDetaching($category->id);
+
+                return $category;
             });
         } catch (Throwable $exception) {
             if ($imagePath !== null) {
@@ -143,7 +153,15 @@ class ItemCategoryController extends Controller
             throw $exception;
         }
 
-        return redirect()->route('admin.item-categories.index')->with('success', 'Item category created.');
+        if (! $category->wasRecentlyCreated && $imagePath !== null) {
+            Storage::disk('public')->delete($imagePath);
+        }
+
+        $message = $category->wasRecentlyCreated
+            ? 'Item category created.'
+            : 'Existing item category linked to the selected game; its existing settings were kept.';
+
+        return redirect()->route('admin.item-categories.index')->with('success', $message);
     }
 
     /**

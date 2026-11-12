@@ -762,6 +762,24 @@ it('escapes free-text values in the Telegram account template', function () {
         ->not->toContain('<b>unsafe</b>');
 });
 
+it('rounds account listing currency prices to the nearest five cents', function (int $price, string $expectedPrices) {
+    $rates = [
+        'idr_per_myr' => '1000.0000',
+        'idr_per_usd' => '1000.0000',
+    ];
+    $html = app(AccountListingFormatter::class)->telegramHtml([
+        'username' => 'Example account',
+        'level' => '1',
+        'items' => [],
+        'price_idr' => $price,
+    ], $rates);
+
+    expect($html)->toContain($expectedPrices);
+})->with([
+    '11.12 rounds down' => [1120, 'RM 1.10 | $11.10'],
+    '11.13 rounds up' => [1130, 'RM 1.15 | $11.15'],
+]);
+
 it('shows all bot commands from help', function () {
     config([
         'services.telegram.admin_ids' => ['12345'],
