@@ -2122,7 +2122,7 @@ body {
   font-weight: 600;
 }
 
-@media (min-width: 768px) and (max-width: 1100px) {
+@media (min-width: 768px) and (max-width: 1200px) {
   .header-area {
     height: 80px;
     padding: 0 15px;
@@ -2183,8 +2183,9 @@ body {
   .header-area .main-nav .nav li {
     background: #fff;
     border-top: 1px solid #ddd;
-    height: 50px;
-    line-height: 50px;
+    height: auto;
+    line-height: normal;
+    min-height: 50px;
     padding: 0 !important;
     width: 100%;
   }
@@ -2218,14 +2219,18 @@ body {
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .header-area .main-nav .nav {
     max-height: calc(100vh - 100px);
     overflow-y: auto;
   }
 
   .header-area .main-nav .nav li.storefront-shop-menu {
+    height: auto;
+    line-height: normal;
+    min-height: 50px;
     border-radius: 0;
+    flex: 0 0 auto;
     padding: 0 !important;
     text-align: left;
   }
