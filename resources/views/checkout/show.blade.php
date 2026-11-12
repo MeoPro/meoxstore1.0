@@ -20,11 +20,18 @@
         .checkout-heading { margin-bottom: 20px; }
         .checkout-heading p { color: #77818e; font-size: 14px; margin: 4px 0 0; }
         .checkout-items { border-top: 1px solid #edf0f3; }
-        .checkout-item { align-items: center; border-bottom: 1px solid #edf0f3; display: flex; gap: 14px; justify-content: space-between; padding: 15px 0; }
+        .checkout-item { align-items: flex-start; border-bottom: 1px solid #edf0f3; display: flex; gap: 14px; justify-content: space-between; padding: 15px 0; }
+        .checkout-item-main { align-items: flex-start; display: flex; flex: 1 1 auto; gap: 14px; min-width: 0; }
         .checkout-product-image, .checkout-product-placeholder { background: #eef2f6; border-radius: 9px; flex: 0 0 64px; height: 64px; object-fit: cover; width: 64px; }
         .checkout-product-placeholder { align-items: center; color: #7c8999; display: flex; font-size: 22px; justify-content: center; }
-        .checkout-item h2 { font-size: 15px; margin: 0 0 4px; }
-        .checkout-item strong { color: #1976bd; white-space: nowrap; }
+        .checkout-item-copy { flex: 1 1 auto; min-width: 0; }
+        .checkout-item h2 { font-size: 15px; margin: 0 0 4px; overflow-wrap: anywhere; }
+        .checkout-item-price { color: #1976bd; flex: 0 0 auto; font-size: 15px; padding-top: 2px; white-space: nowrap; }
+        .checkout-item-description summary { color: #0071f8; cursor: pointer; font-size: 12px; font-weight: 600; list-style: none; margin-top: 8px; width: fit-content; }
+        .checkout-item-description summary::-webkit-details-marker { display: none; }
+        .checkout-item-description summary::after { content: ' +'; }
+        .checkout-item-description[open] summary::after { content: ' −'; }
+        .checkout-item-description p { background: #f7f8fb; border-radius: 8px; color: #637083; font-size: 13px; line-height: 1.6; margin: 8px 0 0; overflow-wrap: anywhere; padding: 10px 12px; white-space: pre-line; }
         .checkout-total { align-items: center; display: flex; justify-content: space-between; padding-top: 18px; }
         .checkout-total strong { color: #182230; font-size: 20px; }
         .checkout-contact-note { color: #77818e; font-size: 13px; line-height: 1.6; margin: -6px 0 18px; }
@@ -40,7 +47,7 @@
         .store-closed-warning { background: #fff7e8; border: 1px solid #f6d79c; border-radius: 10px; color: #7a4b00; font-size: 14px; line-height: 1.55; margin: 16px auto 0; max-width: 1080px; padding: 12px 16px; }
         .page-heading.header-text { border-radius: 0 0 56px 56px; padding: 108px 0 22px; }
         .page-heading.header-text h3 { font-size: 26px; margin: 10px 0; }
-        @media (max-width: 767.98px) { .checkout-layout { grid-template-columns: 1fr; margin-top: 20px; } }
+        @media (max-width: 767.98px) { .checkout-layout { grid-template-columns: 1fr; margin-top: 20px; } .checkout-item { gap: 10px; } .checkout-item-main { gap: 10px; } .checkout-item-price { font-size: 14px; } }
         @media (max-width: 767.98px) { .page-heading.header-text { padding: 96px 0 18px; } .page-heading.header-text h3 { font-size: 22px; } }
     </style>
 </head>
@@ -68,21 +75,24 @@
                 <div class="checkout-items">
                     @foreach ($items as $item)
                         <article class="checkout-item">
-                            <div class="align-items-center d-flex gap-3">
+                            <div class="checkout-item-main">
                                 @if ($item['variant']->product->image)
                                     <img class="checkout-product-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($item['variant']->product->image) }}" alt="{{ $item['variant']->product->name }}">
                                 @else
                                     <span class="checkout-product-placeholder" aria-hidden="true"><i class="fa fa-gamepad"></i></span>
                                 @endif
-                                <div>
+                                <div class="checkout-item-copy">
                                     <h2>{{ $item['variant']->product->name }}</h2>
                                     <span class="text-secondary small">{{ $item['variant']->name }} × {{ $item['quantity'] }}</span>
                                     @if (filled($item['variant']->product->description))
-                                        <span class="d-block text-secondary small mt-1">{{ $item['variant']->product->description }}</span>
+                                        <details class="checkout-item-description">
+                                            <summary>{{ __('store.description') }}</summary>
+                                            <p>{{ $item['variant']->product->description }}</p>
+                                        </details>
                                     @endif
                                 </div>
                             </div>
-                            <strong>{{ $item['currencySymbol'] }} {{ number_format($item['displaySubtotal'], $item['currency'] === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                            <strong class="checkout-item-price">{{ $item['currencySymbol'] }} {{ number_format($item['displaySubtotal'], $item['currency'] === 'idr' ? 0 : 2, ',', '.') }}</strong>
                         </article>
                     @endforeach
                 </div>

@@ -165,6 +165,7 @@ it('checks out only the selected cart products and keeps the other items in the 
     $customer = User::factory()->create(['is_admin' => false]);
     $selectedProduct = Product::factory()->create([
         'name' => 'Selected Product',
+        'description' => "Account status: ready.\nVerified account with full details.",
         'image' => 'products/selected-product.webp',
         'status' => 'active',
     ]);
@@ -198,6 +199,10 @@ it('checks out only the selected cart products and keeps the other items in the 
     $this->get(route('checkout.show'))
         ->assertSee('Selected Product')
         ->assertSee(Storage::disk('public')->url('products/selected-product.webp'), false)
+        ->assertSee('<details class="checkout-item-description">', false)
+        ->assertSee(__('store.description'))
+        ->assertSee('Account status: ready.')
+        ->assertSee('Verified account with full details.')
         ->assertDontSee('Remaining Product')
         ->assertSee('BCA transfer')
         ->assertDontSee('Example account owner')

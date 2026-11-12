@@ -40,5 +40,10 @@
                 {{ __('store.other_games') }}
             </a>
         </li>
+        <li>
+            <a href="{{ route('blog.index') }}" @if (request()->routeIs('blog.*')) aria-current="page" @endif>
+                {{ __('store.blog') }}
+            </a>
+        </li>
     </ul>
 </li>

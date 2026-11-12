@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BlogPostController;
 use App\Http\Controllers\Admin\GameCategoryController;
 use App\Http\Controllers\Admin\ItemCategoryController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Admin\ProductReviewController as AdminProductReviewCont
 use App\Http\Controllers\Admin\StoreStatusController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\GameCatalogController;
@@ -21,10 +23,22 @@ use App\Http\Controllers\ProductDetailsController;
 use App\Http\Controllers\ProductReviewController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\TelegramWebhookController;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/{blogPost:slug}', [BlogController::class, 'show'])->name('blog.show');
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+Route::get('/robots.txt', function (): Response {
+    return response(
+        "User-agent: *\nDisallow:\nSitemap: ".route('sitemap')."\n",
+        200,
+        ['Content-Type' => 'text/plain; charset=UTF-8'],
+    );
+})->name('robots');
 
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
 Route::get('/games', [GameCatalogController::class, 'index'])->name('games.index');
@@ -67,6 +81,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+    Route::resource('blog-posts', BlogPostController::class)->except(['show']);
     Route::patch('store-status', [StoreStatusController::class, 'update'])->name('store-status.update');
     Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('orders/queue', [AdminOrderController::class, 'queue'])->name('orders.queue');
