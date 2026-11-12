@@ -297,7 +297,7 @@ it('shows best-selling game and item categories based on completed sales', funct
         ->assertSee(route('shop', ['game' => $secondMostPurchasedGame->id]), false)
         ->assertSee(route('shop', ['item_category' => $mostPurchasedItemCategory->id]), false)
         ->assertDontSee('Most Played')
-        ->assertDontSee('Pending Only Game')
+        ->assertSee('Pending Only Game')
         ->assertDontSee('Pending Only Category');
 });
 
@@ -505,8 +505,15 @@ it('keeps the selected currency when switching game categories from the storefro
         ->assertSee(route('games.index', ['currency' => 'myr']));
 });
 
-it('shows only the three featured games and links to the full game catalog', function () {
-    $featuredGames = collect(['Blox Fruit', 'Roblox', 'Fisch'])->map(function (string $name): GameCategory {
+it('shows up to five available games in the storefront menu and links to the full game catalog', function () {
+    $featuredGames = collect([
+        '99 Nights in the Forest',
+        'Blox Fruit',
+        'Fisch',
+        'Growtopia',
+        'Roblox',
+        'Zelda',
+    ])->map(function (string $name): GameCategory {
         $gameCategory = GameCategory::factory()->create(['name' => $name]);
         Product::factory()->create([
             'game_category_id' => $gameCategory->id,
@@ -516,17 +523,38 @@ it('shows only the three featured games and links to the full game catalog', fun
         return $gameCategory;
     });
 
-    $otherGame = GameCategory::factory()->create(['name' => 'Growtopia']);
-    Product::factory()->create([
-        'game_category_id' => $otherGame->id,
-        'status' => 'active',
-    ]);
     $unavailableCategory = GameCategory::factory()->create(['name' => 'Unavailable Game']);
     $unavailableProduct = Product::factory()->create([
         'game_category_id' => $unavailableCategory->id,
         'status' => 'active',
     ]);
     $unavailableProduct->variants()->update(['status' => 'inactive']);
+
+    $buyer = User::factory()->create();
+    $recordSale = function (string $gameName, string $orderStatus, int $quantity) use ($featuredGames, $buyer): void {
+        $gameCategory = $featuredGames->firstWhere('name', $gameName);
+        $product = $gameCategory->products()->firstOrFail();
+        $variant = $product->variants()->firstOrFail();
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => $orderStatus,
+            'total' => 500,
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => $variant->name,
+            'quantity' => $quantity,
+            'unit_price' => 50,
+        ]);
+    };
+    $recordSale('Zelda', 'completed', 20);
+    $recordSale('Fisch', 'completed', 15);
+    $recordSale('Blox Fruit', 'completed', 10);
+    $recordSale('Growtopia', 'completed', 5);
+    $recordSale('99 Nights in the Forest', 'completed', 1);
+    $recordSale('Roblox', 'pending', 100);
 
     $homeResponse = $this->get(route('home'));
     $homeResponse
@@ -535,16 +563,33 @@ it('shows only the three featured games and links to the full game catalog', fun
         ->assertSee(asset('images/logo.png'), false)
         ->assertDontSee('LUGX Gaming Company')
         ->assertSee('Our Shop')
-        ->assertSee('Blox Fruit')
-        ->assertSee('Roblox')
-        ->assertSee('Fisch')
         ->assertSee('data-storefront-shop-toggle', false)
         ->assertSee('class="storefront-shop-toggle"', false)
         ->assertSee('Game lainnya')
         ->assertSee(route('games.index'), false)
         ->assertSee(route('shop', ['game' => $featuredGames[0]->id]), false)
-        ->assertDontSee('Growtopia')
+        ->assertDontSee('Roblox')
         ->assertDontSee('Unavailable Game');
+    $this->assertSame(
+        1,
+        preg_match(
+            '/<ul class="storefront-shop-dropdown" id="storefront-shop-dropdown">(.*?)<\/ul>/s',
+            $homeResponse->getContent(),
+            $dropdownMatches,
+        ),
+    );
+    preg_match_all(
+        '/<a\b[^>]*data-shop-category-link[^>]*>\s*(.*?)\s*<\/a>/s',
+        $dropdownMatches[1],
+        $gameLinks,
+    );
+    expect(array_map('trim', $gameLinks[1]))->toBe([
+        'Zelda',
+        'Fisch',
+        'Blox Fruit',
+        'Growtopia',
+        '99 Nights in the Forest',
+    ]);
     $this->assertMatchesRegularExpression(
         '/<a href="'.preg_quote(route('games.index'), '/').'".*?>\s*'.preg_quote(__('store.shop'), '/').'\s*<\/a>/s',
         $homeResponse->getContent(),

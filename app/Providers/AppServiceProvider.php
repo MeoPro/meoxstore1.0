@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Models\GameCategory;
+use App\Models\Product;
 use App\Models\StoreSetting;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -29,22 +31,28 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('components.storefront-header', function (ViewContract $view): void {
-            $gameCategories = GameCategory::query()
-                ->where('status', 'active')
+            $salesByGame = Product::query()
+                ->join('order_items', 'order_items.product_id', '=', 'products.id')
+                ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                ->where('products.status', 'active')
+                ->where('orders.status', 'completed')
+                ->whereHas('variants', fn (Builder $query) => $query->where('status', 'active'))
+                ->selectRaw('products.game_category_id, SUM(order_items.quantity) as sold_quantity')
+                ->groupBy('products.game_category_id');
+
+            $featuredGames = GameCategory::query()
+                ->leftJoinSub($salesByGame, 'game_sales', function (JoinClause $join): void {
+                    $join->on('game_categories.id', '=', 'game_sales.game_category_id');
+                })
+                ->where('game_categories.status', 'active')
                 ->whereHas('products', function (Builder $query): void {
                     $query->where('status', 'active')
                         ->whereHas('variants', fn (Builder $variantQuery) => $variantQuery->where('status', 'active'));
                 })
-                ->orderBy('name')
-                ->get(['id', 'name']);
-
-            $featuredGameNames = ['blox fruit', 'roblox', 'fisch'];
-            $featuredGames = collect($featuredGameNames)
-                ->map(fn (string $name) => $gameCategories->first(
-                    fn (GameCategory $gameCategory): bool => strtolower(trim($gameCategory->name)) === $name
-                ))
-                ->filter()
-                ->values();
+                ->orderByDesc('game_sales.sold_quantity')
+                ->orderBy('game_categories.name')
+                ->limit(5)
+                ->get(['game_categories.id', 'game_categories.name']);
 
             $view->with([
                 'storefrontFeaturedGames' => $featuredGames,
