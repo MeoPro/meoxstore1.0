@@ -33,8 +33,26 @@
       .shop-category-filters { width: 100%; }
       .shop-category-filter-row { justify-content: center; width: 100%; }
       .shop-category-filter-label { display: none; }
-      .shop-search-form { align-items: center; display: flex; gap: 8px; margin: 0 auto 16px; max-width: 560px; width: 100%; }
+      .shop-discovery-controls { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 16px; max-width: 520px; width: 100%; }
+      .shop-disclosure { flex: 0 1 160px; max-width: 160px; min-width: 0; transition: flex-basis .3s ease, max-width .3s ease; }
+      .shop-disclosure.is-open { flex: 1 1 340px; max-width: 340px; }
+      .shop-disclosure-trigger { align-items: center; background: #fff; border: 1px solid #dfe5ec; border-radius: 999px; color: #334155; display: flex; gap: 10px; justify-content: center; min-height: 44px; padding: 10px 16px; transition: background .2s ease, border-color .2s ease, color .2s ease; width: 100%; }
+      .shop-disclosure-trigger:focus-visible { outline: 3px solid rgba(0, 113, 248, .28); outline-offset: 2px; }
+      .shop-disclosure.is-open .shop-disclosure-trigger { background: #0071f8; border-color: #0071f8; color: #fff; justify-content: space-between; }
+      .shop-disclosure-status { background: rgba(0, 113, 248, .09); border-radius: 999px; color: #0071f8; font-size: 11px; font-weight: 600; padding: 3px 8px; }
+      .shop-disclosure.is-open .shop-disclosure-status { background: rgba(255, 255, 255, .18); color: #fff; }
+      .shop-disclosure-panel { max-height: 0; opacity: 0; overflow: hidden; padding-top: 0; transform: translateY(-4px); transition: max-height .3s ease, opacity .2s ease, padding-top .3s ease, transform .3s ease, visibility 0s linear .3s; visibility: hidden; }
+      .shop-disclosure.is-open .shop-disclosure-panel { max-height: 220px; opacity: 1; padding-top: 10px; transform: translateY(0); transition-delay: 0s; visibility: visible; }
+      .shop-search-form { align-items: stretch; display: flex; flex-direction: column; gap: 10px; margin: 0; width: 100%; }
       .shop-search-form .form-control { min-width: 0; }
+      .shop-search-controls { align-items: center; display: flex; gap: 8px; width: 100%; }
+      .shop-search-controls .form-control { flex: 1 1 auto; }
+      .shop-price-filter-fields { align-items: end; display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .shop-price-filter-field { min-width: 0; }
+      .shop-price-filter-field > span { color: #64748b; display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+      .shop-price-filter-buttons { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+      .shop-price-filter-buttons { grid-column: 1 / -1; }
+      .shop-price-filter-buttons .btn { white-space: nowrap; }
       .trending .shop-category-filter-row ul.trending-filter { display: flex; flex: 0 1 auto; flex-wrap: nowrap; gap: 8px; margin: 0 auto; max-width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 10px; scrollbar-width: thin; text-align: left; white-space: nowrap; width: max-content; -webkit-overflow-scrolling: touch; }
       .shop-category-filter-row .trending-filter li { margin-top: 0; margin-bottom: 0; }
       .shop-category-filter-row .trending-filter li { flex: 0 0 auto; margin: 0; }
@@ -79,8 +97,8 @@
 
         .shop-product-list > .trending-items { width: 50%; }
       }
-      @media (max-width: 575.98px) {
-        .shop-search-form { align-items: stretch; flex-direction: column; }
+      @media (prefers-reduced-motion: reduce) {
+        .shop-disclosure, .shop-disclosure-trigger, .shop-disclosure-panel { transition: none; }
       }
     </style>
 <!--
@@ -140,27 +158,104 @@ https://templatemo.com/tm-589-lugx-gaming
           </div>
         </div>
         <div class="shop-category-filters">
-          <form class="shop-search-form" method="GET" action="{{ route('shop') }}" role="search">
-            @if ($selectedGameCategory)
-              <input type="hidden" name="game" value="{{ $selectedGameCategory->id }}">
-            @endif
-            @if ($selectedItemCategory)
-              <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
-            @endif
-            @if ($selectedCurrency !== 'idr')
-              <input type="hidden" name="currency" value="{{ $selectedCurrency }}">
-            @endif
-            <label class="visually-hidden" for="product-search">{{ __('store.search_products') }}</label>
-            <input class="form-control" id="product-search" name="search" type="search" value="{{ $searchTerm }}" placeholder="{{ __('store.search_products') }}">
-            <button class="btn btn-primary" type="submit">{{ __('store.search') }}</button>
-            @if ($searchTerm !== '')
-              <a class="btn btn-outline-secondary" href="{{ route('shop', [
-                  'game' => $selectedGameCategory?->id,
-                  'item_category' => $selectedItemCategory?->id,
-                  'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
-              ]) }}">{{ __('store.clear_search') }}</a>
-            @endif
-          </form>
+          <div class="shop-discovery-controls" data-shop-disclosures>
+            <section class="shop-disclosure" data-shop-disclosure>
+              <button
+                class="shop-disclosure-trigger"
+                type="button"
+                aria-expanded="false"
+                aria-controls="shop-search-panel"
+                data-shop-disclosure-trigger
+              >
+                <i class="fa fa-search" aria-hidden="true"></i>
+                <span>{{ __('store.search') }}</span>
+                @if ($searchTerm !== '')
+                  <span class="shop-disclosure-status">{{ __('store.filter_active') }}</span>
+                @endif
+              </button>
+              <div id="shop-search-panel" class="shop-disclosure-panel" aria-hidden="true" inert data-shop-disclosure-panel>
+                <form class="shop-search-form" method="GET" action="{{ route('shop') }}" role="search">
+                  @if ($selectedGameCategory)
+                    <input type="hidden" name="game" value="{{ $selectedGameCategory->id }}">
+                  @endif
+                  @if ($selectedItemCategory)
+                    <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
+                  @endif
+                  @if ($minimumPriceFilter !== null)
+                    <input type="hidden" name="min_price" value="{{ $minimumPriceFilter }}">
+                  @endif
+                  @if ($maximumPriceFilter !== null)
+                    <input type="hidden" name="max_price" value="{{ $maximumPriceFilter }}">
+                  @endif
+                  <input type="hidden" name="currency" value="{{ $selectedCurrency }}">
+                  <div class="shop-search-controls">
+                    <label class="visually-hidden" for="product-search">{{ __('store.search_products') }}</label>
+                    <input class="form-control" id="product-search" name="search" type="search" value="{{ $searchTerm }}" placeholder="{{ __('store.search_products') }}">
+                    <button class="btn btn-primary" type="submit">{{ __('store.search') }}</button>
+                    @if ($searchTerm !== '')
+                      <a class="btn btn-outline-secondary" href="{{ route('shop', [
+                          'game' => $selectedGameCategory?->id,
+                          'item_category' => $selectedItemCategory?->id,
+                          'min_price' => $minimumPriceFilter,
+                          'max_price' => $maximumPriceFilter,
+                          'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
+                      ]) }}">{{ __('store.clear_search') }}</a>
+                    @endif
+                  </div>
+                </form>
+              </div>
+            </section>
+            <section class="shop-disclosure" data-shop-disclosure>
+              <button
+                class="shop-disclosure-trigger"
+                type="button"
+                aria-expanded="false"
+                aria-controls="shop-price-panel"
+                data-shop-disclosure-trigger
+              >
+                <i class="fa fa-filter" aria-hidden="true"></i>
+                <span>{{ __('store.price_filter') }}</span>
+                @if ($minimumPriceFilter !== null || $maximumPriceFilter !== null)
+                  <span class="shop-disclosure-status">{{ __('store.filter_active') }}</span>
+                @endif
+              </button>
+              <div id="shop-price-panel" class="shop-disclosure-panel" aria-hidden="true" inert data-shop-disclosure-panel>
+                <form class="shop-search-form" method="GET" action="{{ route('shop') }}" data-shop-price-form>
+                  @if ($selectedGameCategory)
+                    <input type="hidden" name="game" value="{{ $selectedGameCategory->id }}">
+                  @endif
+                  @if ($selectedItemCategory)
+                    <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
+                  @endif
+                  @if ($searchTerm !== '')
+                    <input type="hidden" name="search" value="{{ $searchTerm }}">
+                  @endif
+                  <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-shop-filter-currency>
+                  <div class="shop-price-filter-fields">
+                    <label class="shop-price-filter-field" for="product-min-price">
+                      <span>{{ __('store.minimum_price') }} (<span data-shop-filter-price-currency>{{ strtoupper($selectedCurrency) }}</span>)</span>
+                      <input class="form-control" id="product-min-price" name="min_price" type="text" inputmode="decimal" maxlength="18" pattern="[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?|[0-9]+(\.[0-9]{1,2})?" placeholder="10,000" data-shop-price-input value="{{ $minimumPriceFilter }}">
+                    </label>
+                    <label class="shop-price-filter-field" for="product-max-price">
+                      <span>{{ __('store.maximum_price') }} (<span data-shop-filter-price-currency>{{ strtoupper($selectedCurrency) }}</span>)</span>
+                      <input class="form-control" id="product-max-price" name="max_price" type="text" inputmode="decimal" maxlength="18" pattern="[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?|[0-9]+(\.[0-9]{1,2})?" placeholder="10,000" data-shop-price-input value="{{ $maximumPriceFilter }}">
+                    </label>
+                    <div class="shop-price-filter-buttons">
+                      <button class="btn btn-outline-primary" type="submit">{{ __('store.apply_price_filter') }}</button>
+                      @if ($minimumPriceFilter !== null || $maximumPriceFilter !== null)
+                        <a class="btn btn-outline-secondary" href="{{ route('shop', [
+                            'game' => $selectedGameCategory?->id,
+                            'item_category' => $selectedItemCategory?->id,
+                            'search' => $searchTerm !== '' ? $searchTerm : null,
+                            'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
+                        ]) }}">{{ __('store.clear_price_filter') }}</a>
+                      @endif
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </section>
+          </div>
           <div class="shop-category-filter-row">
             <span class="shop-category-filter-label">{{ __('store.item') }}</span>
             <ul class="trending-filter" aria-label="{{ __('store.filter_item_category') }}">
@@ -170,6 +265,8 @@ https://templatemo.com/tm-589-lugx-gaming
                   href="{{ route('shop', [
                       'game' => $selectedGameCategory?->id,
                       'search' => $searchTerm !== '' ? $searchTerm : null,
+                      'min_price' => $minimumPriceFilter,
+                      'max_price' => $maximumPriceFilter,
                       'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
                   ]) }}"
                 >{{ __('store.all_items') }}</a>
@@ -182,6 +279,8 @@ https://templatemo.com/tm-589-lugx-gaming
                         'game' => $selectedGameCategory?->id,
                         'item_category' => $itemCategory->id,
                         'search' => $searchTerm !== '' ? $searchTerm : null,
+                        'min_price' => $minimumPriceFilter,
+                        'max_price' => $maximumPriceFilter,
                         'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
                     ]) }}"
                   >{{ $itemCategory->localizedName() }}</a>
@@ -281,7 +380,7 @@ https://templatemo.com/tm-589-lugx-gaming
           </div>
         @empty
           <div class="col-12 text-center py-5">
-            <h4>{{ $searchTerm !== '' ? __('store.search_no_results') : __('store.no_products') }}</h4>
+            <h4>{{ $searchTerm !== '' || $minimumPriceFilter !== null || $maximumPriceFilter !== null ? __('store.search_no_results') : __('store.no_products') }}</h4>
           </div>
         @endforelse
       </div>

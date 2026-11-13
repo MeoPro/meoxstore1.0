@@ -41,7 +41,7 @@
             </a>
         </li>
         <li>
-            <a href="{{ route('blog.index') }}" @if (request()->routeIs('blog.*')) aria-current="page" @endif>
+            <a href="https://meoxstore.com/blog" @if (request()->routeIs('blog.*')) aria-current="page" @endif>
                 {{ __('store.blog') }}
             </a>
         </li>

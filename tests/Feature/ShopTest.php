@@ -498,6 +498,141 @@ it('filters shop results by a recommended item category', function () {
         ->assertSee(e(route('shop', ['game' => $gameCategory->id, 'item_category' => $accessoryCategory->id])), false);
 });
 
+it('filters products by the starting price within the selected item category', function () {
+    $itemCategory = ItemCategory::factory()->create(['name' => 'Fruit']);
+    $otherItemCategory = ItemCategory::factory()->create(['name' => 'Accessories']);
+    $matchingProduct = Product::factory()->create([
+        'item_category_id' => $itemCategory->id,
+        'name' => 'Kitsune Fruit',
+    ]);
+    $matchingProduct->variants()->firstOrFail()->update(['price' => '15000.00']);
+    ProductVariant::factory()->for($matchingProduct)->create(['price' => '20000.00']);
+    ProductVariant::factory()->for($matchingProduct)->create([
+        'price' => '1000.00',
+        'status' => 'inactive',
+    ]);
+
+    $belowRangeProduct = Product::factory()->create([
+        'item_category_id' => $itemCategory->id,
+        'name' => 'Low Starting Price',
+    ]);
+    $belowRangeProduct->variants()->firstOrFail()->update(['price' => '9000.00']);
+    ProductVariant::factory()->for($belowRangeProduct)->create(['price' => '18000.00']);
+    Product::factory()->create([
+        'item_category_id' => $itemCategory->id,
+        'name' => 'Above Price Range',
+    ])->variants()->firstOrFail()->update(['price' => '30000.00']);
+    Product::factory()->create([
+        'item_category_id' => $otherItemCategory->id,
+        'name' => 'Different Item Category',
+    ])->variants()->firstOrFail()->update(['price' => '15000.00']);
+
+    $this->get(route('shop', [
+        'item_category' => $itemCategory->id,
+        'min_price' => '10000',
+        'max_price' => '25000',
+    ]))
+        ->assertOk()
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee('Kitsune Fruit')
+        ->assertSee('aria-controls="shop-search-panel"', false)
+        ->assertSee('aria-controls="shop-price-panel"', false)
+        ->assertSee('aria-expanded="false"', false)
+        ->assertSee('aria-hidden="true"', false)
+        ->assertDontSee('Low Starting Price')
+        ->assertDontSee('Above Price Range')
+        ->assertDontSee('Different Item Category')
+        ->assertSee('name="min_price"', false)
+        ->assertSee('value="10000"', false)
+        ->assertSee('name="max_price"', false)
+        ->assertSee('value="25000"', false)
+        ->assertSee(e(route('shop', ['min_price' => '10000', 'max_price' => '25000'])), false)
+        ->assertSee(e(route('shop', [
+            'item_category' => $otherItemCategory->id,
+            'min_price' => '10000',
+            'max_price' => '25000',
+        ])), false);
+});
+
+it('filters by the selected currency using the discounted item category price', function () {
+    ProductCurrencyRate::current()->update([
+        'idr_per_myr' => '1000.0000',
+        'idr_per_usd' => '1000.0000',
+        'idr_per_robux' => '100.0000',
+    ]);
+    $itemCategory = ItemCategory::factory()->create(['bobux_type' => 'gift_ingame']);
+    $discountedProduct = Product::factory()->create([
+        'item_category_id' => $itemCategory->id,
+        'name' => 'Discounted Bobux',
+        'discount_percent' => '20.00',
+    ]);
+    $discountedProduct->variants()->firstOrFail()->update(['price' => '100.00']);
+    Product::factory()->create([
+        'item_category_id' => $itemCategory->id,
+        'name' => 'Outside Dollar Range',
+    ])->variants()->firstOrFail()->update(['price' => '120.00']);
+
+    $this->get(route('shop', [
+        'currency' => 'usd',
+        'item_category' => $itemCategory->id,
+        'min_price' => '8',
+        'max_price' => '8',
+    ]))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee('Discounted Bobux')
+        ->assertSee('data-usd="$8.00"', false)
+        ->assertDontSee('Outside Dollar Range');
+
+    $this->get(route('shop', [
+        'currency' => 'myr',
+        'item_category' => $itemCategory->id,
+        'min_price' => '8',
+        'max_price' => '8',
+    ]))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee('Discounted Bobux')
+        ->assertSee('data-myr="RM 8.00"', false)
+        ->assertDontSee('Outside Dollar Range');
+});
+
+it('includes the account listing fee when filtering USD prices', function () {
+    ProductCurrencyRate::current()->update(['idr_per_usd' => '1000.0000']);
+    $accountListing = Product::factory()->create([
+        'name' => 'Priced Account Listing',
+        'is_account_listing' => true,
+    ]);
+    $accountListing->variants()->firstOrFail()->update(['price' => '10000.00']);
+
+    $this->get(route('shop', [
+        'currency' => 'usd',
+        'min_price' => '20',
+        'max_price' => '20',
+    ]))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee('Priced Account Listing')
+        ->assertSee('data-usd="$20.00"', false);
+});
+
+it('validates price bounds while allowing a single bound', function () {
+    $this->get(route('shop', ['min_price' => '100', 'max_price' => '50']))
+        ->assertSessionHasErrors(['max_price']);
+
+    $this->get(route('shop', ['min_price' => '-1']))
+        ->assertSessionHasErrors(['min_price']);
+
+    $matchingProduct = Product::factory()->create(['name' => 'Below Maximum']);
+    $matchingProduct->variants()->firstOrFail()->update(['price' => '50.00']);
+    $excludedProduct = Product::factory()->create(['name' => 'Above Maximum']);
+    $excludedProduct->variants()->firstOrFail()->update(['price' => '150.00']);
+
+    $this->get(route('shop', ['max_price' => '100']))
+        ->assertOk()
+        ->assertViewHas('maximumPriceFilter', '100')
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee('Below Maximum')
+        ->assertDontSee('Above Maximum');
+});
+
 it('searches products only within the selected item category', function () {
     $accountCategory = ItemCategory::factory()->create(['name' => 'Account']);
     $fruitCategory = ItemCategory::factory()->create(['name' => 'Fruit']);

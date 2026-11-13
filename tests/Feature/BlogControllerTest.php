@@ -120,7 +120,8 @@ it('groups published articles by active category and serves category archives', 
         ->assertDontSee('Draft in hidden category')
         ->assertSee('id="storefront-main-navigation"', false)
         ->assertSee('aria-controls="storefront-main-navigation"', false)
-        ->assertSee(__('store.toggle_navigation'));
+        ->assertSee(__('store.toggle_navigation'))
+        ->assertSee('href="https://meoxstore.com/blog"', false);
 
     $this->get(route('blog.categories.show', $category->slug))
         ->assertSee('A guide in the right category')

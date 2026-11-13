@@ -7,10 +7,16 @@ const hidePreloader = function() {
 
 const storefrontCurrencies = ['idr', 'myr', 'usd'];
 const storefrontCurrencyKey = 'meoxstore_currency';
-const requestedCurrency = new URL(window.location.href).searchParams.get('currency');
+const currentUrl = new URL(window.location.href);
+const requestedCurrency = currentUrl.searchParams.get('currency');
+const hasShopPriceFilter = /\/shop(?:\/|$)/.test(currentUrl.pathname)
+	&& ['min_price', 'max_price'].some(function(parameter) {
+		const value = currentUrl.searchParams.get(parameter);
+		return value !== null && value !== '';
+	});
 let selectedStorefrontCurrency = storefrontCurrencies.includes(requestedCurrency)
 	? requestedCurrency
-	: localStorage.getItem(storefrontCurrencyKey);
+	: hasShopPriceFilter ? 'idr' : localStorage.getItem(storefrontCurrencyKey);
 if (!storefrontCurrencies.includes(selectedStorefrontCurrency)) {
 	selectedStorefrontCurrency = 'idr';
 }
@@ -48,6 +54,103 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', hidePreloader, { once: true });
 } else {
     hidePreloader();
+}
+
+const shopDisclosures = Array.from(document.querySelectorAll('[data-shop-disclosure]'));
+const formatShopPriceInput = function(input, preserveCaret) {
+	const cursorPosition = input.selectionStart ?? input.value.length;
+	const charactersBeforeCursor = input.value.slice(0, cursorPosition).replace(/[^\d.-]/g, '').length;
+	const negativeSign = input.value.trim().startsWith('-') ? '-' : '';
+	const rawValue = input.value.replace(/[^\d.]/g, '');
+	const decimalPosition = rawValue.indexOf('.');
+	const integerPart = decimalPosition === -1 ? rawValue : rawValue.slice(0, decimalPosition);
+	const decimalPart = decimalPosition === -1 ? null : rawValue.slice(decimalPosition + 1).replace(/\./g, '');
+	const groupedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	const formattedNumber = decimalPart === null ? groupedInteger : `${groupedInteger}.${decimalPart}`;
+	const formattedValue = `${negativeSign}${formattedNumber}`;
+
+	input.value = formattedValue;
+	if (preserveCaret) {
+		let nextCursorPosition = 0;
+		let formattedCharactersBeforeCursor = 0;
+		while (nextCursorPosition < formattedValue.length && formattedCharactersBeforeCursor < charactersBeforeCursor) {
+			if (formattedValue[nextCursorPosition] !== ',') {
+				formattedCharactersBeforeCursor++;
+			}
+			nextCursorPosition++;
+		}
+		input.setSelectionRange(nextCursorPosition, nextCursorPosition);
+	}
+};
+
+document.querySelectorAll('[data-shop-price-input]').forEach(function(input) {
+	formatShopPriceInput(input, false);
+	input.addEventListener('input', function() {
+		formatShopPriceInput(input, true);
+	});
+});
+
+document.querySelectorAll('[data-shop-price-form]').forEach(function(form) {
+	form.addEventListener('submit', function() {
+		form.querySelectorAll('[data-shop-price-input]').forEach(function(input) {
+			input.value = input.value.replace(/,/g, '');
+		});
+	});
+});
+
+if (shopDisclosures.length) {
+	const setShopDisclosureOpen = function(disclosure, isOpen) {
+		const trigger = disclosure.querySelector('[data-shop-disclosure-trigger]');
+		const panel = disclosure.querySelector('[data-shop-disclosure-panel]');
+		if (!trigger || !panel) {
+			return;
+		}
+
+		disclosure.classList.toggle('is-open', isOpen);
+		trigger.setAttribute('aria-expanded', String(isOpen));
+		panel.setAttribute('aria-hidden', String(!isOpen));
+		panel.inert = !isOpen;
+	};
+
+	shopDisclosures.forEach(function(disclosure) {
+		const trigger = disclosure.querySelector('[data-shop-disclosure-trigger]');
+		if (!trigger) {
+			return;
+		}
+
+		trigger.addEventListener('click', function() {
+			const shouldOpen = trigger.getAttribute('aria-expanded') !== 'true';
+			shopDisclosures.forEach(function(otherDisclosure) {
+				setShopDisclosureOpen(otherDisclosure, otherDisclosure === disclosure && shouldOpen);
+			});
+		});
+	});
+
+	document.addEventListener('keydown', function(event) {
+		if (event.key !== 'Escape') {
+			return;
+		}
+
+		const openDisclosure = shopDisclosures.find(function(disclosure) {
+			return disclosure.querySelector('[data-shop-disclosure-trigger]')?.getAttribute('aria-expanded') === 'true';
+		});
+		if (!openDisclosure) {
+			return;
+		}
+
+		setShopDisclosureOpen(openDisclosure, false);
+		openDisclosure.querySelector('[data-shop-disclosure-trigger]')?.focus();
+	});
+
+	document.addEventListener('click', function(event) {
+		if (!(event.target instanceof Element) || event.target.closest('[data-shop-disclosure]')) {
+			return;
+		}
+
+		shopDisclosures.forEach(function(disclosure) {
+			setShopDisclosureOpen(disclosure, false);
+		});
+	});
 }
 
 document.querySelectorAll('[data-storefront-shop-toggle]').forEach(function(toggle) {
@@ -361,22 +464,43 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 	const currencyToggle = document.querySelector('[data-shop-currency-toggle]');
 	if (currencyToggle) {
 		const priceElements = document.querySelectorAll('[data-shop-price]');
+		const priceCurrencyLabels = document.querySelectorAll('[data-shop-filter-price-currency]');
+		const priceCurrencyInput = document.querySelector('[data-shop-filter-currency]');
 		const updateShopCurrency = function(currency, updateUrl) {
+			const shopUrl = updateUrl ? new URL(window.location.href) : null;
+			if (shopUrl) {
+				if (currency === 'idr') {
+					shopUrl.searchParams.delete('currency');
+				} else {
+					shopUrl.searchParams.set('currency', currency);
+				}
+
+				const hasPriceFilter = ['min_price', 'max_price'].some(function(parameter) {
+					const value = shopUrl.searchParams.get(parameter);
+					return value !== null && value !== '';
+				});
+				if (hasPriceFilter && currency !== selectedStorefrontCurrency) {
+					persistStorefrontCurrency(currency);
+					window.location.assign(shopUrl.toString());
+					return;
+				}
+			}
+
 			priceElements.forEach(function(price) {
 				price.textContent = price.dataset[currency];
 			});
 			currencyToggle.querySelectorAll('[data-shop-currency]').forEach(function(currencyButton) {
 				currencyButton.setAttribute('aria-pressed', String(currencyButton.dataset.shopCurrency === currency));
 			});
+			priceCurrencyLabels.forEach(function(label) {
+				label.textContent = currency.toUpperCase();
+			});
+			if (priceCurrencyInput) {
+				priceCurrencyInput.value = currency;
+			}
 			persistStorefrontCurrency(currency);
 
-			if (updateUrl) {
-				const shopUrl = new URL(window.location.href);
-				if (currency === 'idr') {
-					shopUrl.searchParams.delete('currency');
-				} else {
-					shopUrl.searchParams.set('currency', currency);
-				}
+			if (shopUrl) {
 				window.history.replaceState(null, '', shopUrl.toString());
 			}
 		};
