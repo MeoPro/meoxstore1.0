@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\BlogPost;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<BlogPost>
@@ -18,6 +19,9 @@ class BlogPostFactory extends Factory
     public function definition(): array
     {
         return [
+            'translation_group_id' => (string) Str::uuid(),
+            'locale' => 'id',
+            'source_locale' => 'id',
             'title' => fake()->sentence(5),
             'slug' => fake()->unique()->slug(),
             'excerpt' => fake()->paragraph(),

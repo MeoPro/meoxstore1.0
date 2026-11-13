@@ -5,6 +5,7 @@ use App\Models\BlogPost;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -28,6 +29,21 @@ it('forbids non-admins from managing blog posts', function () {
 
 it('creates and updates blog posts with a cover image', function () {
     Storage::fake('public');
+    config([
+        'services.google_translate.api_key' => 'test-google-translate-key',
+        'services.google_translate.project_id' => 'test-project',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'translation.googleapis.com/language/translate/v2*' => Http::response([
+            'data' => [
+                'translations' => [
+                    ['translatedText' => 'Translated content'],
+                ],
+            ],
+        ]),
+    ]);
+
     $admin = User::factory()->create(['is_admin' => true]);
     $this->actingAs($admin);
 
@@ -46,6 +62,10 @@ it('creates and updates blog posts with a cover image', function () {
     expect($blogPost->slug)->toBe('a-guide-to-game-accounts')
         ->and($blogPost->status)->toBe('published')
         ->and($blogPost->published_at)->not->toBeNull();
+    $translations = $blogPost->translations()->orderBy('locale')->get();
+    expect($translations->pluck('locale')->all())->toBe(['en', 'id', 'ms'])
+        ->and($translations->pluck('status')->unique()->all())->toBe(['published'])
+        ->and($translations->pluck('source_locale')->unique()->all())->toBe(['id']);
     Storage::disk('public')->assertExists($blogPost->cover_image);
 
     $this->post(route('admin.blog-posts.store'), [
@@ -72,6 +92,8 @@ it('creates and updates blog posts with a cover image', function () {
     expect($blogPost->fresh()->slug)->toBe('safer-game-account-guide')
         ->and($blogPost->fresh()->status)->toBe('draft')
         ->and($blogPost->fresh()->published_at)->toBeNull();
+    expect($blogPost->translations()->pluck('status')->unique()->all())->toBe(['draft'])
+        ->and($blogPost->translations()->where('locale', 'ms')->value('title'))->toBe('Translated content');
     Storage::disk('public')->assertExists($blogPost->cover_image);
 });
 
@@ -92,6 +114,21 @@ it('rejects duplicate slugs and invalid cover images without creating a post', f
 });
 
 it('syncs multiple categories when a blog post is created and updated', function () {
+    config([
+        'services.google_translate.api_key' => 'test-google-translate-key',
+        'services.google_translate.project_id' => 'test-project',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'translation.googleapis.com/language/translate/v2*' => Http::response([
+            'data' => [
+                'translations' => [
+                    ['translatedText' => 'Translated content'],
+                ],
+            ],
+        ]),
+    ]);
+
     $this->actingAs(User::factory()->create(['is_admin' => true]));
     $firstCategory = BlogCategory::factory()->create();
     $secondCategory = BlogCategory::factory()->create();
@@ -117,6 +154,32 @@ it('syncs multiple categories when a blog post is created and updated', function
     ])->assertRedirectToRoute('admin.blog-posts.index');
 
     expect($blogPost->fresh()->categories->modelKeys())->toBe([$secondCategory->id]);
+});
+
+it('does not save any language version when Google translation fails', function () {
+    config([
+        'services.google_translate.api_key' => 'test-google-translate-key',
+        'services.google_translate.project_id' => 'test-project',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'translation.googleapis.com/language/translate/v2*' => Http::response([
+            'error' => ['message' => 'Translation service unavailable.'],
+        ], 503),
+    ]);
+
+    $this->actingAs(User::factory()->create(['is_admin' => true]))
+        ->from(route('admin.blog-posts.create'))
+        ->post(route('admin.blog-posts.store'), [
+            'title' => 'A guide to game accounts',
+            'excerpt' => 'A short article summary.',
+            'body' => 'Some article content.',
+            'status' => 'published',
+        ])
+        ->assertRedirect(route('admin.blog-posts.create'))
+        ->assertSessionHasErrors('translation');
+
+    expect(BlogPost::query()->count())->toBe(0);
 });
 
 it('deletes blog posts and their cover images', function () {

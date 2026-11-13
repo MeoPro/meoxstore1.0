@@ -1,3 +1,5 @@
+@props(['showLogout' => false])
+
 <header @class([
     'header-area',
     'header-sticky',
@@ -25,6 +27,14 @@
                             <li><a href="{{ route('login') }}">{{ __('store.sign_in') }}</a></li>
                         @else
                             <li><a href="{{ route('profile.edit') }}" @class(['active' => request()->routeIs('profile.*')])>{{ __('store.profile') }}</a></li>
+                            @if ($showLogout)
+                                <li class="storefront-logout-list-item">
+                                    <form class="storefront-logout-form" method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button class="storefront-logout-button" type="submit">{{ __('store.log_out') }}</button>
+                                    </form>
+                                </li>
+                            @endif
                         @endguest
                         <li class="storefront-language-list-item">
                             <x-storefront-language-switcher />
@@ -55,6 +65,21 @@
     .header-area.header-scroll-toggle .main-nav .logo { margin-top: 18px; }
     .header-area.header-scroll-toggle .main-nav .logo img { max-width: 110px; }
     .header-area.header-scroll-toggle .main-nav .nav li a { color: #fff !important; }
+    .header-area .main-nav .nav li .storefront-logout-button {
+        background: transparent;
+        border: 0;
+        color: #1e1e1e;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 40px;
+        padding: 0 10px;
+        text-transform: uppercase;
+    }
+    .header-area .main-nav .nav li .storefront-logout-button:hover { color: #ee626b; }
+    .header-area.header-scroll-toggle .main-nav .nav li .storefront-logout-button { color: #fff; }
+    .storefront-logout-form { margin: 0; }
     .header-area.header-scroll-toggle .main-nav .nav .storefront-shop-dropdown li a { color: #1e1e1e !important; }
     .header-area.header-scroll-toggle .main-nav .nav .storefront-shop-dropdown li a:hover,
     .header-area.header-scroll-toggle .main-nav .nav .storefront-shop-dropdown li a[aria-current="page"] { color: #ee626b !important; }

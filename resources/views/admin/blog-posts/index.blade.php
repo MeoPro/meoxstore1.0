@@ -75,7 +75,7 @@
                                         <a class="btn btn-sm btn-outline-secondary" href="{{ route('blog.show', $blogPost->slug) }}" target="_blank" rel="noopener">View</a>
                                     @endif
                                     <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.blog-posts.edit', $blogPost) }}">Edit</a>
-                                    <form method="POST" action="{{ route('admin.blog-posts.destroy', $blogPost) }}" onsubmit="return confirm('Delete this blog post?')">
+                                    <form method="POST" action="{{ route('admin.blog-posts.destroy', $blogPost) }}" onsubmit="return confirm('Delete this article and all of its language versions?')">
                                         @csrf
                                         @method('DELETE')
                                         <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>

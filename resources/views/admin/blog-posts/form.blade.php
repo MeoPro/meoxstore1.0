@@ -8,7 +8,7 @@
     <div class="page-heading">
         <div>
             <h1>{{ $isEditing ? 'Edit blog post' : 'Write a blog post' }}</h1>
-            <p>Write in Markdown, then publish now or schedule the article.</p>
+            <p>Write in Markdown, then publish now or schedule all language versions.</p>
         </div>
         <a class="btn btn-light border" href="{{ route('admin.blog-posts.index') }}">Back to blog posts</a>
     </div>
@@ -19,7 +19,30 @@
             @method('PUT')
         @endif
 
+        @error('translation')
+            <div class="alert alert-danger" role="alert">{{ $message }}</div>
+        @enderror
+
         <div class="row g-3" style="max-width: 900px">
+            @if ($isEditing)
+                <input type="hidden" name="source_locale" value="{{ $blogPost->source_locale }}">
+                <div class="col-12">
+                    <div class="alert alert-info mb-0">
+                        This article is written in {{ strtoupper($blogPost->source_locale) }}. Saving content changes regenerates its other language versions.
+                    </div>
+                </div>
+            @else
+                <div class="col-12">
+                    <label class="form-label" for="source_locale">Article language</label>
+                    <select class="form-select @error('source_locale') is-invalid @enderror" id="source_locale" name="source_locale" required>
+                        <option value="id" @selected(old('source_locale', $blogPost->source_locale) === 'id')>Bahasa Indonesia</option>
+                        <option value="ms" @selected(old('source_locale', $blogPost->source_locale) === 'ms')>Bahasa Melayu</option>
+                        <option value="en" @selected(old('source_locale', $blogPost->source_locale) === 'en')>English</option>
+                    </select>
+                    <div class="form-text">Google Cloud Translation LLM will generate the other two language versions. All versions share the same draft or published status.</div>
+                    @error('source_locale')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+            @endif
             <div class="col-12">
                 <label class="form-label" for="title">Article title</label>
                 <input class="form-control @error('title') is-invalid @enderror" id="title" name="title" value="{{ old('title', $blogPost->title) }}" required maxlength="255" autofocus>

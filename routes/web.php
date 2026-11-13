@@ -31,7 +31,8 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
-Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog', [BlogController::class, 'home'])->name('blog.index');
+Route::get('/blog/posts', [BlogController::class, 'index'])->name('blog.posts');
 Route::get('/blog/category/{blogCategory:slug}', [BlogController::class, 'category'])->name('blog.categories.show');
 Route::get('/blog/{blogPost:slug}', [BlogController::class, 'show'])->name('blog.show');
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');

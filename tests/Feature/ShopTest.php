@@ -595,6 +595,133 @@ it('filters by the selected currency using the discounted item category price', 
         ->assertDontSee('Outside Dollar Range');
 });
 
+it('sorts products by displayed starting price in the requested direction', function (string $sort, array $expectedNames) {
+    $discountedProduct = Product::factory()->create([
+        'name' => 'Discounted starting price',
+        'discount_percent' => '50.00',
+    ]);
+    $discountedProduct->variants()->firstOrFail()->update(['price' => '20000.00']);
+    ProductVariant::factory()->for($discountedProduct)->create(['price' => '30000.00']);
+
+    $middlePriceProduct = Product::factory()->create(['name' => 'Middle starting price']);
+    $middlePriceProduct->variants()->firstOrFail()->update(['price' => '12000.00']);
+
+    $highestPriceProduct = Product::factory()->create(['name' => 'Highest starting price']);
+    $highestPriceProduct->variants()->firstOrFail()->update(['price' => '40000.00']);
+
+    $this->get(route('shop', ['sort' => $sort]))
+        ->assertViewHas('selectedSort', $sort)
+        ->assertViewHas('products', fn ($products): bool => $products->getCollection()->pluck('name')->all() === $expectedNames)
+        ->assertSee('name="sort" value="'.$sort.'"', false)
+        ->assertSee('value="'.$sort.'" selected', false)
+        ->assertSee(e(route('shop', ['sort' => $sort])), false);
+})->with([
+    'cheapest first' => ['price_asc', ['Discounted starting price', 'Middle starting price', 'Highest starting price']],
+    'most expensive first' => ['price_desc', ['Highest starting price', 'Middle starting price', 'Discounted starting price']],
+]);
+
+it('sorts products by completed sales quantity', function () {
+    $buyer = User::factory()->create();
+    $bestSellingProduct = Product::factory()->create(['name' => 'Best selling product']);
+    $secondBestSellingProduct = Product::factory()->create(['name' => 'Second best selling product']);
+    $pendingOnlyProduct = Product::factory()->create(['name' => 'Pending only product']);
+
+    $recordOrderItem = function (Product $product, string $status, int $quantity) use ($buyer): void {
+        $variant = $product->variants()->firstOrFail();
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => $status,
+            'total' => 500,
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => $variant->name,
+            'quantity' => $quantity,
+            'unit_price' => 50,
+        ]);
+    };
+
+    $recordOrderItem($bestSellingProduct, 'completed', 4);
+    $recordOrderItem($bestSellingProduct, 'completed', 3);
+    $recordOrderItem($secondBestSellingProduct, 'completed', 5);
+    $recordOrderItem($pendingOnlyProduct, 'pending', 100);
+
+    $this->get(route('shop', ['sort' => 'best_selling']))
+        ->assertViewHas('selectedSort', 'best_selling')
+        ->assertViewHas('products', fn ($products): bool => $products->getCollection()->pluck('name')->all() === [
+            'Best selling product',
+            'Second best selling product',
+            'Pending only product',
+        ]);
+});
+
+it('sorts products newest first regardless of featured status', function () {
+    Product::factory()->create([
+        'name' => 'Featured older product',
+        'is_featured' => true,
+        'created_at' => '2026-01-01 10:00:00',
+    ]);
+    Product::factory()->create([
+        'name' => 'Newest product',
+        'is_featured' => false,
+        'created_at' => '2026-01-03 10:00:00',
+    ]);
+    Product::factory()->create([
+        'name' => 'Middle-aged product',
+        'is_featured' => false,
+        'created_at' => '2026-01-02 10:00:00',
+    ]);
+
+    $response = $this->get(route('shop', ['sort' => 'newest']))
+        ->assertViewHas('selectedSort', 'newest');
+
+    expect($response->viewData('products')->getCollection()->pluck('name')->all())->toBe([
+        'Newest product',
+        'Middle-aged product',
+        'Featured older product',
+    ]);
+});
+
+it('falls back to recommended product order for unsupported sort options', function () {
+    Product::factory()->create([
+        'name' => 'Featured older product',
+        'is_featured' => true,
+        'created_at' => '2026-01-01 10:00:00',
+    ]);
+    Product::factory()->create([
+        'name' => 'Newer regular product',
+        'is_featured' => false,
+        'created_at' => '2026-01-03 10:00:00',
+    ]);
+
+    $response = $this->get(route('shop', ['sort' => 'created_at desc']))
+        ->assertViewHas('selectedSort', 'recommended');
+
+    expect($response->viewData('products')->getCollection()->pluck('name')->all())->toBe([
+        'Featured older product',
+        'Newer regular product',
+    ]);
+});
+
+it('sorts USD prices using the displayed account listing fee', function () {
+    ProductCurrencyRate::current()->update(['idr_per_usd' => '1000.0000']);
+    $accountListing = Product::factory()->create([
+        'name' => 'Account listing',
+        'is_account_listing' => true,
+    ]);
+    $accountListing->variants()->firstOrFail()->update(['price' => '10000.00']);
+    $regularProduct = Product::factory()->create(['name' => 'Regular product']);
+    $regularProduct->variants()->firstOrFail()->update(['price' => '15000.00']);
+
+    $this->get(route('shop', ['currency' => 'usd', 'sort' => 'price_asc']))
+        ->assertViewHas('products', fn ($products): bool => $products->getCollection()->pluck('name')->all() === [
+            'Regular product',
+            'Account listing',
+        ]);
+});
+
 it('includes the account listing fee when filtering USD prices', function () {
     ProductCurrencyRate::current()->update(['idr_per_usd' => '1000.0000']);
     $accountListing = Product::factory()->create([

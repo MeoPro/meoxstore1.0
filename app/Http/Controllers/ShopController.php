@@ -20,6 +20,12 @@ class ShopController extends Controller
             $selectedCurrency = 'idr';
         }
 
+        $requestedSort = $request->query('sort', 'recommended');
+        $availableSorts = ['recommended', 'price_asc', 'price_desc', 'best_selling', 'newest'];
+        $selectedSort = is_string($requestedSort) && in_array($requestedSort, $availableSorts, true)
+            ? $requestedSort
+            : 'recommended';
+
         $searchTerm = $request->query('search', '');
         abort_unless(is_string($searchTerm), 400);
         $searchTerm = trim($searchTerm);
@@ -76,7 +82,7 @@ class ShopController extends Controller
             );
         }
 
-        $products = $productQuery
+        $productQuery = $productQuery
             ->with([
                 'gameCategory:id,name',
                 'itemCategory:id,bobux_type,uses_robux',
@@ -90,12 +96,26 @@ class ShopController extends Controller
             ->withSum([
                 'orderItems as sold_quantity' => fn (Builder $query) => $query
                     ->whereHas('order', fn (Builder $orders) => $orders->where('status', 'completed')),
-            ], 'quantity')
-            ->orderByDesc('is_featured')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate(12)
-            ->withQueryString();
+            ], 'quantity');
+
+        if ($selectedSort === 'price_asc') {
+            $productQuery->orderBy($this->minimumDisplayedPriceQuery($selectedCurrency, $currencyRates));
+        } elseif ($selectedSort === 'price_desc') {
+            $productQuery->orderByDesc($this->minimumDisplayedPriceQuery($selectedCurrency, $currencyRates));
+        } elseif ($selectedSort === 'best_selling') {
+            $productQuery->orderByDesc('sold_quantity');
+        } elseif ($selectedSort === 'newest') {
+            $productQuery->orderByDesc('created_at');
+        } elseif ($selectedSort === 'recommended') {
+            $productQuery->orderByDesc('is_featured');
+        }
+
+        if ($selectedSort !== 'newest') {
+            $productQuery->orderByDesc('created_at');
+        }
+        $productQuery->orderByDesc('id');
+
+        $products = $productQuery->paginate(12)->withQueryString();
 
         return view('shop', [
             'products' => $products,
@@ -104,6 +124,7 @@ class ShopController extends Controller
             'currencyRates' => $currencyRates,
             'selectedCurrency' => $selectedCurrency,
             'selectedGameCategory' => $selectedGameCategory,
+            'selectedSort' => $selectedSort,
             'searchTerm' => $searchTerm,
             'minimumPriceFilter' => $minimumPriceFilter,
             'maximumPriceFilter' => $maximumPriceFilter,

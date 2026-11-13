@@ -47,4 +47,10 @@ return [
         'post_instagram' => env('TELEGRAM_POST_INSTAGRAM'),
     ],
 
+    'google_translate' => [
+        'api_key' => env('GOOGLE_TRANSLATE_API_KEY'),
+        'project_id' => env('GOOGLE_CLOUD_PROJECT_ID'),
+        'location' => env('GOOGLE_TRANSLATE_LOCATION', 'global'),
+    ],
+
 ];

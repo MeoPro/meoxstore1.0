@@ -8,36 +8,81 @@ use App\Models\BlogSidebarBlock;
 use App\Models\GameCategory;
 use App\Models\ItemCategory;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class BlogController extends Controller
 {
-    public function index(): View
+    public function home(): View
     {
-        $blogCategories = BlogCategory::active()
-            ->whereHas('blogPosts', fn ($query) => $query->published())
-            ->with([
-                'blogPosts' => fn ($query) => $query->published()
-                    ->latest('published_at')
-                    ->limit(3),
-            ])
-            ->withCount(['blogPosts as published_posts_count' => fn ($query) => $query->published()])
+        $featuredPosts = BlogPost::published()
+            ->inLocale()
+            ->with(['categories' => fn ($query) => $query->active()])
+            ->latest('published_at')
+            ->latest('id')
+            ->limit(6)
+            ->get();
+
+        return view('blog.home', array_merge([
+            'blogCategories' => $this->blogCategories(),
+            'blogPosts' => $featuredPosts->take(3),
+            'featuredPosts' => $featuredPosts,
+            'metaDescription' => __('store.blog_meta_description'),
+            'searchQuery' => '',
+        ], $this->sidebarData()));
+    }
+
+    public function index(Request $request): View
+    {
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+        $searchQuery = trim($validated['q'] ?? '');
+
+        $blogPostsQuery = BlogPost::published()
+            ->inLocale()
+            ->with(['categories' => fn ($query) => $query->active()]);
+
+        if ($searchQuery !== '') {
+            $searchTerm = '%'.$searchQuery.'%';
+            $blogPostsQuery->where(fn (Builder $query) => $query
+                ->where('title', 'like', $searchTerm)
+                ->orWhere('excerpt', 'like', $searchTerm)
+                ->orWhere('body', 'like', $searchTerm));
+        }
+
+        $blogPosts = $blogPostsQuery
+            ->latest('published_at')
+            ->latest('id')
+            ->paginate(6)
+            ->withQueryString();
+
+        $sidebarData = $this->sidebarData();
+
+        return view('blog.index', array_merge([
+            'blogPosts' => $blogPosts,
+            'blogCategories' => $this->blogCategories(),
+            'featuredPosts' => $sidebarData['recentBlogPosts'],
+            'metaDescription' => __('store.blog_meta_description'),
+            'searchQuery' => $searchQuery,
+        ], $sidebarData));
+    }
+
+    /**
+     * @return Collection<int, BlogCategory>
+     */
+    private function blogCategories(): Collection
+    {
+        return BlogCategory::active()
+            ->whereHas('blogPosts', fn ($query) => $query->published()->inLocale())
+            ->withCount(['blogPosts as published_posts_count' => fn ($query) => $query->published()->inLocale()])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
-
-        $uncategorizedPosts = BlogPost::published()
-            ->whereDoesntHave('categories', fn ($query) => $query->active())
-            ->latest('published_at')
-            ->paginate(3);
-
-        return view('blog.index', array_merge([
-            'blogCategories' => $blogCategories,
-            'uncategorizedPosts' => $uncategorizedPosts,
-            'metaDescription' => __('store.blog_meta_description'),
-        ], $this->sidebarData()));
     }
 
     public function category(BlogCategory $blogCategory): View
@@ -46,6 +91,7 @@ class BlogController extends Controller
 
         $blogPosts = $blogCategory->blogPosts()
             ->published()
+            ->inLocale()
             ->latest('published_at')
             ->paginate(12);
 
@@ -58,12 +104,33 @@ class BlogController extends Controller
             'blogPosts' => $blogPosts,
             'metaDescription' => $metaDescription,
             'canonicalUrl' => route('blog.categories.show', $blogCategory->slug),
-        ], $this->sidebarData()));
+        ], $this->sidebarData($blogCategory)));
     }
 
-    public function show(BlogPost $blogPost): View
+    public function show(BlogPost $blogPost): View|RedirectResponse
     {
+        $requestedPost = $blogPost;
+        $localizedPost = $blogPost->translations()
+            ->where('locale', app()->getLocale())
+            ->first();
+
+        if ($localizedPost?->isPubliclyAvailable()) {
+            $blogPost = $localizedPost;
+        } elseif ($blogPost->locale !== $blogPost->source_locale) {
+            $sourcePost = $blogPost->translations()
+                ->where('locale', $blogPost->source_locale)
+                ->first();
+
+            if ($sourcePost?->isPubliclyAvailable()) {
+                $blogPost = $sourcePost;
+            }
+        }
+
         abort_unless($blogPost->isPubliclyAvailable(), 404);
+
+        if ($blogPost->getKey() !== $requestedPost->getKey()) {
+            return redirect()->route('blog.show', $blogPost->slug);
+        }
 
         $blogPost->load(['categories' => fn ($query) => $query->active()]);
         $metaDescription = $blogPost->meta_description ?: $blogPost->excerpt;
@@ -101,14 +168,23 @@ class BlogController extends Controller
 
     /**
      * @return array{
+     *     recentBlogPosts: Collection<int, BlogPost>,
      *     sidebarBlocks: Collection<int, BlogSidebarBlock>,
      *     sidebarBlogCategories: Collection<int, BlogCategory>,
      *     sidebarGameCategories: Collection<int, GameCategory>,
      *     sidebarItemCategories: Collection<int, ItemCategory>
      * }
      */
-    private function sidebarData(): array
+    private function sidebarData(?BlogCategory $blogCategory = null): array
     {
+        $recentBlogPostsQuery = $blogCategory
+            ? $blogCategory->blogPosts()->published()->inLocale()
+            : BlogPost::published()->inLocale();
+        $recentBlogPosts = $recentBlogPostsQuery
+            ->latest('published_at')
+            ->limit(3)
+            ->get(['id', 'title', 'slug', 'published_at']);
+
         $sidebarBlocks = BlogSidebarBlock::active()
             ->with(['product' => fn ($query) => $query
                 ->where('status', 'active')
@@ -127,7 +203,7 @@ class BlogController extends Controller
 
         $sidebarBlogCategories = $types->contains(BlogSidebarBlock::TYPE_BLOG_CATEGORIES)
             ? BlogCategory::active()
-                ->whereHas('blogPosts', fn ($query) => $query->published())
+                ->whereHas('blogPosts', fn ($query) => $query->published()->inLocale())
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get()
@@ -154,6 +230,7 @@ class BlogController extends Controller
             : collect();
 
         return compact(
+            'recentBlogPosts',
             'sidebarBlocks',
             'sidebarBlogCategories',
             'sidebarGameCategories',

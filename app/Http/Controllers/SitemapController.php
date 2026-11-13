@@ -15,6 +15,7 @@ class SitemapController extends Controller
             route('shop'),
             route('games.index'),
             route('blog.index'),
+            route('blog.posts'),
         ];
 
         $blogPosts = BlogPost::published()

@@ -48,8 +48,9 @@
       .shop-search-controls { align-items: center; display: flex; gap: 8px; width: 100%; }
       .shop-search-controls .form-control { flex: 1 1 auto; }
       .shop-price-filter-fields { align-items: end; display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .shop-price-filter-field { min-width: 0; }
-      .shop-price-filter-field > span { color: #64748b; display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+      .shop-price-filter-field, .shop-sort-field { min-width: 0; }
+      .shop-sort-field { grid-column: 1 / -1; }
+      .shop-price-filter-field > span, .shop-sort-field > span { color: #64748b; display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
       .shop-price-filter-buttons { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
       .shop-price-filter-buttons { grid-column: 1 / -1; }
       .shop-price-filter-buttons .btn { white-space: nowrap; }
@@ -187,6 +188,7 @@ https://templatemo.com/tm-589-lugx-gaming
                   @if ($maximumPriceFilter !== null)
                     <input type="hidden" name="max_price" value="{{ $maximumPriceFilter }}">
                   @endif
+                  <input type="hidden" name="sort" value="{{ $selectedSort }}">
                   <input type="hidden" name="currency" value="{{ $selectedCurrency }}">
                   <div class="shop-search-controls">
                     <label class="visually-hidden" for="product-search">{{ __('store.search_products') }}</label>
@@ -198,6 +200,7 @@ https://templatemo.com/tm-589-lugx-gaming
                           'item_category' => $selectedItemCategory?->id,
                           'min_price' => $minimumPriceFilter,
                           'max_price' => $maximumPriceFilter,
+                          'sort' => $selectedSort,
                           'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
                       ]) }}">{{ __('store.clear_search') }}</a>
                     @endif
@@ -214,8 +217,8 @@ https://templatemo.com/tm-589-lugx-gaming
                 data-shop-disclosure-trigger
               >
                 <i class="fa fa-filter" aria-hidden="true"></i>
-                <span>{{ __('store.price_filter') }}</span>
-                @if ($minimumPriceFilter !== null || $maximumPriceFilter !== null)
+                <span>{{ __('store.filter') }}</span>
+                @if ($minimumPriceFilter !== null || $maximumPriceFilter !== null || $selectedSort !== 'recommended')
                   <span class="shop-disclosure-status">{{ __('store.filter_active') }}</span>
                 @endif
               </button>
@@ -240,13 +243,24 @@ https://templatemo.com/tm-589-lugx-gaming
                       <span>{{ __('store.maximum_price') }} (<span data-shop-filter-price-currency>{{ strtoupper($selectedCurrency) }}</span>)</span>
                       <input class="form-control" id="product-max-price" name="max_price" type="text" inputmode="decimal" maxlength="18" pattern="[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?|[0-9]+(\.[0-9]{1,2})?" placeholder="10,000" data-shop-price-input value="{{ $maximumPriceFilter }}">
                     </label>
+                    <label class="shop-sort-field" for="shop-sort">
+                      <span>{{ __('store.sort_products') }}</span>
+                      <select class="form-control" id="shop-sort" name="sort">
+                        <option value="recommended" @selected($selectedSort === 'recommended')>{{ __('store.sort_recommended') }}</option>
+                        <option value="price_asc" @selected($selectedSort === 'price_asc')>{{ __('store.sort_price_ascending') }}</option>
+                        <option value="price_desc" @selected($selectedSort === 'price_desc')>{{ __('store.sort_price_descending') }}</option>
+                        <option value="best_selling" @selected($selectedSort === 'best_selling')>{{ __('store.sort_best_selling') }}</option>
+                        <option value="newest" @selected($selectedSort === 'newest')>{{ __('store.sort_newest') }}</option>
+                      </select>
+                    </label>
                     <div class="shop-price-filter-buttons">
-                      <button class="btn btn-outline-primary" type="submit">{{ __('store.apply_price_filter') }}</button>
+                      <button class="btn btn-outline-primary" type="submit">{{ __('store.apply_filters') }}</button>
                       @if ($minimumPriceFilter !== null || $maximumPriceFilter !== null)
                         <a class="btn btn-outline-secondary" href="{{ route('shop', [
                             'game' => $selectedGameCategory?->id,
                             'item_category' => $selectedItemCategory?->id,
                             'search' => $searchTerm !== '' ? $searchTerm : null,
+                            'sort' => $selectedSort,
                             'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
                         ]) }}">{{ __('store.clear_price_filter') }}</a>
                       @endif
@@ -267,6 +281,7 @@ https://templatemo.com/tm-589-lugx-gaming
                       'search' => $searchTerm !== '' ? $searchTerm : null,
                       'min_price' => $minimumPriceFilter,
                       'max_price' => $maximumPriceFilter,
+                      'sort' => $selectedSort,
                       'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
                   ]) }}"
                 >{{ __('store.all_items') }}</a>
@@ -281,6 +296,7 @@ https://templatemo.com/tm-589-lugx-gaming
                         'search' => $searchTerm !== '' ? $searchTerm : null,
                         'min_price' => $minimumPriceFilter,
                         'max_price' => $maximumPriceFilter,
+                        'sort' => $selectedSort,
                         'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
                     ]) }}"
                   >{{ $itemCategory->localizedName() }}</a>

@@ -9,14 +9,15 @@ const storefrontCurrencies = ['idr', 'myr', 'usd'];
 const storefrontCurrencyKey = 'meoxstore_currency';
 const currentUrl = new URL(window.location.href);
 const requestedCurrency = currentUrl.searchParams.get('currency');
-const hasShopPriceFilter = /\/shop(?:\/|$)/.test(currentUrl.pathname)
-	&& ['min_price', 'max_price'].some(function(parameter) {
-		const value = currentUrl.searchParams.get(parameter);
-		return value !== null && value !== '';
-	});
+const isShopPage = /\/shop(?:\/|$)/.test(currentUrl.pathname);
+const hasShopPriceFilter = isShopPage && ['min_price', 'max_price'].some(function(parameter) {
+	const value = currentUrl.searchParams.get(parameter);
+	return value !== null && value !== '';
+});
+const hasShopPriceSort = isShopPage && ['price_asc', 'price_desc'].includes(currentUrl.searchParams.get('sort'));
 let selectedStorefrontCurrency = storefrontCurrencies.includes(requestedCurrency)
 	? requestedCurrency
-	: hasShopPriceFilter ? 'idr' : localStorage.getItem(storefrontCurrencyKey);
+	: (hasShopPriceFilter || hasShopPriceSort) ? 'idr' : localStorage.getItem(storefrontCurrencyKey);
 if (!storefrontCurrencies.includes(selectedStorefrontCurrency)) {
 	selectedStorefrontCurrency = 'idr';
 }
@@ -479,7 +480,8 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 					const value = shopUrl.searchParams.get(parameter);
 					return value !== null && value !== '';
 				});
-				if (hasPriceFilter && currency !== selectedStorefrontCurrency) {
+				const hasPriceSort = ['price_asc', 'price_desc'].includes(shopUrl.searchParams.get('sort'));
+				if ((hasPriceFilter || hasPriceSort) && currency !== selectedStorefrontCurrency) {
 					persistStorefrontCurrency(currency);
 					window.location.assign(shopUrl.toString());
 					return;
