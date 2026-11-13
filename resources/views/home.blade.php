@@ -118,6 +118,33 @@
 
     <div class="main-banner">
         <div class="container">
+        @if (is_string($googleMapsProfileUrl) && $googleMapsProfileUrl !== '')
+            <div class="home-google-rating-wrap">
+                <a
+                    class="home-google-rating"
+                    href="{{ $googleMapsProfileUrl }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @if ($googleMapsRating !== null)
+                        aria-label="{{ __('store.google_rating_summary', [
+                            'rating' => number_format($googleMapsRating['rating'], 1),
+                            'count' => number_format($googleMapsRating['user_rating_count']),
+                        ]) }} — {{ __('store.footer_google_maps') }}"
+                    @endif
+                >
+                    @if ($googleMapsRating !== null)
+                        <span class="home-google-rating-star" aria-hidden="true">★</span>
+                        <span>{{ __('store.google_rating_summary', [
+                            'rating' => number_format($googleMapsRating['rating'], 1),
+                            'count' => number_format($googleMapsRating['user_rating_count']),
+                        ]) }}</span>
+                        <span class="home-google-rating-source">{{ __('store.footer_google_maps') }}</span>
+                    @else
+                        <span>{{ __('store.google_maps_profile') }}</span>
+                    @endif
+                </a>
+            </div>
+        @endif
         <div class="row">
             <div class="col-lg-6 align-self-center">
             <div class="caption header-text">
@@ -409,13 +436,7 @@
         </div>
     </div>
 
-    <footer>
-        <div class="container">
-        <div class="col-lg-12">
-            <p>Copyright © {{ date('Y') }} Meoxstore. All rights reserved. &nbsp;&nbsp; <a rel="nofollow" href="https://templatemo.com" target="_blank">Design: TemplateMo</a></p>
-        </div>
-        </div>
-    </footer>
+    <x-storefront-footer :show-template-credit="true" />
 
     <!-- Scripts -->
     <!-- Bootstrap core JavaScript -->

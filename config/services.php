@@ -53,4 +53,11 @@ return [
         'location' => env('GOOGLE_TRANSLATE_LOCATION', 'global'),
     ],
 
+    'google_maps' => [
+        'places_api_key' => env('GOOGLE_MAPS_PLACES_API_KEY'),
+        'place_id' => env('GOOGLE_MAPS_PLACE_ID'),
+        'profile_url' => env('GOOGLE_MAPS_PROFILE_URL', 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6'),
+        'embed_url' => env('GOOGLE_MAPS_EMBED_URL', 'https://www.google.com/maps?q=-8.5723901%2C115.3047109&z=17&output=embed'),
+    ],
+
 ];

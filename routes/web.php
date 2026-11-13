@@ -27,6 +27,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\TelegramWebhookController;
+use App\Services\GoogleMapsRatingService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
@@ -49,7 +51,12 @@ Route::get('/games', [GameCatalogController::class, 'index'])->name('games.index
 Route::get('/product-details', [ProductDetailsController::class, 'index'])->name('product-details');
 Route::get('/product-details/{product}', [ProductDetailsController::class, 'show'])->name('product-details.show');
 Route::view('/about', 'about')->name('about');
-Route::view('/contact', 'contact')->name('contact');
+Route::get('/contact', function (GoogleMapsRatingService $googleMapsRatingService): View {
+    return view('contact', [
+        'googleMapsRating' => $googleMapsRatingService->fetch(),
+        'googleMapsProfileUrl' => config('services.google_maps.profile_url'),
+    ]);
+})->name('contact');
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 Route::post('/telegram/webhook', TelegramWebhookController::class)->name('telegram.webhook');
 

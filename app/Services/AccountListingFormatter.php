@@ -25,6 +25,10 @@ class AccountListingFormatter
      */
     public function telegramHtml(array $data, array $rates, ?string $productUrl = null): string
     {
+        if (($data['account_template'] ?? 'blox_fruit') === 'generic') {
+            return $this->genericTelegramHtml($data, $rates, $productUrl);
+        }
+
         $items = $data['items'] ?? [];
         $headlineItems = array_map(fn (array $item): string => $this->escape($item['name']), $items);
         $headline = $headlineItems === [] ? $this->escape($data['username']) : implode(' + ', $headlineItems);
@@ -73,6 +77,51 @@ class AccountListingFormatter
 
         if (($data['post_instagram'] ?? '') !== '') {
             $lines[] = '📷<b>'.$this->escape($data['post_instagram']).'</b>';
+        }
+
+        if ($productUrl !== null) {
+            $lines[] = '';
+            $lines[] = '🛒 <a href="'.$this->escape($productUrl).'">Lihat di website</a>';
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array{idr_per_myr: float|int|string, idr_per_usd: float|int|string}  $rates
+     */
+    private function genericTelegramHtml(array $data, array $rates, ?string $productUrl): string
+    {
+        $gameName = (string) ($data['game_category_name'] ?? 'Game');
+        $websiteTitle = (string) ($data['website_title'] ?? $gameName.' Account - '.($data['username'] ?? ''));
+        $price = (float) ($data['price_idr'] ?? 0);
+        $priceInThousands = number_format($price / 1000, 2, '.', ',');
+        $priceInThousands = rtrim(rtrim($priceInThousands, '0'), '.');
+        $myrPrice = number_format(
+            ProductCurrencyRate::roundToNearestFiveCents($price / (float) $rates['idr_per_myr']),
+            2,
+        );
+        $usdPrice = number_format(
+            ProductCurrencyRate::roundToNearestFiveCents(($price + 10_000) / (float) $rates['idr_per_usd']),
+            2,
+        );
+        $lines = [
+            '<b>'.$this->escape($gameName).' ACCOUNT</b>',
+            '',
+            '➡️<b>'.$this->escape($websiteTitle).'</b>',
+            '👤<b>ACCOUNT : '.$this->escape((string) ($data['username'] ?? '')).'</b>',
+            '📝<b>DETAIL : '.$this->escape((string) ($data['details'] ?? '-')).'</b>',
+            '',
+            '💵<b>𝙋𝙍𝙄𝘾𝙀 : '.$priceInThousands.'K | RM '.$myrPrice.' | $'.$usdPrice.'</b>',
+        ];
+
+        if (($data['post_chat'] ?? '') !== '') {
+            $lines[] = '🌐<b>CHAT : '.$this->escape((string) $data['post_chat']).'</b>';
+        }
+
+        if (($data['post_instagram'] ?? '') !== '') {
+            $lines[] = '📷<b>'.$this->escape((string) $data['post_instagram']).'</b>';
         }
 
         if ($productUrl !== null) {

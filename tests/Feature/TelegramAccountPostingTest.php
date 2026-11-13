@@ -88,6 +88,9 @@ it('starts an admin draft with the requested defaults', function () {
     Http::fake([
         'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 1]]),
     ]);
+    $gameCategories = collect(['Blox Fruit', 'Fisch', 'Growtopia', 'Roblox'])
+        ->map(fn (string $name): GameCategory => GameCategory::factory()->create(['name' => $name]));
+    GameCategory::factory()->create(['name' => 'Disabled Game', 'status' => 'inactive']);
     $update = TelegramUpdate::query()->create([
         'telegram_update_id' => 871236,
         'payload' => [
@@ -103,16 +106,68 @@ it('starts an admin draft with the requested defaults', function () {
     app(TelegramAccountPostingBot::class)->handle($update);
 
     $draft = TelegramAccountDraft::query()->sole();
-    expect($draft->step)->toBe('photos')
+    expect($draft->step)->toBe('game')
         ->and($draft->data['stat_refund'])->toBe(2)
         ->and($draft->data['race'])->toBe('V3 HUMAN')
         ->and($draft->data['haki'])->toBe('SKY JUMP, BODY, FLASH STEP')
         ->and($draft->data['post_chat'])->toBe('@LunaXStore')
         ->and($draft->data['post_instagram'])->toBe('jokibloxfruit.roblox');
 
+    Http::assertSent(function (Request $request) use ($gameCategories): bool {
+        $keyboard = json_encode($request['reply_markup'], JSON_UNESCAPED_UNICODE);
+
+        return str_ends_with($request->url(), '/sendMessage')
+            && (string) $request['chat_id'] === '12345'
+            && str_contains($request['text'], 'Pilih kategori game')
+            && collect($gameCategories)->every(fn (GameCategory $gameCategory): bool => str_contains($keyboard, 'game:'.$gameCategory->id))
+            && ! str_contains($keyboard, 'Disabled Game');
+    });
+});
+
+it('records the selected active game before asking for account photos', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 2]]),
+    ]);
+    $gameCategory = GameCategory::factory()->create(['name' => 'Growtopia']);
+    $draft = TelegramAccountDraft::query()->create([
+        'telegram_user_id' => '12345',
+        'chat_id' => '12345',
+        'status' => 'active',
+        'step' => 'game',
+        'data' => [],
+        'images' => [],
+        'processed_message_ids' => [],
+        'last_update_id' => 871236,
+    ]);
+    $update = TelegramUpdate::query()->create([
+        'telegram_update_id' => 871237,
+        'payload' => [
+            'callback_query' => [
+                'id' => 'game-callback',
+                'from' => ['id' => 12345],
+                'message' => [
+                    'message_id' => 2,
+                    'chat' => ['id' => 12345, 'type' => 'private'],
+                ],
+                'data' => 'game:'.$gameCategory->id,
+            ],
+        ],
+    ]);
+
+    app(TelegramAccountPostingBot::class)->handle($update);
+
+    expect($draft->fresh()->step)->toBe('photos')
+        ->and($draft->fresh()->data['game_category_id'])->toBe($gameCategory->id)
+        ->and($draft->fresh()->data['game_category_name'])->toBe('Growtopia')
+        ->and($draft->fresh()->data['account_template'])->toBe('generic');
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
-        && (string) $request['chat_id'] === '12345'
-        && str_contains($request['text'], '/done'));
+        && str_contains($request['text'], 'Game dipilih: Growtopia.')
+        && str_contains($request['text'], 'Kirim foto akun'));
 });
 
 it('asks for a custom website title after the account name', function () {
@@ -416,6 +471,7 @@ it('adds persistent categories and item types from the main menu', function () {
         'chat' => ['id' => 12345, 'type' => 'private'],
         'text' => '/skip',
     ]]);
+    GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $processUpdate(9, ['callback_query' => [
         'id' => 'new-post',
         'from' => ['id' => 12345],
@@ -658,6 +714,71 @@ it('creates an active one-stock product with a gallery when the admin confirms t
         ->assertSee('$4.00');
 });
 
+it('publishes a generic account listing under the game selected in Telegram', function () {
+    config([
+        'services.telegram.bot_token' => 'test-token',
+        'services.telegram.admin_ids' => ['12345'],
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 3]]),
+    ]);
+    Queue::fake([PublishTelegramAccountListing::class]);
+    $gameCategory = GameCategory::factory()->create(['name' => 'Growtopia']);
+    $itemCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    ProductCurrencyRate::current()->update(['idr_per_myr' => 4000, 'idr_per_usd' => 15000]);
+    StoreSetting::current()->update([
+        'telegram_account_rates' => [
+            'idr_per_myr' => '2500',
+            'idr_per_usd' => '10000',
+        ],
+    ]);
+    $draft = TelegramAccountDraft::query()->create([
+        'telegram_user_id' => '12345',
+        'chat_id' => '12345',
+        'status' => 'active',
+        'step' => 'preview',
+        'data' => [
+            'account_template' => 'generic',
+            'game_category_id' => $gameCategory->id,
+            'game_category_name' => 'Growtopia',
+            'username' => 'WorldOwner',
+            'website_title' => 'Growtopia Account - WorldOwner',
+            'details' => 'World: MEOW | Lock: Diamond Lock',
+            'price_idr' => 50000,
+            'post_chat' => '',
+            'post_instagram' => '',
+        ],
+        'images' => [],
+        'processed_message_ids' => [],
+        'last_update_id' => 871237,
+    ]);
+    $update = TelegramUpdate::query()->create([
+        'telegram_update_id' => 871238,
+        'payload' => [
+            'callback_query' => [
+                'id' => 'publish-generic',
+                'from' => ['id' => 12345],
+                'message' => [
+                    'message_id' => 3,
+                    'chat' => ['id' => 12345, 'type' => 'private'],
+                ],
+                'data' => 'publish',
+            ],
+        ],
+    ]);
+
+    app(TelegramAccountPostingBot::class)->handle($update);
+
+    $product = Product::query()->sole();
+    expect($product->game_category_id)->toBe($gameCategory->id)
+        ->and($product->item_category_id)->toBe($itemCategory->id)
+        ->and($product->name)->toBe('Growtopia Account - WorldOwner')
+        ->and($product->description)->toContain('World: MEOW | Lock: Diamond Lock')
+        ->and($product->description)->not->toContain('BELLY');
+    Queue::assertPushed(PublishTelegramAccountListing::class);
+});
+
 it('sends product photos and formatted account details to the configured Telegram channel', function () {
     config([
         'services.telegram.bot_token' => 'test-token',
@@ -760,6 +881,26 @@ it('escapes free-text values in the Telegram account template', function () {
         ->toContain('&lt;b&gt;unsafe&lt;/b&gt;')
         ->not->toContain('<script>alert(1)</script>')
         ->not->toContain('<b>unsafe</b>');
+});
+
+it('escapes generic account details in Telegram listings', function () {
+    $html = app(AccountListingFormatter::class)->telegramHtml([
+        'account_template' => 'generic',
+        'game_category_name' => 'Growtopia',
+        'website_title' => 'Growtopia <img src=x>',
+        'username' => 'WorldOwner',
+        'details' => '<script>alert(1)</script>',
+        'price_idr' => 50000,
+    ], [
+        'idr_per_myr' => '4000.0000',
+        'idr_per_usd' => '15000.0000',
+    ]);
+
+    expect($html)
+        ->toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+        ->toContain('&lt;img src=x&gt;')
+        ->not->toContain('<script>alert(1)</script>')
+        ->not->toContain('<img src=x>');
 });
 
 it('rounds account listing currency prices to the nearest five cents', function (int $price, string $expectedPrices) {
@@ -894,6 +1035,7 @@ it('lets admins edit a default from the settings menu', function () {
         'chat' => ['id' => 12345, 'type' => 'private'],
         'text' => 'Haki pilihan saya',
     ]]);
+    GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $processUpdate(900006, ['message' => [
         'from' => ['id' => 12345],
         'chat' => ['id' => 12345, 'type' => 'private'],
@@ -918,12 +1060,15 @@ it('stores incoming photos without sending a reply for every photo', function ()
             'ok' => true,
             'result' => ['message_id' => 24],
         ]),
+        'api.telegram.org/*/answerCallbackQuery' => Http::response(['ok' => true, 'result' => true]),
+        'api.telegram.org/*/editMessageText' => Http::response(['ok' => true, 'result' => ['message_id' => 24]]),
         'api.telegram.org/*/getFile' => Http::response([
             'ok' => true,
             'result' => ['file_path' => 'photos/account.png'],
         ]),
         'api.telegram.org/file/*' => Http::response($png),
     ]);
+    $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $bot = app(TelegramAccountPostingBot::class);
     $start = TelegramUpdate::query()->create([
         'telegram_update_id' => 900006,
@@ -934,8 +1079,21 @@ it('stores incoming photos without sending a reply for every photo', function ()
         ]],
     ]);
     $bot->handle($start);
-    $photo = TelegramUpdate::query()->create([
+    $gameSelection = TelegramUpdate::query()->create([
         'telegram_update_id' => 900007,
+        'payload' => ['callback_query' => [
+            'id' => 'select-game',
+            'from' => ['id' => 12345],
+            'message' => [
+                'message_id' => 24,
+                'chat' => ['id' => 12345, 'type' => 'private'],
+            ],
+            'data' => 'game:'.$gameCategory->id,
+        ]],
+    ]);
+    $bot->handle($gameSelection);
+    $photo = TelegramUpdate::query()->create([
+        'telegram_update_id' => 900008,
         'payload' => ['message' => [
             'message_id' => 25,
             'from' => ['id' => 12345],
@@ -949,5 +1107,5 @@ it('stores incoming photos without sending a reply for every photo', function ()
     $draft = TelegramAccountDraft::query()->sole();
     expect($draft->images)->toHaveCount(1);
     Storage::disk('public')->assertExists($draft->images[0]);
-    Http::assertSentCount(3);
+    Http::assertSentCount(5);
 });

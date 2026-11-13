@@ -6,9 +6,179 @@ use App\Models\PaymentSetting;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
+
+it('shows the live Google Maps rating on the storefront home page', function () {
+    config([
+        'services.google_maps.places_api_key' => 'restricted-test-key',
+        'services.google_maps.place_id' => 'place-id-123',
+        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'places.googleapis.com/v1/places/place-id-123' => Http::response([
+            'rating' => 4.8,
+            'userRatingCount' => 126,
+        ]),
+    ]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('4.8/5')
+        ->assertSee('126')
+        ->assertSee('Google Maps')
+        ->assertSee('https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6');
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://places.googleapis.com/v1/places/place-id-123'
+        && $request->hasHeader('X-Goog-Api-Key', 'restricted-test-key')
+        && $request->hasHeader('X-Goog-FieldMask', 'rating,userRatingCount'));
+});
+
+it('links to Google Maps without inventing a rating when Places API credentials are missing', function () {
+    config([
+        'services.google_maps.places_api_key' => null,
+        'services.google_maps.place_id' => null,
+        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
+    ]);
+    Http::preventStrayRequests();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee(__('store.google_maps_profile'))
+        ->assertSee('https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6')
+        ->assertDontSee('/5');
+
+    Http::assertNothingSent();
+});
+
+it('keeps the home page available when Google Maps rating data is unavailable', function () {
+    config([
+        'services.google_maps.places_api_key' => 'restricted-test-key',
+        'services.google_maps.place_id' => 'place-id-123',
+        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'places.googleapis.com/v1/places/place-id-123' => Http::response([], 503),
+    ]);
+    Log::spy();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee(__('store.google_maps_profile'))
+        ->assertDontSee('/5');
+
+    Log::shouldHaveReceived('warning')
+        ->once()
+        ->with('Google Maps rating request returned an unsuccessful response.', [
+            'place_id' => 'place-id-123',
+            'status' => 503,
+        ]);
+});
+
+it('renders storefront footer links with only active payment methods and configured contacts', function () {
+    config([
+        'store.admin_email' => 'support@example.test',
+        'store.admin_phone' => '+60123456789',
+        'store.social_links.tiktok' => 'https://www.tiktok.com/@meoxstore',
+        'store.social_links.threads' => 'javascript:alert(1)',
+        'services.google_maps.places_api_key' => null,
+        'services.google_maps.place_id' => null,
+    ]);
+    PaymentSetting::query()->create([
+        'type' => 'bank_transfer',
+        'name' => 'DANA',
+        'currency' => 'idr',
+        'logo_path' => 'payment-method-logos/dana.webp',
+        'is_active' => true,
+    ]);
+    PaymentSetting::query()->create([
+        'type' => 'bank_transfer',
+        'name' => 'Inactive method',
+        'currency' => 'idr',
+        'logo_path' => 'payment-method-logos/inactive.webp',
+        'is_active' => false,
+    ]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee(__('store.footer_help'))
+        ->assertSee(__('store.footer_payment_methods'))
+        ->assertSee('payment-method-logos/dana.webp')
+        ->assertDontSee('payment-method-logos/inactive.webp')
+        ->assertDontSee('>DANA<', false)
+        ->assertSee(__('store.footer_sellers'))
+        ->assertSee('mailto:support@example.test')
+        ->assertSee('tel:+60123456789')
+        ->assertSee('https://www.tiktok.com/@meoxstore')
+        ->assertSee('TikTok')
+        ->assertDontSee('javascript:alert(1)', false)
+        ->assertSee(__('store.footer_template_credit'));
+});
+
+it('embeds the configured Meoxstore map on the contact page', function () {
+    config([
+        'services.google_maps.embed_url' => 'https://www.google.com/maps?q=-8.5723901%2C115.3047109&z=17&output=embed',
+        'services.google_maps.places_api_key' => null,
+        'services.google_maps.place_id' => null,
+    ]);
+    Http::preventStrayRequests();
+
+    $this->get(route('contact'))
+        ->assertSee('q=-8.5723901%2C115.3047109', false)
+        ->assertDontSee('-80.14036379941481', false)
+        ->assertDontSee('Sunny Isles Beach')
+        ->assertDontSee('class="contact-google-rating"', false);
+
+    Http::assertNothingSent();
+});
+
+it('shows the live Google Maps rating over the contact map when Places API credentials are configured', function () {
+    config([
+        'services.google_maps.places_api_key' => 'restricted-test-key',
+        'services.google_maps.place_id' => 'place-id-123',
+        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'places.googleapis.com/v1/places/place-id-123' => Http::response([
+            'rating' => 4.8,
+            'userRatingCount' => 126,
+        ]),
+    ]);
+
+    $this->get(route('contact'))
+        ->assertSee('class="contact-google-rating"', false)
+        ->assertSee('4.8/5')
+        ->assertSee('126')
+        ->assertSee('https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6');
+});
+
+it('shows a Malaysia QRIS warning for IDR checkout when QRIS is available', function () {
+    $customer = User::factory()->create(['is_admin' => false]);
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 3, 'maximum_quantity' => 3]);
+    PaymentSetting::query()->create([
+        'type' => 'qris',
+        'currency' => 'idr',
+        'name' => 'QRIS',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($customer)
+        ->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+
+    $this->get(route('checkout.show'))
+        ->assertSee(__('store.checkout_idr_qris_warning'));
+});
 
 it('keeps guest cart items and checks out them together after sign in', function () {
     $firstProduct = Product::factory()->create(['status' => 'active']);
@@ -529,6 +699,36 @@ it('persists the selected language and renders the matching local dictionary', f
         ->assertSessionHas('locale', 'ms');
     $this->get(route('about'))
         ->assertSee('Tentang Meoxstore');
+});
+
+it('shows the sales journey on the about page in every supported language', function () {
+    $journeys = [
+        'id' => [
+            '2019' => 'Mulai berjualan Rise of Kingdoms: akun, resources, border, dan lainnya.',
+            '2021' => 'Mulai berjualan Growtopia: akun, lock, set, world, jasa midman, dan lainnya.',
+            '2023' => 'Mulai berjualan Roblox: Blox Fruit, Fisch, Grow a Garden, dan lainnya.',
+        ],
+        'en' => [
+            '2019' => 'Started selling Rise of Kingdoms products, including accounts, resources, borders, and more.',
+            '2021' => 'Started selling Growtopia products such as accounts, locks, sets, worlds, middleman services, and more.',
+            '2023' => 'Started selling Roblox products, including Blox Fruit, Fisch, Grow a Garden, and more.',
+        ],
+        'ms' => [
+            '2019' => 'Mula menjual produk Rise of Kingdoms seperti akaun, resources, border dan lain-lain.',
+            '2021' => 'Mula menjual produk Growtopia seperti akaun, lock, set, world, khidmat midman dan lain-lain.',
+            '2023' => 'Mula menjual produk Roblox seperti Blox Fruit, Fisch, Grow a Garden dan lain-lain.',
+        ],
+    ];
+
+    foreach ($journeys as $locale => $milestones) {
+        $response = $this->withSession(['locale' => $locale])->get(route('about'));
+
+        $response->assertSee('Our Journey');
+        foreach (array_keys($milestones) as $year) {
+            $response->assertSee($year);
+            $response->assertSee($milestones[$year]);
+        }
+    }
 });
 
 it('lets an administrator manage payment method details', function () {

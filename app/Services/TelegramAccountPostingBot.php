@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Actions\CreateTelegramAccountProduct;
 use App\Jobs\PublishTelegramAccountListing;
+use App\Models\GameCategory;
 use App\Models\ProductCurrencyRate;
 use App\Models\StoreSetting;
 use App\Models\TelegramAccountDraft;
@@ -727,11 +728,21 @@ class TelegramAccountPostingBot
 
         if ($existingDraft !== null) {
             $existingDraft->update(['last_update_id' => $updateId, 'chat_id' => $chatId]);
-            $this->sendDraftMessage(
-                $existingDraft,
-                'Masih ada draft aktif. Lanjutkan draft tersebut atau kirim /cancel untuk membatalkan.',
-                ['inline_keyboard' => []],
-            );
+            if ($existingDraft->step === 'game') {
+                $this->sendGameCategoryKeyboard($existingDraft, 'Lanjutkan draft aktif dengan memilih kategori game.');
+            } else {
+                $this->sendDraftMessage(
+                    $existingDraft,
+                    'Masih ada draft aktif. Lanjutkan draft tersebut atau kirim /cancel untuk membatalkan.',
+                    ['inline_keyboard' => []],
+                );
+            }
+
+            return;
+        }
+
+        if (! GameCategory::query()->where('status', 'active')->exists()) {
+            $this->telegram->sendMessage($chatId, 'Belum ada kategori game aktif. Aktifkan kategori game di Admin sebelum membuat posting.');
 
             return;
         }
@@ -741,7 +752,7 @@ class TelegramAccountPostingBot
             'telegram_user_id' => $telegramUserId,
             'chat_id' => $chatId,
             'status' => 'active',
-            'step' => 'photos',
+            'step' => 'game',
             'last_update_id' => $updateId,
             'data' => array_merge([
                 'items' => [],
@@ -752,10 +763,7 @@ class TelegramAccountPostingBot
             'processed_message_ids' => [],
         ]);
 
-        $this->sendDraftMessage(
-            $draft,
-            'Kirim foto akun (maksimal 20 foto). Setelah semua foto terkirim, kirim /done. Kirim /cancel untuk membatalkan.',
-        );
+        $this->sendGameCategoryKeyboard($draft);
     }
 
     /**
@@ -803,6 +811,12 @@ class TelegramAccountPostingBot
 
     private function finishCurrentStep(TelegramAccountDraft $draft): void
     {
+        if ($draft->step === 'game') {
+            $this->sendGameCategoryKeyboard($draft, 'Pilih kategori game melalui tombol sebelum melanjutkan.');
+
+            return;
+        }
+
         if ($draft->step === 'photos') {
             if (($draft->images ?? []) === []) {
                 $this->sendDraftMessage($draft, 'Kirim minimal satu foto sebelum melanjutkan.');
@@ -833,6 +847,12 @@ class TelegramAccountPostingBot
 
     private function receiveText(TelegramAccountDraft $draft, string $text): void
     {
+        if ($draft->step === 'game') {
+            $this->sendGameCategoryKeyboard($draft, 'Pilih kategori game melalui tombol di bawah.');
+
+            return;
+        }
+
         if ($draft->step === 'photos') {
             $this->sendDraftMessage($draft, 'Kirim foto, lalu /done jika sudah selesai.');
 
@@ -897,7 +917,7 @@ class TelegramAccountPostingBot
 
         if ($step === 'website_title') {
             $websiteTitle = $this->isCommand($text, '/skip')
-                ? 'Blox Fruit Account - '.$data['username']
+                ? $this->defaultWebsiteTitle($data)
                 : trim($text);
             if ($websiteTitle === '' || Str::length($websiteTitle) > 255) {
                 $this->sendDraftMessage($draft, 'Judul website wajib diisi (maksimal 255 karakter), atau /skip untuk memakai judul otomatis.');
@@ -906,6 +926,15 @@ class TelegramAccountPostingBot
             }
 
             $data['website_title'] = $websiteTitle;
+        } elseif ($step === 'details') {
+            $details = $this->isCommand($text, '/skip') ? '-' : trim($text);
+            if ($details === '' || Str::length($details) > 3000) {
+                $this->sendDraftMessage($draft, 'Detail akun wajib diisi (maksimal 3000 karakter), atau /skip untuk melewati.');
+
+                return;
+            }
+
+            $data['details'] = $details;
         } elseif ($step === 'stat_refund') {
             if ($this->isCommand($text, '/skip')) {
                 $data['stat_refund'] = $this->accountDefaults()['stat_refund'];
@@ -942,11 +971,11 @@ class TelegramAccountPostingBot
 
             $data[$step] = $value;
             if ($step === 'username') {
-                $data['website_title'] = 'Blox Fruit Account - '.$value;
+                $data['website_title'] = $this->defaultWebsiteTitle(array_merge($data, ['username' => $value]));
             }
         }
 
-        $nextStep = $this->nextStep($step);
+        $nextStep = $this->nextStep($step, (string) ($data['account_template'] ?? 'blox_fruit'));
         $draft->update([
             'data' => $data,
             'step' => $nextStep,
@@ -961,8 +990,18 @@ class TelegramAccountPostingBot
         $this->askForStep($draft, $nextStep);
     }
 
-    private function nextStep(string $step): string
+    private function nextStep(string $step, string $accountTemplate): string
     {
+        if ($accountTemplate === 'generic') {
+            return match ($step) {
+                'username' => 'website_title',
+                'website_title' => 'details',
+                'details' => 'price',
+                'price' => 'preview',
+                default => 'preview',
+            };
+        }
+
         return match ($step) {
             'username' => 'website_title',
             'website_title' => 'level',
@@ -984,7 +1023,8 @@ class TelegramAccountPostingBot
     {
         $prompts = [
             'username' => 'Masukkan nama akun yang akan ditampilkan.',
-            'website_title' => 'Masukkan judul produk untuk website (maksimal 255 karakter), atau /skip untuk memakai judul otomatis: '.($draft->data['website_title'] ?? 'Blox Fruit Account - '.($draft->data['username'] ?? 'akun')),
+            'website_title' => 'Masukkan judul produk untuk website (maksimal 255 karakter), atau /skip untuk memakai judul otomatis: '.($draft->data['website_title'] ?? $this->defaultWebsiteTitle($draft->data)),
+            'details' => 'Masukkan detail akun (fitur, item, progres, dan informasi penting lainnya), atau /skip jika tidak ada.',
             'level' => 'Masukkan level akun (angka).',
             'belly' => 'Masukkan jumlah Belly, atau /skip jika kosong.',
             'fragment' => 'Masukkan jumlah Fragment, atau /skip jika kosong.',
@@ -1305,7 +1345,7 @@ class TelegramAccountPostingBot
     private function sendPreview(TelegramAccountDraft $draft): void
     {
         $rates = StoreSetting::current()->telegramAccountRates();
-        $websiteTitle = $draft->data['website_title'] ?? 'Blox Fruit Account - '.$draft->data['username'];
+        $websiteTitle = $draft->data['website_title'] ?? $this->defaultWebsiteTitle($draft->data);
         $this->sendDraftMessage(
             $draft,
             'Judul website: '.$websiteTitle."\n\n".
@@ -1364,6 +1404,13 @@ class TelegramAccountPostingBot
         if (str_starts_with($callbackData, 'cat:')) {
             $draft->save();
             $this->handleCategoryCallback($draft, substr($callbackData, 4));
+
+            return;
+        }
+
+        if (str_starts_with($callbackData, 'game:')) {
+            $draft->save();
+            $this->handleGameCallback($draft, substr($callbackData, 5));
 
             return;
         }
@@ -1575,6 +1622,78 @@ class TelegramAccountPostingBot
         $data['selected_categories'] = $selected;
         $draft->update(['data' => $data]);
         $this->sendCategoryKeyboard($draft->fresh());
+    }
+
+    private function handleGameCallback(TelegramAccountDraft $draft, string $action): void
+    {
+        if ($draft->step !== 'game') {
+            return;
+        }
+
+        $gameCategoryId = filter_var($action, FILTER_VALIDATE_INT);
+        $gameCategory = $gameCategoryId === false
+            ? null
+            : GameCategory::query()->whereKey($gameCategoryId)->where('status', 'active')->first();
+
+        if ($gameCategory === null) {
+            $this->sendGameCategoryKeyboard($draft, 'Kategori game tidak ditemukan atau tidak aktif.');
+
+            return;
+        }
+
+        $data = $draft->data;
+        $data['game_category_id'] = $gameCategory->id;
+        $data['game_category_name'] = $gameCategory->name;
+        $data['account_template'] = mb_strtolower(trim($gameCategory->name)) === 'blox fruit'
+            ? 'blox_fruit'
+            : 'generic';
+        $draft->update(['data' => $data, 'step' => 'photos']);
+        $this->sendDraftMessage(
+            $draft->fresh(),
+            'Game dipilih: '.$gameCategory->name.'. Kirim foto akun (maksimal 20 foto). Setelah semua foto terkirim, kirim /done. Kirim /cancel untuk membatalkan.',
+            ['inline_keyboard' => []],
+        );
+    }
+
+    private function sendGameCategoryKeyboard(TelegramAccountDraft $draft, ?string $notice = null): void
+    {
+        $buttons = GameCategory::query()
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (GameCategory $gameCategory): array => [
+                'text' => Str::limit($gameCategory->name, 50),
+                'callback_data' => 'game:'.$gameCategory->id,
+            ])
+            ->map(fn (array $button): array => [$button])
+            ->all();
+
+        if ($buttons === []) {
+            $this->sendDraftMessage(
+                $draft,
+                'Belum ada kategori game aktif. Aktifkan kategori game di Admin, lalu kirim /cancel sebelum membuat draft baru.',
+                ['inline_keyboard' => []],
+            );
+
+            return;
+        }
+
+        $this->sendDraftMessage(
+            $draft,
+            ($notice === null ? '' : $notice."\n").'Pilih kategori game untuk akun ini:',
+            ['inline_keyboard' => $buttons],
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function defaultWebsiteTitle(array $data): string
+    {
+        $gameName = trim((string) ($data['game_category_name'] ?? 'Blox Fruit'));
+        $username = trim((string) ($data['username'] ?? 'akun'));
+
+        return $gameName.' Account - '.$username;
     }
 
     private function handleItemCallback(TelegramAccountDraft $draft, string $action): void

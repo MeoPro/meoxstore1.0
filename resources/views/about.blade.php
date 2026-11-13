@@ -27,16 +27,39 @@
         </div>
     </div>
     <main class="section">
-        <div class="container" style="max-width: 900px;">
-            <div class="bg-white rounded-4 p-4 p-md-5 shadow-sm">
+        <div class="container about-page-container">
+            <div class="bg-white rounded-4 p-4 p-md-5 shadow-sm about-page-card">
                 <h1 class="h2 mb-4">{{ __('store.about_title') }}</h1>
                 <p class="lead">{{ __('store.about_intro') }}</p>
                 <p>{{ __('store.about_copy') }}</p>
+                <section class="about-journey" aria-labelledby="about-journey-title">
+                    <h2 class="h3 mb-0" id="about-journey-title">{{ __('store.our_journey') }}</h2>
+                    <ol class="about-journey-grid">
+                        <li>
+                            <article class="about-journey-card">
+                                <h3 class="about-journey-year"><time datetime="2019">2019</time></h3>
+                                <p>{{ __('store.our_journey_2019') }}</p>
+                            </article>
+                        </li>
+                        <li>
+                            <article class="about-journey-card">
+                                <h3 class="about-journey-year"><time datetime="2021">2021</time></h3>
+                                <p>{{ __('store.our_journey_2021') }}</p>
+                            </article>
+                        </li>
+                        <li>
+                            <article class="about-journey-card">
+                                <h3 class="about-journey-year"><time datetime="2023">2023</time></h3>
+                                <p>{{ __('store.our_journey_2023') }}</p>
+                            </article>
+                        </li>
+                    </ol>
+                </section>
                 <a class="btn btn-primary rounded-pill px-4 mt-3" href="{{ route('games.index') }}">{{ __('store.browse_games') }}</a>
             </div>
         </div>
     </main>
-    <footer><div class="container"><div class="col-lg-12"><p>Copyright © {{ date('Y') }} Meoxstore. All rights reserved.</p></div></div></footer>
+    <x-storefront-footer />
     <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
 </body>

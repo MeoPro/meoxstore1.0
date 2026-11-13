@@ -18,6 +18,7 @@
         'resources/css/owl.css',
         'resources/css/animate.css',
         'resources/js/app.js',
+        'resources/js/shop.js',
     ])
     <style>
       .shop-page-heading { padding: 108px 0 22px; }
@@ -275,6 +276,7 @@ https://templatemo.com/tm-589-lugx-gaming
             <ul class="trending-filter" aria-label="{{ __('store.filter_item_category') }}">
               <li>
                 <a
+                  data-shop-item-filter-link
                   @class(['is_active' => $selectedItemCategory === null])
                   href="{{ route('shop', [
                       'game' => $selectedGameCategory?->id,
@@ -289,6 +291,7 @@ https://templatemo.com/tm-589-lugx-gaming
               @foreach ($itemCategories as $itemCategory)
                 <li>
                   <a
+                    data-shop-item-filter-link
                     @class(['is_active' => $selectedItemCategory?->is($itemCategory)])
                     href="{{ route('shop', [
                         'game' => $selectedGameCategory?->id,
@@ -306,115 +309,111 @@ https://templatemo.com/tm-589-lugx-gaming
           </div>
         </div>
       </div>
-      <div class="row trending-box shop-product-list">
-        @forelse ($products as $product)
-          @php
-            $minimumPrice = $product->variants->min(
-              fn ($variant) => $product->priceInIdr((float) $variant->price, $currencyRates),
-            );
-            $minimumPriceBeforeDiscount = $product->variants->min(
-              fn ($variant) => $product->priceBeforeDiscountInIdr((float) $variant->price, $currencyRates),
-            );
-            $minimumMyrPrice = $product->variants->min(
-              fn ($variant) => $product->priceInMyr((float) $variant->price, $currencyRates),
-            );
-            $minimumMyrPriceBeforeDiscount = $product->variants->min(
-              fn ($variant) => $product->priceBeforeDiscountInMyr((float) $variant->price, $currencyRates),
-            );
-            $minimumUsdPrice = $product->variants->min(
-              fn ($variant) => $product->priceInUsd((float) $variant->price, $currencyRates),
-            );
-            $minimumUsdPriceBeforeDiscount = $product->variants->min(
-              fn ($variant) => $product->priceBeforeDiscountInUsd((float) $variant->price, $currencyRates),
-            );
-          @endphp
-          @php($fallbackImage = asset('images/trending-0'.(($loop->index % 4) + 1).'.jpg'))
-          @php($stockCount = $product->variants->sum('stock'))
-          <div class="col-6 col-md-6 col-lg-3 trending-items game-{{ $product->game_category_id }} item-{{ $product->item_category_id }}">
-            <div class="item shop-product-card">
-              <div class="thumb">
-                <a href="{{ route('product-details.show', ['product' => $product, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}" data-shop-product-link>
-                  <img src="{{ $product->image ? \Illuminate\Support\Facades\Storage::disk('public')->url($product->image) : $fallbackImage }}" alt="{{ $product->name }}">
-                </a>
-                @if ($product->badges !== [])
-                  <div class="shop-product-badges">
-                    @foreach ($product->badges as $badge)
-                      <span class="shop-product-badge shop-product-badge--{{ $badge }}">
-                        @if ($badge === 'discount')
-                          {{ __('store.discount_badge', ['percent' => rtrim(rtrim(number_format((float) $product->discount_percent, 2, '.', ''), '0'), '.')]) }}
-                        @else
-                          {{ __('store.badge_'.$badge) }}
-                        @endif
-                      </span>
-                    @endforeach
-                  </div>
-                @endif
-              </div>
-              <div class="down-content">
-                <span class="category">{{ $product->gameCategory->name }}</span>
-                <h4>{{ $product->name }}</h4>
-                <div class="shop-product-price">
-                  @if ($product->hasDiscount())
-                    <span
-                      class="shop-product-price-before"
-                      data-shop-price
-                      data-idr="Rp {{ rtrim(rtrim(number_format($minimumPriceBeforeDiscount, 2, '.', ','), '0'), '.') }}"
-                      data-myr="RM {{ number_format($minimumMyrPriceBeforeDiscount, 2) }}"
-                      data-usd="${{ number_format($minimumUsdPriceBeforeDiscount, 2) }}"
-                    >{{ match ($selectedCurrency) {
-                        'myr' => 'RM '.number_format($minimumMyrPriceBeforeDiscount, 2),
-                        'usd' => '$'.number_format($minimumUsdPriceBeforeDiscount, 2),
-                        default => 'Rp '.rtrim(rtrim(number_format($minimumPriceBeforeDiscount, 2, '.', ','), '0'), '.'),
-                    } }}</span>
+      <div class="shop-product-results" data-shop-product-results aria-busy="false">
+        <div class="row trending-box shop-product-list">
+          @forelse ($products as $product)
+            @php
+              $minimumPrice = $product->variants->min(
+                fn ($variant) => $product->priceInIdr((float) $variant->price, $currencyRates),
+              );
+              $minimumPriceBeforeDiscount = $product->variants->min(
+                fn ($variant) => $product->priceBeforeDiscountInIdr((float) $variant->price, $currencyRates),
+              );
+              $minimumMyrPrice = $product->variants->min(
+                fn ($variant) => $product->priceInMyr((float) $variant->price, $currencyRates),
+              );
+              $minimumMyrPriceBeforeDiscount = $product->variants->min(
+                fn ($variant) => $product->priceBeforeDiscountInMyr((float) $variant->price, $currencyRates),
+              );
+              $minimumUsdPrice = $product->variants->min(
+                fn ($variant) => $product->priceInUsd((float) $variant->price, $currencyRates),
+              );
+              $minimumUsdPriceBeforeDiscount = $product->variants->min(
+                fn ($variant) => $product->priceBeforeDiscountInUsd((float) $variant->price, $currencyRates),
+              );
+            @endphp
+            @php($fallbackImage = asset('images/trending-0'.(($loop->index % 4) + 1).'.jpg'))
+            @php($stockCount = $product->variants->sum('stock'))
+            <div class="col-6 col-md-6 col-lg-3 trending-items game-{{ $product->game_category_id }} item-{{ $product->item_category_id }}">
+              <div class="item shop-product-card">
+                <div class="thumb">
+                  <a href="{{ route('product-details.show', ['product' => $product, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}" data-shop-product-link>
+                    <img src="{{ $product->image ? \Illuminate\Support\Facades\Storage::disk('public')->url($product->image) : $fallbackImage }}" alt="{{ $product->name }}">
+                  </a>
+                  @if ($product->badges !== [])
+                    <div class="shop-product-badges">
+                      @foreach ($product->badges as $badge)
+                        <span class="shop-product-badge shop-product-badge--{{ $badge }}">
+                          @if ($badge === 'discount')
+                            {{ __('store.discount_badge', ['percent' => rtrim(rtrim(number_format((float) $product->discount_percent, 2, '.', ''), '0'), '.')]) }}
+                          @else
+                            {{ __('store.badge_'.$badge) }}
+                          @endif
+                        </span>
+                      @endforeach
+                    </div>
                   @endif
-                  <span
-                    class="shop-product-price-current"
-                    data-shop-price
-                    data-idr="Rp {{ rtrim(rtrim(number_format($minimumPrice, 2, '.', ','), '0'), '.') }}"
-                    data-myr="RM {{ number_format($minimumMyrPrice, 2) }}"
-                    data-usd="${{ number_format($minimumUsdPrice, 2) }}"
-                  >{{ match ($selectedCurrency) {
-                      'myr' => 'RM '.number_format($minimumMyrPrice, 2),
-                      'usd' => '$'.number_format($minimumUsdPrice, 2),
-                      default => 'Rp '.rtrim(rtrim(number_format($minimumPrice, 2, '.', ','), '0'), '.'),
-                  } }}</span>
                 </div>
-                <div class="shop-product-stats">
-                  <span>{{ __('store.stock_count', ['count' => number_format($stockCount)]) }}</span>
-                  <div class="shop-product-rating-line">
-                    <span class="shop-product-rating" aria-label="{{ __('store.rating_out_of_five', ['rating' => number_format((float) ($product->reviews_avg_rating ?? 0), 1)]) }}">
-                      @for ($star = 1; $star <= 5; $star++)
-                        <span class="{{ $star <= round((float) ($product->reviews_avg_rating ?? 0)) ? '' : 'shop-rating-empty' }}">★</span>
-                      @endfor
-                      <span class="shop-product-rating-count">{{ number_format((float) ($product->reviews_avg_rating ?? 0), 1) }} ({{ $product->reviews_count }})</span>
-                    </span>
-                    <span>{{ __('store.sold_count', ['count' => number_format((int) ($product->sold_quantity ?? 0))]) }}</span>
+                <div class="down-content">
+                  <span class="category">{{ $product->gameCategory->name }}</span>
+                  <h4>{{ $product->name }}</h4>
+                  <div class="shop-product-price">
+                    @if ($product->hasDiscount())
+                      <span
+                        class="shop-product-price-before"
+                        data-shop-price
+                        data-idr="Rp {{ rtrim(rtrim(number_format($minimumPriceBeforeDiscount, 2, '.', ','), '0'), '.') }}"
+                        data-myr="RM {{ number_format($minimumMyrPriceBeforeDiscount, 2) }}"
+                        data-usd="${{ number_format($minimumUsdPriceBeforeDiscount, 2) }}"
+                      >{{ match ($selectedCurrency) {
+                          'myr' => 'RM '.number_format($minimumMyrPriceBeforeDiscount, 2),
+                          'usd' => '$'.number_format($minimumUsdPriceBeforeDiscount, 2),
+                          default => 'Rp '.rtrim(rtrim(number_format($minimumPriceBeforeDiscount, 2, '.', ','), '0'), '.'),
+                      } }}</span>
+                    @endif
+                    <span
+                      class="shop-product-price-current"
+                      data-shop-price
+                      data-idr="Rp {{ rtrim(rtrim(number_format($minimumPrice, 2, '.', ','), '0'), '.') }}"
+                      data-myr="RM {{ number_format($minimumMyrPrice, 2) }}"
+                      data-usd="${{ number_format($minimumUsdPrice, 2) }}"
+                    >{{ match ($selectedCurrency) {
+                        'myr' => 'RM '.number_format($minimumMyrPrice, 2),
+                        'usd' => '$'.number_format($minimumUsdPrice, 2),
+                        default => 'Rp '.rtrim(rtrim(number_format($minimumPrice, 2, '.', ','), '0'), '.'),
+                    } }}</span>
+                  </div>
+                  <div class="shop-product-stats">
+                    <span>{{ __('store.stock_count', ['count' => number_format($stockCount)]) }}</span>
+                    <div class="shop-product-rating-line">
+                      <span class="shop-product-rating" aria-label="{{ __('store.rating_out_of_five', ['rating' => number_format((float) ($product->reviews_avg_rating ?? 0), 1)]) }}">
+                        @for ($star = 1; $star <= 5; $star++)
+                          <span class="{{ $star <= round((float) ($product->reviews_avg_rating ?? 0)) ? '' : 'shop-rating-empty' }}">★</span>
+                        @endfor
+                        <span class="shop-product-rating-count">{{ number_format((float) ($product->reviews_avg_rating ?? 0), 1) }} ({{ $product->reviews_count }})</span>
+                      </span>
+                      <span>{{ __('store.sold_count', ['count' => number_format((int) ($product->sold_quantity ?? 0))]) }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        @empty
-          <div class="col-12 text-center py-5">
-            <h4>{{ $searchTerm !== '' || $minimumPriceFilter !== null || $maximumPriceFilter !== null ? __('store.search_no_results') : __('store.no_products') }}</h4>
-          </div>
-        @endforelse
-      </div>
-      @if ($products->hasPages())
-        <div class="row">
-          <div class="col-lg-12">{{ $products->links('pagination::bootstrap-5') }}</div>
+          @empty
+            <div class="col-12 text-center py-5">
+              <h4>{{ $searchTerm !== '' || $minimumPriceFilter !== null || $maximumPriceFilter !== null ? __('store.search_no_results') : __('store.no_products') }}</h4>
+            </div>
+          @endforelse
         </div>
-      @endif
+        @if ($products->hasPages())
+          <div class="row">
+            <div class="col-lg-12">{{ $products->links('pagination::bootstrap-5') }}</div>
+          </div>
+        @endif
+      </div>
     </div>
   </div>
 
-  <footer>
-    <div class="container">
-      <div class="col-lg-12">
-        <p>Copyright © {{ date('Y') }} Meoxstore. All rights reserved.</p>
-      </div>
-    </div>
-  </footer>
+  <x-storefront-footer />
 
   <!-- Scripts -->
   <!-- Bootstrap core JavaScript -->

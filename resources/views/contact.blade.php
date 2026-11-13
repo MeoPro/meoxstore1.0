@@ -44,7 +44,12 @@
         .contact-detail .contact-option-icon { flex-basis: 40px; height: 40px; }
         .contact-detail-label { color: #7a7a7a; display: block; font-size: 12px; margin: 1px 0 3px; }
         .contact-detail-value { color: #1e1e1e; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+        .contact-map-panel { position: relative; }
         .contact-map-panel iframe { border: 0; display: block; height: 100%; min-height: 270px; width: 100%; }
+        .contact-google-rating { align-items: center; background: #fff; border: 1px solid #e6eaf2; border-radius: 999px; box-shadow: 0 4px 14px rgba(30, 56, 90, .16); color: #344054; display: inline-flex; gap: 7px; left: 12px; padding: 8px 13px; position: absolute; text-decoration: none; top: 12px; z-index: 1; }
+        .contact-google-rating:hover { color: #1d2939; }
+        .contact-google-rating-star { color: #fbbc04; font-size: 19px; line-height: 1; }
+        .contact-google-rating-source { color: #667085; font-size: 12px; }
         .contact-form-panel { padding: clamp(22px, 4vw, 32px); }
         .contact-form-panel .form-label { color: #333; font-size: 13px; font-weight: 600; }
         .contact-form-panel .form-control { border-color: #e1e5eb; border-radius: 10px; min-height: 46px; }
@@ -127,13 +132,15 @@
                         <section class="contact-details-panel">
                             <h3>{{ __('store.contact_information') }}</h3>
                             <div class="contact-detail-list">
-                                <article class="contact-detail">
-                                    <span class="contact-option-icon" aria-hidden="true"><i class="fa fa-map-marker"></i></span>
-                                    <div>
-                                        <span class="contact-detail-label">{{ __('store.address') }}</span>
-                                        <span class="contact-detail-value">Sunny Isles Beach, FL 33160, United States</span>
-                                    </div>
-                                </article>
+                                @if (filled(config('store.address')))
+                                    <article class="contact-detail">
+                                        <span class="contact-option-icon" aria-hidden="true"><i class="fa fa-map-marker"></i></span>
+                                        <div>
+                                            <span class="contact-detail-label">{{ __('store.address') }}</span>
+                                            <span class="contact-detail-value">{{ config('store.address') }}</span>
+                                        </div>
+                                    </article>
+                                @endif
                                 <article class="contact-detail">
                                     <span class="contact-option-icon" aria-hidden="true"><i class="fa fa-phone"></i></span>
                                     <div>
@@ -153,8 +160,26 @@
                     </div>
                     <div class="col-lg-7">
                         <div class="contact-map-panel">
+                            @if ($googleMapsRating !== null)
+                                <a
+                                    class="contact-google-rating"
+                                    href="{{ $googleMapsProfileUrl }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label="{{ __('store.google_rating_summary', [
+                                        'rating' => number_format($googleMapsRating['rating'], 1),
+                                        'count' => number_format($googleMapsRating['user_rating_count']),
+                                    ]) }} — {{ __('store.footer_google_maps') }}">
+                                    <span class="contact-google-rating-star" aria-hidden="true">★</span>
+                                    <span>{{ __('store.google_rating_summary', [
+                                        'rating' => number_format($googleMapsRating['rating'], 1),
+                                        'count' => number_format($googleMapsRating['user_rating_count']),
+                                    ]) }}</span>
+                                    <span class="contact-google-rating-source">{{ __('store.footer_google_maps') }}</span>
+                                </a>
+                            @endif
                             <iframe
-                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d12469.776493332698!2d-80.14036379941481!3d25.907788681148624!2m3!1f357.26927939317244!2f20.870722720393172!3f0!3m2!1i1024!2i768!4f35!3m3!1m2!1s0x88d9add4b4ac788f%3A0xe77469d09480fcdb!2sSunny%20Isles%20Beach!5e1!3m2!1sen!2sth!4v1642869952544!5m2!1sen!2sth"
+                                src="{{ config('services.google_maps.embed_url') }}"
                                 title="{{ __('store.contact_map_title') }}"
                                 loading="lazy"
                                 referrerpolicy="no-referrer-when-downgrade"
@@ -196,13 +221,7 @@
         </div>
     </main>
 
-    <footer>
-        <div class="container">
-            <div class="col-lg-12">
-                <p>Copyright © {{ date('Y') }} Meoxstore. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+    <x-storefront-footer />
     <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
 </body>

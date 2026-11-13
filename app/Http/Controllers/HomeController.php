@@ -9,13 +9,14 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductCurrencyRate;
 use App\Models\StoreSetting;
+use App\Services\GoogleMapsRatingService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class HomeController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(GoogleMapsRatingService $googleMapsRatingService): View
     {
         $completedOrderItems = fn (Builder $query) => $query->whereHas(
             'order',
@@ -127,6 +128,8 @@ class HomeController extends Controller
                 ->whereIn('status', ['payment_submitted', 'payment_confirmed'])
                 ->count(),
             'storeSetting' => StoreSetting::current(),
+            'googleMapsRating' => $googleMapsRatingService->fetch(),
+            'googleMapsProfileUrl' => config('services.google_maps.profile_url'),
         ]);
     }
 

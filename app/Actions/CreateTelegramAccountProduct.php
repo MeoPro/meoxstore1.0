@@ -16,17 +16,28 @@ class CreateTelegramAccountProduct
         return DB::transaction(function () use ($draft): Product {
             $data = $draft->data;
             $images = $draft->images;
-            $gameCategory = GameCategory::query()->firstOrCreate(
-                ['name' => 'Blox Fruit'],
-                ['status' => 'active'],
-            );
+            if (isset($data['game_category_id'])) {
+                $gameCategoryId = filter_var($data['game_category_id'], FILTER_VALIDATE_INT);
+                $gameCategory = $gameCategoryId === false
+                    ? null
+                    : GameCategory::query()->find($gameCategoryId);
+            } else {
+                $gameCategory = GameCategory::query()->firstOrCreate(
+                    ['name' => 'Blox Fruit'],
+                    ['status' => 'active'],
+                );
+            }
             $itemCategory = ItemCategory::query()->firstOrCreate(
                 ['name' => 'Account'],
                 ['status' => 'active'],
             );
 
+            if ($gameCategory === null) {
+                throw new LogicException('The selected game category no longer exists.');
+            }
+
             if ($gameCategory->status !== 'active' || $itemCategory->status !== 'active') {
-                throw new LogicException('Activate the Blox Fruit and Account categories before publishing.');
+                throw new LogicException('Activate the selected game and Account categories before publishing.');
             }
 
             $gameCategory->itemCategories()->syncWithoutDetaching([$itemCategory->id]);
@@ -34,7 +45,7 @@ class CreateTelegramAccountProduct
             $product = Product::query()->create([
                 'game_category_id' => $gameCategory->id,
                 'item_category_id' => $itemCategory->id,
-                'name' => $data['website_title'] ?? 'Blox Fruit Account - '.$data['username'],
+                'name' => $data['website_title'] ?? $gameCategory->name.' Account - '.$data['username'],
                 'description' => $data['description'],
                 'image' => $images[0] ?? null,
                 'images' => $images,

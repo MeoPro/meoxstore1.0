@@ -13,6 +13,7 @@ export default defineConfig({
                 'resources/css/owl.css',
                 'resources/css/animate.css',
                 'resources/js/app.js',
+                'resources/js/shop.js',
                 'resources/js/blog.js',
                 'resources/js/customblog.js',
             ],

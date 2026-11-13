@@ -127,6 +127,9 @@
                         </div>
                     </div>
                     <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>
+                    @if ($totalCurrency === 'idr' && $paymentSettings->contains(fn ($paymentSetting) => $paymentSetting->type === 'qris'))
+                        <div class="alert alert-danger" role="alert">{{ __('store.checkout_idr_qris_warning') }}</div>
+                    @endif
                     <div>
                         @foreach ($paymentSettings as $paymentSetting)
                             <label class="payment-method">
@@ -146,7 +149,7 @@
             </section>
         </div>
     </main>
-    <footer><div class="container"><div class="col-lg-12"><p>Copyright © {{ date('Y') }} Meoxstore. All rights reserved.</p></div></div></footer>
+    <x-storefront-footer />
     <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
 </body>
