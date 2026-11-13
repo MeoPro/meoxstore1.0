@@ -2122,7 +2122,7 @@ body {
   font-weight: 600;
 }
 
-@media (min-width: 768px) and (max-width: 1200px) {
+@media (min-width: 768px) and (max-width: 1400px) {
   .header-area {
     height: 80px;
     padding: 0 15px;
@@ -2219,7 +2219,7 @@ body {
   }
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
   .header-area .main-nav .nav {
     max-height: calc(100vh - 100px);
     overflow-y: auto;
