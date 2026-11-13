@@ -28,7 +28,7 @@
         @json($structuredData)
     </script>
 </head>
-<body class="storefront-page">
+<body class="storefront-page blog-storefront-page">
     <x-storefront-header />
     <main class="blog-page blog-article-page">
         <div class="container">

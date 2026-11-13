@@ -14,6 +14,20 @@ body.storefront-page {
     min-height: 100vh;
 }
 
+body.blog-storefront-page {
+    display: flex;
+    flex-direction: column;
+}
+
+.blog-storefront-page > .blog-page {
+    flex: 1 0 auto;
+    width: 100%;
+}
+
+.blog-storefront-page > footer {
+    margin-top: 0;
+}
+
 body :is(h1, h2, h3, h4, h5, h6) {
     line-height: 1.3 !important;
 }

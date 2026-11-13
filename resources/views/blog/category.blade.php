@@ -20,7 +20,7 @@
         'resources/js/app.js',
     ])
 </head>
-<body class="storefront-page">
+<body class="storefront-page blog-storefront-page">
     <x-storefront-header />
     <main class="blog-page">
         <div class="container">
