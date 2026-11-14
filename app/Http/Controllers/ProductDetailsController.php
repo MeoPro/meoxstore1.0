@@ -18,7 +18,9 @@ class ProductDetailsController extends Controller
     {
         $product = Product::query()
             ->where('status', 'active')
-            ->whereHas('variants', fn ($query) => $query->where('status', 'active'))
+            ->whereHas('variants', fn ($query) => $query
+                ->where('status', 'active')
+                ->where('stock', '>', 0))
             ->orderByDesc('is_featured')
             ->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -90,11 +92,14 @@ class ProductDetailsController extends Controller
                 ->first();
         }
 
+        $availableVariantsQuery = fn (Builder $query) => $query
+            ->where('status', 'active')
+            ->where('stock', '>', 0);
         $recommendedProducts = Product::query()
             ->where('status', 'active')
             ->where('item_category_id', $product->item_category_id)
             ->where('id', '!=', $product->id)
-            ->whereHas('variants', fn ($query) => $query->where('status', 'active'))
+            ->whereHas('variants', $availableVariantsQuery)
             ->with([
                 'gameCategory:id,name',
                 'itemCategory:id,bobux_type,uses_robux',
@@ -134,11 +139,11 @@ class ProductDetailsController extends Controller
             ->where('item_categories.id', '!=', $product->item_category_id)
             ->whereHas('products', fn ($query) => $query
                 ->where('status', 'active')
-                ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active')))
+                ->whereHas('variants', $availableVariantsQuery))
             ->with(['products' => fn ($query) => $query
                 ->where('status', 'active')
                 ->whereNotNull('image')
-                ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active'))
+                ->whereHas('variants', $availableVariantsQuery)
                 ->select(['id', 'item_category_id', 'image'])
                 ->limit(1)])
             ->orderByDesc('category_sales.sold_quantity')
@@ -178,7 +183,9 @@ class ProductDetailsController extends Controller
             ->where('products.status', 'active')
             ->where('products.id', '!=', $product->id)
             ->when($excludedProductIds !== [], fn (Builder $query) => $query->whereNotIn('products.id', $excludedProductIds))
-            ->whereHas('variants', fn ($query) => $query->where('status', 'active'))
+            ->whereHas('variants', fn ($query) => $query
+                ->where('status', 'active')
+                ->where('stock', '>', 0))
             ->with([
                 'gameCategory:id,name',
                 'variants' => fn ($query) => $query
@@ -211,7 +218,9 @@ class ProductDetailsController extends Controller
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('products.status', 'active')
             ->where('orders.status', 'completed')
-            ->whereHas('variants', fn ($query) => $query->where('status', 'active'))
+            ->whereHas('variants', fn ($query) => $query
+                ->where('status', 'active')
+                ->where('stock', '>', 0))
             ->selectRaw('products.'.$categoryForeignKey.' as category_id, SUM(order_items.quantity) as sold_quantity')
             ->groupBy('products.'.$categoryForeignKey);
     }

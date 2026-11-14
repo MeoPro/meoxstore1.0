@@ -188,6 +188,9 @@ class BlogController extends Controller
         $sidebarBlocks = BlogSidebarBlock::active()
             ->with(['product' => fn ($query) => $query
                 ->where('status', 'active')
+                ->whereHas('variants', fn ($variantQuery) => $variantQuery
+                    ->where('status', 'active')
+                    ->where('stock', '>', 0))
                 ->with(['gameCategory:id,name', 'itemCategory:id,name'])])
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -214,7 +217,9 @@ class BlogController extends Controller
                 ->where('status', 'active')
                 ->whereHas('products', fn ($query) => $query
                     ->where('status', 'active')
-                    ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active')))
+                    ->whereHas('variants', fn ($variantQuery) => $variantQuery
+                        ->where('status', 'active')
+                        ->where('stock', '>', 0)))
                 ->orderBy('name')
                 ->get(['id', 'name'])
             : collect();
@@ -224,7 +229,9 @@ class BlogController extends Controller
                 ->where('status', 'active')
                 ->whereHas('products', fn ($query) => $query
                     ->where('status', 'active')
-                    ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active')))
+                    ->whereHas('variants', fn ($variantQuery) => $variantQuery
+                        ->where('status', 'active')
+                        ->where('stock', '>', 0)))
                 ->orderBy('name')
                 ->get(['id', 'name'])
             : collect();

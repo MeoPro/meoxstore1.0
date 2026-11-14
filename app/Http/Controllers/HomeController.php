@@ -24,7 +24,9 @@ class HomeController extends Controller
 
         $trendingItems = Product::query()
             ->where('status', 'active')
-            ->whereHas('variants', fn (Builder $variants) => $variants->where('status', 'active'))
+            ->whereHas('variants', fn (Builder $variants) => $variants
+                ->where('status', 'active')
+                ->where('stock', '>', 0))
             ->whereHas('orderItems', $completedOrderItems)
             ->with([
                 'gameCategory:id,name',
@@ -43,17 +45,19 @@ class HomeController extends Controller
             ->limit(4)
             ->get();
 
-        $activeVariants = fn (Builder $query) => $query->where('status', 'active');
+        $availableVariants = fn (Builder $query) => $query
+            ->where('status', 'active')
+            ->where('stock', '>', 0);
         $availableProducts = fn (Builder $query) => $query
             ->where('status', 'active')
-            ->whereHas('variants', $activeVariants);
+            ->whereHas('variants', $availableVariants);
 
         $bestSellingGameCategoryIds = Product::query()
             ->join('order_items', 'order_items.product_id', '=', 'products.id')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('products.status', 'active')
             ->where('orders.status', 'completed')
-            ->whereHas('variants', $activeVariants)
+            ->whereHas('variants', $availableVariants)
             ->whereHas('gameCategory', fn (Builder $query) => $query->where('status', 'active'))
             ->selectRaw('products.game_category_id as category_id, SUM(order_items.quantity) as sold_quantity')
             ->groupBy('products.game_category_id')
@@ -69,7 +73,7 @@ class HomeController extends Controller
             ->withCount(['products as available_products_count' => $availableProducts])
             ->with(['products' => fn (HasMany $query) => $query
                 ->where('status', 'active')
-                ->whereHas('variants', $activeVariants)
+                ->whereHas('variants', $availableVariants)
                 ->select(['id', 'game_category_id', 'image'])
                 ->orderBy('name')
                 ->limit(1)])
@@ -86,7 +90,7 @@ class HomeController extends Controller
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('products.status', 'active')
             ->where('orders.status', 'completed')
-            ->whereHas('variants', $activeVariants)
+            ->whereHas('variants', $availableVariants)
             ->whereHas('itemCategory', fn (Builder $query) => $query->where('status', 'active'))
             ->selectRaw('products.item_category_id as category_id, SUM(order_items.quantity) as sold_quantity')
             ->groupBy('products.item_category_id')
@@ -102,7 +106,7 @@ class HomeController extends Controller
             ->withCount(['products as available_products_count' => $availableProducts])
             ->with(['products' => fn (HasMany $query) => $query
                 ->where('status', 'active')
-                ->whereHas('variants', $activeVariants)
+                ->whereHas('variants', $availableVariants)
                 ->select(['id', 'item_category_id', 'image'])
                 ->orderBy('name')
                 ->limit(1)])

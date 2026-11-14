@@ -48,7 +48,9 @@ class AppServiceProvider extends ServiceProvider
                 ->join('orders', 'orders.id', '=', 'order_items.order_id')
                 ->where('products.status', 'active')
                 ->where('orders.status', 'completed')
-                ->whereHas('variants', fn (Builder $query) => $query->where('status', 'active'))
+                ->whereHas('variants', fn (Builder $query) => $query
+                    ->where('status', 'active')
+                    ->where('stock', '>', 0))
                 ->selectRaw('products.game_category_id, SUM(order_items.quantity) as sold_quantity')
                 ->groupBy('products.game_category_id');
 
@@ -59,7 +61,9 @@ class AppServiceProvider extends ServiceProvider
                 ->where('game_categories.status', 'active')
                 ->whereHas('products', function (Builder $query): void {
                     $query->where('status', 'active')
-                        ->whereHas('variants', fn (Builder $variantQuery) => $variantQuery->where('status', 'active'));
+                        ->whereHas('variants', fn (Builder $variantQuery) => $variantQuery
+                            ->where('status', 'active')
+                            ->where('stock', '>', 0));
                 })
                 ->orderByDesc('game_sales.sold_quantity')
                 ->orderBy('game_categories.name')

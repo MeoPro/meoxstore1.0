@@ -68,12 +68,12 @@ body.storefront-page {
 }
 
 .about-game-logo {
-    border-radius: 16px;
+    border-radius: 8px;
     display: block;
-    height: 48px;
+    height: 28px;
     margin-bottom: 16px;
-    object-fit: cover;
-    width: 48px;
+    object-fit: contain;
+    width: 28px;
 }
 
 .about-journey-year {

@@ -44,6 +44,9 @@ class ShopController extends Controller
 
         $currencyRates = ProductCurrencyRate::current();
         $activeVariants = fn ($query) => $query->where('status', 'active');
+        $availableVariants = fn (Builder $query) => $query
+            ->where('status', 'active')
+            ->where('stock', '>', 0);
         $selectedGameCategoryId = $request->integer('game');
         $selectedGameCategory = $selectedGameCategoryId > 0
             ? GameCategory::query()->where('status', 'active')->find($selectedGameCategoryId)
@@ -51,10 +54,10 @@ class ShopController extends Controller
 
         $availableItemCategories = ItemCategory::query()
             ->where('status', 'active')
-            ->whereHas('products', function (Builder $query) use ($activeVariants, $selectedGameCategoryId): void {
+            ->whereHas('products', function (Builder $query) use ($availableVariants, $selectedGameCategoryId): void {
                 $query->where('status', 'active')
                     ->when($selectedGameCategoryId > 0, fn (Builder $productQuery) => $productQuery->where('game_category_id', $selectedGameCategoryId))
-                    ->whereHas('variants', $activeVariants);
+                    ->whereHas('variants', $availableVariants);
             })
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -74,7 +77,7 @@ class ShopController extends Controller
             ->when($selectedGameCategoryId > 0, fn (Builder $query) => $query->where('game_category_id', $selectedGameCategoryId))
             ->when($selectedItemCategory !== null, fn (Builder $query) => $query->whereIn('item_category_id', $selectedItemCategoryIds))
             ->when($searchTerm !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$searchTerm.'%'))
-            ->whereHas('variants', $activeVariants);
+            ->whereHas('variants', $availableVariants);
 
         if ($minimumPriceFilter !== null) {
             $minimumDisplayedPriceQuery = $this->minimumDisplayedPriceQuery($selectedCurrency, $currencyRates);

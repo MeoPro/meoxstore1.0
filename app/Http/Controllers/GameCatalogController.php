@@ -20,10 +20,12 @@ class GameCatalogController extends Controller
         $searchTerm = $request->query('search', '');
         abort_unless(is_string($searchTerm), 400);
         $searchTerm = trim($searchTerm);
-        $activeVariants = fn (Builder $query) => $query->where('status', 'active');
+        $availableVariants = fn (Builder $query) => $query
+            ->where('status', 'active')
+            ->where('stock', '>', 0);
         $availableProducts = fn (Builder $query) => $query
             ->where('status', 'active')
-            ->whereHas('variants', $activeVariants);
+            ->whereHas('variants', $availableVariants);
 
         $games = GameCategory::query()
             ->where('status', 'active')
@@ -32,7 +34,7 @@ class GameCatalogController extends Controller
             ->withCount(['products as available_products_count' => $availableProducts])
             ->with(['products' => fn (HasMany $query) => $query
                 ->where('status', 'active')
-                ->whereHas('variants', $activeVariants)
+                ->whereHas('variants', $availableVariants)
                 ->select(['id', 'game_category_id', 'image'])
                 ->orderBy('name')
                 ->limit(1)])

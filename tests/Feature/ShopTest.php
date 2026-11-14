@@ -86,10 +86,10 @@ it('uses the cheapest available variant for shop prices and price filters', func
 
     $this->get(route('shop', ['sort' => 'price_asc']))
         ->assertViewHas('products', fn ($products): bool => $products->getCollection()->pluck('name')->all() === [
-            'Sold-out fallback',
             'Middle available',
             'Cheapest available variant',
         ])
+        ->assertDontSee('Sold-out fallback')
         ->assertSee('data-idr="Rp 50,000"', false)
         ->assertDontSee('data-idr="Rp 10,000"', false);
 
@@ -97,6 +97,76 @@ it('uses the cheapest available variant for shop prices and price filters', func
         ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
         ->assertSee('Cheapest available variant')
         ->assertDontSee('Middle available');
+});
+
+it('hides sold-out products from storefront lists while keeping their reviews accessible', function () {
+    $buyer = User::factory()->create();
+    $gameCategory = GameCategory::factory()->create(['name' => 'Sold-out game']);
+    $itemCategory = ItemCategory::factory()->create(['name' => 'Sold-out category']);
+    $product = Product::factory()->create([
+        'name' => 'Sold-out review product',
+        'game_category_id' => $gameCategory->id,
+        'item_category_id' => $itemCategory->id,
+    ]);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 0]);
+
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'completed',
+        'total' => '10000.00',
+        'completed_at' => now(),
+        'customer_completed_at' => now(),
+    ]);
+    $order->items()->create([
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'product_name' => $product->name,
+        'variant_name' => $variant->name,
+        'quantity' => 1,
+        'unit_price' => '10000.00',
+    ]);
+    ProductReview::query()->create([
+        'product_id' => $product->id,
+        'user_id' => $buyer->id,
+        'order_id' => $order->id,
+        'rating' => 5,
+        'comment' => 'Review remains available.',
+    ]);
+
+    $this->get(route('shop'))
+        ->assertDontSee('Sold-out review product');
+
+    $this->get(route('home'))
+        ->assertDontSee('Sold-out review product')
+        ->assertDontSee('Sold-out game');
+
+    $this->get(route('games.index'))
+        ->assertDontSee('Sold-out game');
+
+    $this->get(route('product-details.show', $product))
+        ->assertSee('Sold-out review product')
+        ->assertSee('Review remains available.')
+        ->assertSee('id="reviews"', false);
+
+    $this->get(route('reviews.index'))
+        ->assertOk()
+        ->assertSee('Sold-out review product')
+        ->assertSee('Review remains available.');
+
+    $availableProduct = Product::factory()->create([
+        'name' => 'Available related product',
+        'game_category_id' => GameCategory::factory()->create(['name' => 'Available game'])->id,
+        'item_category_id' => $itemCategory->id,
+    ]);
+    $availableProduct->variants()->update([
+        'stock' => 10,
+        'maximum_quantity' => 10,
+    ]);
+
+    $this->get(route('product-details.show', $availableProduct))
+        ->assertSee('Available related product')
+        ->assertDontSee('Sold-out review product');
 });
 
 it('rounds converted product prices to the nearest five cents', function (string $idrPrice, string $expectedPrice) {
@@ -313,6 +383,12 @@ it('shows best-selling game and item categories based on completed sales', funct
             'status' => $productStatus,
         ]);
         $variant = $product->variants()->firstOrFail();
+        if ($productStatus === 'active') {
+            $variant->update([
+                'stock' => 10,
+                'maximum_quantity' => 10,
+            ]);
+        }
         $order = Order::query()->create([
             'user_id' => $buyer->id,
             'status' => $orderStatus,
@@ -947,9 +1023,13 @@ it('shows up to five available games in the storefront menu and links to the ful
         'Zelda',
     ])->map(function (string $name): GameCategory {
         $gameCategory = GameCategory::factory()->create(['name' => $name]);
-        Product::factory()->create([
+        $product = Product::factory()->create([
             'game_category_id' => $gameCategory->id,
             'status' => 'active',
+        ]);
+        $product->variants()->update([
+            'stock' => 10,
+            'maximum_quantity' => 10,
         ]);
 
         return $gameCategory;
@@ -1046,29 +1126,38 @@ it('shows storefront help links instead of placeholder contact information', fun
 });
 
 it('lists all available games with an image and a link to their shop products', function () {
+    $createAvailableProduct = function (array $attributes): Product {
+        $product = Product::factory()->create($attributes);
+        $product->variants()->update([
+            'stock' => 10,
+            'maximum_quantity' => 10,
+        ]);
+
+        return $product;
+    };
     $bloxFruit = GameCategory::factory()->create([
         'name' => 'Blox Fruit',
         'image' => 'categories/blox-fruit.webp',
     ]);
-    Product::factory()->create([
+    $createAvailableProduct([
         'game_category_id' => $bloxFruit->id,
         'name' => 'Kitsune',
         'status' => 'active',
     ]);
-    Product::factory()->create([
+    $createAvailableProduct([
         'game_category_id' => $bloxFruit->id,
         'name' => 'Dragon',
         'status' => 'active',
     ]);
     $roblox = GameCategory::factory()->create(['name' => 'Roblox']);
-    Product::factory()->create([
+    $createAvailableProduct([
         'game_category_id' => $roblox->id,
         'name' => 'Roblox Account',
         'image' => 'products/roblox.webp',
         'status' => 'active',
     ]);
     $fisch = GameCategory::factory()->create(['name' => 'Fisch']);
-    Product::factory()->create([
+    $createAvailableProduct([
         'game_category_id' => $fisch->id,
         'name' => 'Fisch Rod',
         'status' => 'active',
@@ -1345,10 +1434,16 @@ it('orders recommended game products and item categories by completed sales in c
 
     $unsoldGame = GameCategory::factory()->create(['name' => 'Unsold game']);
     $unsoldItemCategory = ItemCategory::factory()->create(['name' => 'Unsold category']);
-    Product::factory()->create([
+    $unsoldProduct = Product::factory()->create([
         'game_category_id' => $unsoldGame->id,
         'item_category_id' => $unsoldItemCategory->id,
     ]);
+    foreach ([$popularProduct, $secondProduct, $duplicatePopularProduct, $unsoldProduct] as $availableProduct) {
+        $availableProduct->variants()->update([
+            'stock' => 10,
+            'maximum_quantity' => 10,
+        ]);
+    }
 
     $buyer = User::factory()->create();
     $recordSale = function (Product $product, int $quantity) use ($buyer): void {
@@ -1398,6 +1493,12 @@ it('prioritizes best-selling products from the same game and fills recommendatio
     $otherGame = GameCategory::factory()->create();
     $otherGameBestSeller = Product::factory()->create(['game_category_id' => $otherGame->id]);
     Product::factory()->create(['game_category_id' => $otherGame->id]);
+    foreach ([$sameGameBestSeller, $sameGameSecondBestSeller, $otherGameBestSeller] as $availableProduct) {
+        $availableProduct->variants()->update([
+            'stock' => 10,
+            'maximum_quantity' => 10,
+        ]);
+    }
 
     $buyer = User::factory()->create();
     $recordSale = function (Product $product, int $quantity) use ($buyer): void {
@@ -1431,9 +1532,15 @@ it('prioritizes best-selling products from the same game and fills recommendatio
 it('does not add products from other games when three same-game recommendations exist', function () {
     $currentGame = GameCategory::factory()->create();
     $currentProduct = Product::factory()->create(['game_category_id' => $currentGame->id]);
-    Product::factory()->count(3)->create(['game_category_id' => $currentGame->id]);
+    $sameGameProducts = Product::factory()->count(3)->create(['game_category_id' => $currentGame->id]);
     $otherGame = GameCategory::factory()->create();
     $otherGameProduct = Product::factory()->create(['game_category_id' => $otherGame->id]);
+    foreach ($sameGameProducts->push($otherGameProduct) as $availableProduct) {
+        $availableProduct->variants()->update([
+            'stock' => 10,
+            'maximum_quantity' => 10,
+        ]);
+    }
 
     $this->get(route('product-details.show', $currentProduct))
         ->assertViewHas('recommendedGameProducts', fn ($products): bool => $products->count() === 3
@@ -1446,6 +1553,19 @@ it('redirects the default product details page to the first active product', fun
         'name' => 'Featured Fruit',
         'status' => 'active',
         'is_featured' => true,
+    ]);
+    $product->variants()->update([
+        'stock' => 10,
+        'maximum_quantity' => 10,
+    ]);
+    $soldOutFeaturedProduct = Product::factory()->create([
+        'name' => 'Sold-out featured fruit',
+        'status' => 'active',
+        'is_featured' => true,
+    ]);
+    $soldOutFeaturedProduct->variants()->update([
+        'stock' => 0,
+        'maximum_quantity' => 0,
     ]);
 
     $this->get(route('product-details'))
@@ -1487,18 +1607,24 @@ it('shows same-item and other product recommendations without a category banner'
         'name' => 'Kitsune',
         'status' => 'active',
     ]);
-    Product::factory()->create([
+    $dragonFruit = Product::factory()->create([
         'game_category_id' => $bloxFruit->id,
         'item_category_id' => $fruit->id,
         'name' => 'Dragon Fruit',
         'status' => 'active',
     ]);
-    Product::factory()->create([
+    $worldLock = Product::factory()->create([
         'game_category_id' => $growtopia->id,
         'item_category_id' => $item->id,
         'name' => 'World Lock',
         'status' => 'active',
     ]);
+    foreach ([$dragonFruit, $worldLock] as $availableProduct) {
+        $availableProduct->variants()->update([
+            'stock' => 10,
+            'maximum_quantity' => 10,
+        ]);
+    }
 
     $this->get(route('product-details.show', $currentProduct))
         ->assertOk()
@@ -1519,11 +1645,17 @@ it('shows up to five same-item product recommendations', function () {
         'item_category_id' => $itemCategory->id,
         'status' => 'active',
     ]);
-    Product::factory()->count(6)->create([
+    $recommendedProducts = Product::factory()->count(6)->create([
         'game_category_id' => $gameCategory->id,
         'item_category_id' => $itemCategory->id,
         'status' => 'active',
     ]);
+    foreach ($recommendedProducts as $recommendedProduct) {
+        $recommendedProduct->variants()->update([
+            'stock' => 10,
+            'maximum_quantity' => 10,
+        ]);
+    }
 
     $this->get(route('product-details.show', $currentProduct))
         ->assertViewHas('recommendedProducts', fn ($products): bool => $products->count() === 5)

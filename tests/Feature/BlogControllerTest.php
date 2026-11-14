@@ -324,6 +324,12 @@ it('renders active sidebar blocks in configured order on blog lists and articles
     ]);
     $post->categories()->attach($category);
     $product = Product::factory()->create(['name' => 'Featured catalog item']);
+    $product->gameCategory()->update(['name' => 'Available sidebar game']);
+    $product->itemCategory()->update(['name' => 'Available sidebar item']);
+    $product->variants()->update([
+        'stock' => 10,
+        'maximum_quantity' => 10,
+    ]);
     $posterPath = 'blog-sidebar/test-poster.png';
     Storage::disk('public')->put($posterPath, 'poster image');
 
@@ -370,6 +376,8 @@ it('renders active sidebar blocks in configured order on blog lists and articles
         ->assertSee('Featured catalog item')
         ->assertSee('Game menu')
         ->assertSee('Item menu')
+        ->assertSee('Available sidebar game')
+        ->assertSee('Available sidebar item')
         ->assertSee($category->name)
         ->assertSee(route('shop', ['game' => $product->game_category_id]), false)
         ->assertSee(route('shop', ['item_category' => $product->item_category_id]), false)
@@ -381,9 +389,16 @@ it('renders active sidebar blocks in configured order on blog lists and articles
         ->and(strpos($content, 'Product spotlight'))->toBeLessThan(strpos($content, 'Game menu'))
         ->and(strpos($content, 'Game menu'))->toBeLessThan(strpos($content, 'Item menu'));
 
+    $product->variants()->update(['stock' => 0]);
+    $this->get(route('blog.posts'))
+        ->assertDontSee('Product spotlight')
+        ->assertDontSee('Featured catalog item')
+        ->assertDontSee('Available sidebar game')
+        ->assertDontSee('Available sidebar item');
+
     $this->get(route('blog.show', $post->slug))
         ->assertSee('Poster promotion')
-        ->assertSee('Featured catalog item')
+        ->assertDontSee('Featured catalog item')
         ->assertSee($category->name);
 
     $product->update(['status' => 'inactive']);
