@@ -88,11 +88,17 @@
                 .home-store-stats > div:nth-child(3) { border-top: 1px solid #dfe4ec; grid-column: 1 / -1; }
             }
             .store-closed-warning { background: #fff7e8; border: 1px solid #f6d79c; border-radius: 10px; color: #7a4b00; font-size: 14px; line-height: 1.55; margin: 16px auto 0; max-width: 1080px; padding: 12px 16px; }
-            .main-banner.home-main-banner { padding: 140px 0 85px; }
-            @media (max-width: 767.98px) {
-                .main-banner.home-main-banner { padding: 110px 0 60px; }
+            .main-banner.home-main-banner { padding: 140px 0 165px; }
+            .home-main-banner + .features { margin-top: -80px; }
+            @media (max-width: 1200px) {
+                .main-banner.home-main-banner { padding: 160px 0 165px; }
             }
-            .home-main-banner + .features { margin-top: 0; }
+            @media (max-width: 991.98px) {
+                .home-main-banner .right-image { margin-top: 32px; }
+            }
+            @media (max-width: 767.98px) {
+                .main-banner.home-main-banner { padding-bottom: 140px; }
+            }
         </style>
     <!--
 
@@ -144,7 +150,7 @@
                 </div>
                 <div>
                     <span class="home-store-stat-label">{{ __('store.robux_sold') }}</span>
-                    <strong class="home-store-stat-value">{{ $robuxSoldDisplay }}+ Bobux</strong>
+                    <strong class="home-store-stat-value">{{ $robuxSoldDisplay }}+</strong>
                 </div>
                 <div>
                     <span class="home-store-stat-label">{{ __('store.order_queue') }}</span>
@@ -377,7 +383,7 @@
     <div class="section cta">
         <div class="container">
         <div class="row">
-            <div class="col-lg-5">
+            <div class="col-lg-6 mx-auto">
             <div class="shop">
                 <div class="row">
                 <div class="col-lg-12">
@@ -388,24 +394,6 @@
                     <p>Lorem ipsum dolor consectetur adipiscing, sed do eiusmod tempor incididunt.</p>
                     <div class="main-button">
                     <a href="{{ route('shop') }}">Shop Now</a>
-                    </div>
-                </div>
-                </div>
-            </div>
-            </div>
-            <div class="col-lg-5 offset-lg-2 align-self-end">
-            <div class="subscribe">
-                <div class="row">
-                <div class="col-lg-12">
-                    <div class="section-heading">
-                    <h6>NEWSLETTER</h6>
-                    <h2>Get Up To $100 Off Just Buy <em>Subscribe</em> Newsletter!</h2>
-                    </div>
-                    <div class="search-input">
-                    <form id="subscribe" action="#">
-                        <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Your email...">
-                        <button type="submit">Subscribe Now</button>
-                    </form>
                     </div>
                 </div>
                 </div>

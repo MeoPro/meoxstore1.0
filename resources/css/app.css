@@ -709,12 +709,8 @@ body.storefront-page {
 
 .storefront-footer-payment-logo {
     align-items: center;
-    background: rgba(255, 255, 255, .96);
-    border-radius: 4px;
     display: flex;
     justify-content: center;
-    min-height: 26px;
-    padding: 3px;
 }
 
 .storefront-footer-payment-logo img {
