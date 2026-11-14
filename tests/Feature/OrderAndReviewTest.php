@@ -322,7 +322,7 @@ it('does not partially update orders when a bulk status is invalid for one selec
     $this->assertDatabaseHas('orders', ['id' => $pendingOrder->id, 'status' => 'pending']);
 });
 
-it('deletes pending orders after 24 hours and restores reserved stock', function () {
+it('cancels unpaid pending orders after 24 hours and restores reserved stock', function () {
     $this->travelTo(Carbon::parse('2026-10-04 12:00:00'));
     $product = Product::factory()->create(['status' => 'active']);
     $variant = $product->variants()->firstOrFail();
@@ -364,12 +364,18 @@ it('deletes pending orders after 24 hours and restores reserved stock', function
 
     $this->artisan('app:prune-unpaid-orders')
         ->assertSuccessful();
+    $this->artisan('app:prune-unpaid-orders')
+        ->assertSuccessful();
 
-    $this->assertDatabaseMissing('orders', ['id' => $expiredOrder->id]);
-    $this->assertDatabaseMissing('order_items', ['order_id' => $expiredOrder->id]);
+    $this->assertDatabaseHas('orders', ['id' => $expiredOrder->id, 'status' => 'cancelled']);
+    $this->assertDatabaseHas('order_items', ['order_id' => $expiredOrder->id]);
+    $this->assertDatabaseMissing('product_reviews', ['order_id' => $expiredOrder->id]);
     $this->assertDatabaseHas('orders', ['id' => $notExpiredOrder->id, 'status' => 'pending']);
     $this->assertDatabaseHas('orders', ['id' => $submittedOrder->id, 'status' => 'payment_submitted']);
     expect($variant->fresh()->stock)->toBe(5);
+
+    $this->get(route('product-details.show', $product))
+        ->assertSee('0 terjual');
 });
 
 it('allows customers to review each completed purchase once', function () {

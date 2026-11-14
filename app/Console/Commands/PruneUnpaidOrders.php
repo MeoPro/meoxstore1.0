@@ -10,21 +10,21 @@ class PruneUnpaidOrders extends Command
 {
     protected $signature = 'app:prune-unpaid-orders';
 
-    protected $description = 'Delete unpaid orders older than 24 hours and restore reserved stock';
+    protected $description = 'Cancel unpaid orders older than 24 hours and restore reserved stock';
 
     public function handle(): int
     {
         $expiredBefore = now()->subDay();
-        $deletedOrders = 0;
+        $cancelledOrders = 0;
 
         Order::query()
             ->where('status', 'pending')
             ->whereNull('payment_proof_path')
             ->where('created_at', '<=', $expiredBefore)
             ->select('id')
-            ->chunkById(100, function ($orders) use ($expiredBefore, &$deletedOrders): void {
+            ->chunkById(100, function ($orders) use ($expiredBefore, &$cancelledOrders): void {
                 foreach ($orders as $order) {
-                    $wasDeleted = DB::transaction(function () use ($order, $expiredBefore): bool {
+                    $wasCancelled = DB::transaction(function () use ($order, $expiredBefore): bool {
                         $lockedOrder = Order::query()
                             ->with('items')
                             ->lockForUpdate()
@@ -45,18 +45,19 @@ class PruneUnpaidOrders extends Command
                             }
                         }
 
-                        $lockedOrder->delete();
+                        $lockedOrder->status = 'cancelled';
+                        $lockedOrder->save();
 
                         return true;
                     });
 
-                    if ($wasDeleted) {
-                        $deletedOrders++;
+                    if ($wasCancelled) {
+                        $cancelledOrders++;
                     }
                 }
             });
 
-        $this->info("Deleted {$deletedOrders} expired unpaid order(s).");
+        $this->info("Cancelled {$cancelledOrders} expired unpaid order(s).");
 
         return self::SUCCESS;
     }
