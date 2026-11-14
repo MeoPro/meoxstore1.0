@@ -44,6 +44,14 @@
         .order-meta-label { color: #7d899a; }
         .order-number-value { align-items: center; display: inline-flex; font-weight: 650; gap: 8px; }
         .copy-order-number { background: transparent; border: 0; color: #2877c9; padding: 2px 5px; }
+        .order-details-disclosure { margin-top: 8px; }
+        .order-details-disclosure > summary { color: #2877c9; cursor: pointer; font-weight: 650; list-style: none; width: fit-content; }
+        .order-details-disclosure > summary::-webkit-details-marker { display: none; }
+        .order-details-disclosure > summary::after { content: ' +'; }
+        .order-details-disclosure[open] > summary::after { content: ' −'; }
+        .order-details-disclosure > p { background: #f7f8fb; border-radius: 8px; color: #637083; line-height: 1.6; margin: 8px 0 0; overflow-wrap: anywhere; padding: 10px 12px; white-space: pre-line; }
+        .order-whatsapp-link { align-items: center; display: inline-flex; gap: 8px; }
+        .order-whatsapp-icon { border-radius: 50%; height: 24px; object-fit: contain; width: 24px; }
         .order-item { align-items: center; border-bottom: 1px solid #edf0f4; display: flex; gap: 12px; justify-content: space-between; padding: 12px 0; }
         .order-product-image, .order-product-placeholder { background: #eef2f6; border-radius: 9px; flex: 0 0 56px; height: 56px; object-fit: cover; width: 56px; }
         .order-product-placeholder { align-items: center; color: #7c8999; display: flex; font-size: 22px; justify-content: center; }
@@ -152,9 +160,13 @@
             @if (in_array($order->status, ['payment_submitted', 'payment_confirmed', 'completed'], true))
                 <section class="payment-card">
                     <h2>{{ __('store.contact_admin') }}</h2>
-                    <p class="order-note">{{ __('store.admin_contact_after_payment') }}</p>
-                    <a class="btn btn-success order-action" href="https://wa.me/{{ preg_replace('/\D+/', '', config('store.admin_phone')) }}" target="_blank" rel="noopener noreferrer">
-                        <i class="fa fa-comments me-1" aria-hidden="true"></i>{{ config('store.admin_phone') }}
+                    <details class="order-details-disclosure order-contact-description">
+                        <summary>{{ __('store.view_details') }}</summary>
+                        <p>{{ __('store.admin_contact_after_payment') }}</p>
+                    </details>
+                    <a class="btn btn-success order-action order-whatsapp-link mt-3" href="https://wa.me/{{ preg_replace('/\D+/', '', config('store.admin_phone')) }}" target="_blank" rel="noopener noreferrer">
+                        <img class="order-whatsapp-icon" src="{{ asset('images/wa.png') }}" alt="" aria-hidden="true">
+                        <span>{{ config('store.admin_phone') }}</span>
                     </a>
                 </section>
             @endif
@@ -187,7 +199,16 @@
                         @else
                             <span class="order-product-placeholder" aria-hidden="true"><i class="fa fa-gamepad"></i></span>
                         @endif
-                        <span class="order-item-info"><span class="fw-semibold">{{ $item->product_name }}</span><span class="order-note">{{ $item->variant_name }} × {{ $item->quantity }}</span>@if (filled($productDescription))<span class="order-note">{{ $productDescription }}</span>@endif</span>
+                        <div class="order-item-info">
+                            <span class="fw-semibold">{{ $item->product_name }}</span>
+                            <span class="order-note">{{ $item->variant_name }} × {{ $item->quantity }}</span>
+                            @if (filled($productDescription))
+                                <details class="order-details-disclosure order-item-description">
+                                    <summary>{{ __('store.description') }}</summary>
+                                    <p>{{ $productDescription }}</p>
+                                </details>
+                            @endif
+                        </div>
                     </div>
                     <strong>{{ $paymentCurrencySymbol }} {{ number_format($order->itemPaymentAmount($item, $paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
                 </div>
@@ -197,7 +218,10 @@
         @if ($order->customer_completed_at)
             <section class="order-card">
                 <h2>{{ __('store.product_reviews') }}</h2>
-                <p class="order-note">{{ __('store.review_order_intro') }}</p>
+                <details class="order-details-disclosure order-review-description">
+                    <summary>{{ __('store.view_details') }}</summary>
+                    <p>{{ __('store.review_order_intro') }}</p>
+                </details>
                 @foreach ($reviewableProducts as $product)
                     <div class="order-review">
                         <h3 class="h6">{{ $product->name }}</h3>
@@ -260,7 +284,10 @@
                             <img class="d-block mx-auto mb-3 rounded border p-2" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentDetails['qr_code_path']) }}" alt="{{ __('store.payment') }} QR code" style="height: auto; max-height: 240px; max-width: 100%; object-fit: contain; width: auto">
                         @endif
                         @if ($paymentDetails['instructions'] ?? null)
-                            <p>{{ __('store.payment_instructions') }}: {{ $paymentDetails['instructions'] }}</p>
+                            <details class="order-details-disclosure payment-instructions-disclosure">
+                                <summary>{{ __('store.payment_instructions') }}</summary>
+                                <p>{{ $paymentDetails['instructions'] }}</p>
+                            </details>
                         @endif
                         <div class="payment-details-list">
                             <div class="payment-detail-row">

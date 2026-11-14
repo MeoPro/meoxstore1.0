@@ -41,6 +41,7 @@ it('shows the average of visible completed-purchase ratings above the storefront
         ->assertDontSee(__('store.store_rating_review_count', ['count' => '2']))
         ->assertSee('class="storefront-whatsapp-float"', false)
         ->assertSee('https://wa.me/6285933875292', false)
+        ->assertSee('src="'.asset('images/wa.png').'"', false)
         ->assertSee(route('reviews.index'), false)
         ->assertSeeInOrder([
             __('store.store_rating_summary', ['rating' => '4']),
@@ -817,9 +818,9 @@ it('shows the sales journey on the about page in every supported language', func
 
         $response->assertSee('Our Journey');
         $response->assertSee(__('store.about_repeat_purchases'));
-        $response->assertSee('fa-chess-knight', false);
-        $response->assertSee('fa-seedling', false);
-        $response->assertSee('fa-cubes', false);
+        $response->assertSee('images/riseofkingdoms.webp', false);
+        $response->assertSee('images/growtopia.png', false);
+        $response->assertSee('images/roblox.png', false);
         foreach (array_keys($milestones) as $year) {
             $response->assertSee($year);
             $response->assertSee($milestones[$year]);
@@ -840,8 +841,11 @@ it('renders scrollable testimonial links and an embedded Instagram post on the a
         ->assertSee('about-testimonials-scroller', false)
         ->assertSee('href="https://t.me/meofeedback"', false)
         ->assertSee('href="https://whatsapp.com/channel/0029VayXeYP6BIEf1OAxs63A"', false)
+        ->assertSee('src="'.asset('images/Telegram_2019_Logo.svg.webp').'"', false)
+        ->assertSee('src="'.asset('images/wa.png').'"', false)
         ->assertSee('href="https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6"', false)
         ->assertSee('data-instgrm-permalink="https://www.instagram.com/p/C9ZykuFpUfy/"', false)
+        ->assertSee('src="'.asset('images/ig.svg').'"', false)
         ->assertSee('https://www.instagram.com/embed.js', false)
         ->assertSee('rel="noopener noreferrer"', false);
 });

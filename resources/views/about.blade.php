@@ -41,21 +41,21 @@
                     <ol class="about-journey-grid">
                         <li>
                             <article class="about-journey-card">
-                                <span class="about-game-icon about-game-icon--rise" aria-hidden="true"><i class="fa fa-chess-knight"></i></span>
+                                <img class="about-game-logo" src="{{ asset('images/riseofkingdoms.webp') }}" alt="">
                                 <h3 class="about-journey-year"><time datetime="2019">2019</time></h3>
                                 <p>{{ __('store.our_journey_2019') }}</p>
                             </article>
                         </li>
                         <li>
                             <article class="about-journey-card">
-                                <span class="about-game-icon about-game-icon--growtopia" aria-hidden="true"><i class="fa fa-seedling"></i></span>
+                                <img class="about-game-logo" src="{{ asset('images/growtopia.png') }}" alt="">
                                 <h3 class="about-journey-year"><time datetime="2021">2021</time></h3>
                                 <p>{{ __('store.our_journey_2021') }}</p>
                             </article>
                         </li>
                         <li>
                             <article class="about-journey-card">
-                                <span class="about-game-icon about-game-icon--roblox" aria-hidden="true"><i class="fa fa-cubes"></i></span>
+                                <img class="about-game-logo" src="{{ asset('images/roblox.png') }}" alt="">
                                 <h3 class="about-journey-year"><time datetime="2023">2023</time></h3>
                                 <p>{{ __('store.our_journey_2023') }}</p>
                             </article>
@@ -67,7 +67,7 @@
                     <p class="about-testimonials-intro">{{ __('store.about_testimonials_intro') }}</p>
                     <div class="about-testimonials-scroller" role="region" aria-label="{{ __('store.about_testimonials_title') }}" tabindex="0">
                         <article class="about-testimonial-card">
-                            <span class="about-testimonial-mark about-testimonial-mark--telegram" aria-hidden="true">TG</span>
+                            <img class="about-testimonial-mark about-testimonial-mark--telegram" src="{{ asset('images/Telegram_2019_Logo.svg.webp') }}" alt="" aria-hidden="true">
                             <h3>{{ __('store.about_telegram_title') }}</h3>
                             <p>{{ __('store.about_telegram_copy') }}</p>
                             <a href="{{ config('store.about_testimonials.telegram_url') }}" target="_blank" rel="noopener noreferrer">
@@ -75,7 +75,7 @@
                             </a>
                         </article>
                         <article class="about-testimonial-card">
-                            <span class="about-testimonial-mark about-testimonial-mark--whatsapp" aria-hidden="true">WA</span>
+                            <img class="about-testimonial-mark about-testimonial-mark--whatsapp" src="{{ asset('images/wa.png') }}" alt="" aria-hidden="true">
                             <h3>{{ __('store.about_whatsapp_title') }}</h3>
                             <p>{{ __('store.about_whatsapp_copy') }}</p>
                             <a href="{{ config('store.about_testimonials.whatsapp_url') }}" target="_blank" rel="noopener noreferrer">
@@ -93,7 +93,7 @@
                     </div>
                     <article class="about-testimonial-instagram-panel">
                         <div class="about-testimonial-instagram-heading">
-                            <span class="about-testimonial-mark about-testimonial-mark--instagram" aria-hidden="true">IG</span>
+                            <img class="about-testimonial-mark about-testimonial-mark--instagram" src="{{ asset('images/ig.svg') }}" alt="" aria-hidden="true">
                             <div>
                                 <h3>{{ __('store.about_instagram_title') }}</h3>
                                 <p>{{ __('store.about_instagram_copy') }}</p>

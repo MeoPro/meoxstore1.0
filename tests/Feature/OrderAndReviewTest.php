@@ -124,7 +124,8 @@ it('reserves stock for a customer order and counts sales only after completion',
         ->assertSee('#'.$order->id)
         ->assertSee('data-order-url="'.route('admin.orders.show', $order).'"', false)
         ->assertDontSee('Open</a>', false)
-        ->assertSee('name="return_to" value="index"', false);
+        ->assertSee('name="return_to" value="index"', false)
+        ->assertDontSee('<input type="hidden" name="status" value="completed">', false);
     $this->get(route('admin.orders.show', $order))
         ->assertOk()
         ->assertSee('Kitsune');
@@ -167,11 +168,18 @@ it('reserves stock for a customer order and counts sales only after completion',
         'return_to' => 'index',
     ])->assertRedirect(route('admin.orders.index'));
     expect($order->fresh()->status)->toBe('payment_confirmed');
+    $this->get(route('admin.orders.index'))
+        ->assertSee('<input type="hidden" name="status" value="completed">', false)
+        ->assertSee('action="'.route('admin.orders.status', $order).'"', false)
+        ->assertSee('name="return_to" value="index"', false);
     Mail::assertQueued(BuyerOrderUpdate::class, fn (BuyerOrderUpdate $mail): bool => $mail->order->is($order)
         && $mail->type === BuyerOrderUpdateType::PaymentConfirmed
         && $mail->hasTo($buyer->email));
-    $this->patch(route('admin.orders.status', $order), ['status' => 'completed'])
-        ->assertRedirect();
+    $this->patch(route('admin.orders.status', $order), [
+        'status' => 'completed',
+        'return_to' => 'index',
+    ])->assertRedirect(route('admin.orders.index'));
+    expect($order->fresh()->status)->toBe('completed');
     $this->get(route('product-details.show', $product))
         ->assertOk()
         ->assertSee('2 terjual');
@@ -520,6 +528,7 @@ it('lets a guest find an order by order number and phone, complete it, and revie
     expect($order->fresh()->customer_completed_at)->not->toBeNull();
     $this->get(route('orders.show', $order))
         ->assertSee(__('store.review_order_intro'))
+        ->assertSee('<details class="order-details-disclosure order-review-description">', false)
         ->assertSee(route('orders.reviews.store', [$order, $product]), false)
         ->assertSee('type="radio" name="rating"', false)
         ->assertDontSee('name="comment" rows="3" maxlength="2000" required', false);

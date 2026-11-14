@@ -67,30 +67,13 @@ body.storefront-page {
     padding: 22px;
 }
 
-.about-game-icon {
-    align-items: center;
+.about-game-logo {
     border-radius: 16px;
-    display: inline-flex;
-    font-size: 22px;
+    display: block;
     height: 48px;
-    justify-content: center;
     margin-bottom: 16px;
+    object-fit: cover;
     width: 48px;
-}
-
-.about-game-icon--rise {
-    background: #fff0e7;
-    color: #e27132;
-}
-
-.about-game-icon--growtopia {
-    background: #e9f8ed;
-    color: #39a85b;
-}
-
-.about-game-icon--roblox {
-    background: #eaf1ff;
-    color: #3d6fd6;
 }
 
 .about-journey-year {
@@ -172,29 +155,21 @@ body.storefront-page {
 
 .about-testimonial-mark {
     align-items: center;
-    border-radius: 14px;
     display: inline-flex;
-    font-size: .8rem;
-    font-weight: 800;
     height: 44px;
     justify-content: center;
-    letter-spacing: .03em;
+    object-fit: contain;
+    padding: 2px;
     width: 44px;
 }
 
-.about-testimonial-mark--telegram {
-    background: #e4f4ff;
-    color: #168acb;
-}
-
-.about-testimonial-mark--whatsapp {
-    background: #e6f8ed;
-    color: #199b57;
-}
-
 .about-testimonial-mark--maps {
+    border-radius: 14px;
     background: #fff0e9;
     color: #dc553f;
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: .03em;
 }
 
 .about-testimonial-instagram-panel {
@@ -228,8 +203,6 @@ body.storefront-page {
 }
 
 .about-testimonial-mark--instagram {
-    background: #fff0f5;
-    color: #c13584;
     flex: 0 0 44px;
 }
 
@@ -1609,8 +1582,11 @@ body.blog-storefront-page {
     z-index: 1090;
 }
 
-.storefront-whatsapp-float i {
-    font-size: 30px;
+.storefront-whatsapp-float img {
+    border-radius: 50%;
+    height: 38px;
+    object-fit: contain;
+    width: 38px;
 }
 
 .storefront-whatsapp-float:hover {

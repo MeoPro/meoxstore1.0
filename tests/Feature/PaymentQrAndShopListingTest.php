@@ -54,6 +54,7 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
         ->assertRedirect(route('checkout.show'));
     $this->get(route('checkout.show'))
         ->assertOk()
+        ->assertSee('<details class="checkout-item-description">', false)
         ->assertSee('Scan to pay')
         ->assertSee(Storage::disk('public')->url($paymentSetting->logo_path), false)
         ->assertDontSee(Storage::disk('public')->url($paymentSetting->qr_code_path), false)
@@ -101,6 +102,9 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
         ->assertSee('Example owner')
         ->assertSee('QR-987654')
         ->assertSee('Scan this QR code to pay.')
+        ->assertSee('<details class="order-details-disclosure order-item-description">', false)
+        ->assertSee('<details class="order-details-disclosure payment-instructions-disclosure">', false)
+        ->assertSee('<summary>Noted:</summary>', false)
         ->assertSee('A description saved when the order is created.')
         ->assertDontSee(__('store.payment_type'))
         ->assertDontSee(__('store.currency'))
@@ -114,6 +118,9 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
     ])->assertRedirect(route('orders.show', $order));
     $order->refresh();
     Storage::disk('local')->assertExists($order->payment_proof_path);
+    $this->get(route('orders.show', $order))
+        ->assertSee('src="'.asset('images/wa.png').'"', false)
+        ->assertSee('<details class="order-details-disclosure order-contact-description">', false);
 
     $this->actingAs($admin)
         ->get(route('admin.orders.index'))

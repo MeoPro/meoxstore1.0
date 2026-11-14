@@ -55,6 +55,15 @@
                         <td>
                             @if ($statusTransitions[$order->status] ?? [])
                                 <div class="d-grid gap-1">
+                                    @if ($order->status === 'payment_confirmed' && in_array('completed', $statusTransitions[$order->status], true))
+                                        <form method="POST" action="{{ route('admin.orders.status', $order) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <input type="hidden" name="status" value="completed">
+                                            <input type="hidden" name="return_to" value="index">
+                                            <button class="btn btn-sm btn-success text-nowrap" type="submit" aria-label="Mark order #{{ $order->id }} completed">Mark completed</button>
+                                        </form>
+                                    @endif
                                     @if ($order->status === 'payment_submitted')
                                         <form method="POST" action="{{ route('admin.orders.status', $order) }}">
                                             @csrf
@@ -64,7 +73,7 @@
                                             <button class="btn btn-sm btn-accent text-nowrap" type="submit">{{ __('store.accept_order') }}</button>
                                         </form>
                                     @endif
-                                    @php($availableTransitions = array_values(array_diff($statusTransitions[$order->status], ['payment_confirmed'])))
+                                    @php($availableTransitions = array_values(array_diff($statusTransitions[$order->status], ['payment_confirmed', 'completed'])))
                                     @if ($availableTransitions !== [])
                                         <form class="order-status-form d-flex gap-1" method="POST" action="{{ route('admin.orders.status', $order) }}" onsubmit="return this.elements.status.value !== 'cancelled' || confirm('Cancel order and return its stock?')">
                                             @csrf

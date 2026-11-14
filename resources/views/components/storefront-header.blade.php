@@ -117,6 +117,6 @@
         rel="noopener noreferrer"
         aria-label="{{ __('store.whatsapp_chat_label') }}"
         title="{{ __('store.whatsapp_chat_label') }}">
-        <i class="fa fa-whatsapp" aria-hidden="true"></i>
+        <img src="{{ asset('images/wa.png') }}" alt="" aria-hidden="true">
     </a>
 @endif
