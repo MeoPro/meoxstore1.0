@@ -18,6 +18,21 @@
             @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
         <div class="mb-3">
+            <label class="form-label" for="type">Payment type</label>
+            <select class="form-select @error('type') is-invalid @enderror" id="type" name="type" required>
+                @foreach ([
+                    'bank_transfer' => 'Bank transfer',
+                    'e_wallet' => 'E-wallet',
+                    'qris' => 'QRIS',
+                    'other' => 'Other',
+                ] as $value => $label)
+                    <option value="{{ $value }}" @selected(old('type', $paymentSetting->type) === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+            <div class="form-text">Choose the payment channel. Uploading a QR image does not make the method QRIS.</div>
+            @error('type')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+        <div class="mb-3">
             <label class="form-label" for="currency">Payment currency</label>
             <select class="form-select @error('currency') is-invalid @enderror" id="currency" name="currency" required>
                 @foreach (['idr' => 'IDR', 'myr' => 'RM', 'usd' => 'USD'] as $value => $label)
@@ -48,7 +63,7 @@
         <div class="mb-3">
             <label class="form-label" for="qr_code">QR payment image</label>
             <input class="form-control @error('qr_code') is-invalid @enderror" id="qr_code" name="qr_code" type="file" accept="image/png,image/jpeg,image/webp">
-            <div class="form-text">Upload a QR image to use QRIS. PNG, JPG, or WEBP, up to 4 MB.</div>
+            <div class="form-text">Required for QRIS; for other methods, upload only if the provider uses a QR image. PNG, JPG, or WEBP, up to 4 MB.</div>
             @error('qr_code')<div class="invalid-feedback">{{ $message }}</div>@enderror
             @if ($paymentSetting->qr_code_path)
                 <img class="mt-3 rounded border" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentSetting->qr_code_path) }}" alt="Current payment QR code" style="display: block; height: auto; max-height: 180px; max-width: 100%; object-fit: contain; width: auto">

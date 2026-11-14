@@ -183,9 +183,7 @@ class PaymentSettingsController extends Controller
                 unset($validated['bank_name']);
             }
         }
-        $validated['type'] = $request->hasFile('qr_code')
-            ? 'qris'
-            : ($validated['type'] ?? $paymentSetting?->type ?? 'bank_transfer');
+        $validated['type'] = $validated['type'] ?? $paymentSetting?->type ?? 'bank_transfer';
 
         if (
             $validated['type'] === 'qris'

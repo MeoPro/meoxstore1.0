@@ -18,6 +18,7 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
 
     $this->actingAs($admin)
         ->post(route('admin.payment-settings.store'), [
+            'type' => 'qris',
             'currency' => 'idr',
             'name' => 'Scan to pay',
             'account_name' => 'Example owner',
@@ -78,6 +79,7 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
 
     $this->actingAs($admin)
         ->put(route('admin.payment-settings.update', $paymentSetting), [
+            'type' => 'qris',
             'currency' => 'idr',
             'name' => 'Scan to pay updated',
             'logo' => UploadedFile::fake()->createWithContent(
@@ -127,6 +129,36 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
         ->assertOk()
         ->assertSee('href="'.route('admin.orders.payment-proof', $order).'"', false)
         ->assertSee('Open proof');
+});
+
+it('keeps the selected payment type when a QR image is uploaded', function () {
+    Storage::fake('public');
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.payment-settings.create'))
+        ->assertSee('name="type"', false)
+        ->assertSee('value="e_wallet"', false)
+        ->assertSee('E-wallet');
+
+    $this->actingAs($admin)
+        ->post(route('admin.payment-settings.store'), [
+            'type' => 'e_wallet',
+            'currency' => 'idr',
+            'name' => 'DANA',
+            'qr_code' => UploadedFile::fake()->createWithContent(
+                'dana-qr.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true),
+            ),
+            'is_active' => '1',
+        ])
+        ->assertRedirect(route('admin.payment-settings.index'));
+
+    $paymentSetting = PaymentSetting::query()->sole();
+    expect($paymentSetting->type)->toBe('e_wallet');
+
+    $this->get(route('admin.payment-settings.index'))
+        ->assertSee('E-wallet');
 });
 
 it('shows product rating and only completed sales in the shop listing', function () {

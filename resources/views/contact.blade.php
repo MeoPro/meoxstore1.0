@@ -36,9 +36,9 @@
         .contact-followup-heading { margin-bottom: 22px; }
         .contact-followup-heading h2 { font-size: clamp(23px, 3vw, 30px); margin: 8px 0; }
         .contact-followup-heading p { color: #6a6a6a; line-height: 1.8; margin: 0; }
-        .contact-details-panel, .contact-map-panel, .contact-form-panel { background: #fff; border: 1px solid #eceef2; border-radius: 20px; height: 100%; overflow: hidden; }
+        .contact-details-panel, .contact-map-panel { background: #fff; border: 1px solid #eceef2; border-radius: 20px; height: 100%; overflow: hidden; }
         .contact-details-panel { padding: 26px; }
-        .contact-details-panel h3, .contact-form-panel h3 { font-size: 19px; margin-bottom: 18px; }
+        .contact-details-panel h3 { font-size: 19px; margin-bottom: 18px; }
         .contact-detail-list { display: grid; gap: 12px; }
         .contact-detail { align-items: flex-start; background: #f7f8fb; border-radius: 12px; display: flex; gap: 13px; padding: 15px; }
         .contact-detail .contact-option-icon { flex-basis: 40px; height: 40px; }
@@ -46,12 +46,6 @@
         .contact-detail-value { color: #1e1e1e; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
         .contact-map-panel { position: relative; }
         .contact-map-panel iframe { border: 0; display: block; height: 100%; min-height: 270px; width: 100%; }
-        .contact-form-panel { padding: clamp(22px, 4vw, 32px); }
-        .contact-form-panel .form-label { color: #333; font-size: 13px; font-weight: 600; }
-        .contact-form-panel .form-control { border-color: #e1e5eb; border-radius: 10px; min-height: 46px; }
-        .contact-form-panel textarea.form-control { min-height: 140px; resize: vertical; }
-        .contact-form-panel .form-control:focus { border-color: #ee626b; box-shadow: 0 0 0 .2rem rgba(238, 98, 107, .12); }
-        .contact-form-panel button { border: 0; }
         @media (max-width: 767.98px) { .contact-section { padding: 48px 0; } }
     </style>
 </head>
@@ -164,35 +158,6 @@
                                 allowfullscreen>
                             </iframe>
                         </div>
-                    </div>
-                    <div class="col-12">
-                        <section class="contact-form-panel">
-                            <span class="contact-kicker">{{ __('store.contact_form_label') }}</span>
-                            <h3>{{ __('store.contact_form_title') }}</h3>
-                            <form id="contact-message" action="mailto:{{ config('store.admin_email') }}" method="POST" enctype="text/plain">
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="contact-name">{{ __('store.name') }}</label>
-                                        <input class="form-control" id="contact-name" name="name" type="text" autocomplete="name" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="contact-email">{{ __('store.email') }}</label>
-                                        <input class="form-control" id="contact-email" name="email" type="email" autocomplete="email" required>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label" for="contact-subject">{{ __('store.subject') }}</label>
-                                        <input class="form-control" id="contact-subject" name="subject" type="text" required>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label" for="contact-message-body">{{ __('store.message') }}</label>
-                                        <textarea class="form-control" id="contact-message-body" name="message" required></textarea>
-                                    </div>
-                                    <div class="col-12">
-                                        <button class="btn btn-primary rounded-pill px-4 py-2" type="submit">{{ __('store.send_message') }}</button>
-                                    </div>
-                                </div>
-                            </form>
-                        </section>
                     </div>
                 </div>
             </section>

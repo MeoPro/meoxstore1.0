@@ -647,25 +647,25 @@ body.storefront-page {
 
 .storefront-footer-social-link {
     align-items: center;
-    border-radius: 50%;
+    border-radius: 6px;
     color: #fff !important;
     display: inline-flex;
     font-size: 18px !important;
-    height: 34px;
+    height: 30px;
     justify-content: center;
     overflow: hidden;
-    width: 34px;
+    width: 30px;
 }
 
 .storefront-footer-social-link img {
-    height: 24px;
+    height: 30px;
     object-fit: contain;
-    width: 24px;
+    width: 30px;
 }
 
 .storefront-footer-social-link--custom {
-    background: #fff;
-    padding: 5px;
+    background: transparent;
+    padding: 0;
 }
 
 .storefront-footer-social-link--facebook {
@@ -692,7 +692,8 @@ body.storefront-page {
 }
 
 .storefront-footer-payment-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .storefront-footer-payment-list > li {
@@ -787,6 +788,7 @@ body.storefront-page {
     }
 
     .storefront-footer-payment-list {
+        gap: 8px 4px;
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }

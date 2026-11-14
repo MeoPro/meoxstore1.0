@@ -1123,9 +1123,7 @@ it('shows storefront help links instead of placeholder contact information', fun
         ->assertSee('Sunny Isles Beach')
         ->assertSee(config('store.admin_email'))
         ->assertDontSee('lugx@contact.com')
-        ->assertSee('google.com/maps')
-        ->assertSee('id="contact-message"', false)
-        ->assertSee('name="message"', false);
+        ->assertSee('google.com/maps');
 });
 
 it('lists all available games with an image and a link to their shop products', function () {

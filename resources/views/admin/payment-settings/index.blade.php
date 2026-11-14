@@ -33,7 +33,12 @@
                     <tr>
                         <td><input class="form-check-input payment-setting-selection" form="bulk-payment-settings-form" type="checkbox" name="ids[]" value="{{ $paymentSetting->id }}" aria-label="Select {{ $paymentSetting->name ?: $paymentSetting->bank_name }}"></td>
                         <td class="fw-semibold">{{ $paymentSetting->name ?: $paymentSetting->bank_name }}</td>
-                        <td>{{ ucwords(str_replace('_', ' ', $paymentSetting->type)) }}</td>
+                        <td>{{ [
+                            'bank_transfer' => 'Bank transfer',
+                            'e_wallet' => 'E-wallet',
+                            'qris' => 'QRIS',
+                            'other' => 'Other',
+                        ][$paymentSetting->type] ?? 'Other' }}</td>
                         <td>{{ strtoupper($paymentSetting->currency) }}</td>
                         <td>
                             {{ $paymentSetting->bank_name }}

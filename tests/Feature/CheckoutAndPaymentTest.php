@@ -878,7 +878,8 @@ it('allows administrators to create, update, list, and delete payment methods', 
         ->assertSee('Payment Methods');
     $this->get(route('admin.payment-settings.create'))
         ->assertSee('id="is_active" name="is_active" type="checkbox" value="1" checked', false)
-        ->assertDontSee('Payment type')
+        ->assertSee('Payment type')
+        ->assertSee('name="type"', false)
         ->assertDontSee('Bank / provider');
 
     $this->post(route('admin.payment-settings.store'), [

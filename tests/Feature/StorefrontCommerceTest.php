@@ -181,14 +181,15 @@ it('embeds the configured Meoxstore map on the contact page', function () {
     Http::assertNothingSent();
 });
 
-it('omits newsletter subscription forms while keeping the contact message form', function () {
+it('omits newsletter and contact message forms', function () {
     $this->get(route('home'))
         ->assertDontSee('id="subscribe"', false)
         ->assertDontSee('NEWSLETTER');
 
     $this->get(route('contact'))
         ->assertDontSee('id="subscribe"', false)
-        ->assertSee('id="contact-message"', false);
+        ->assertDontSee('id="contact-message"', false)
+        ->assertDontSee('name="message"', false);
 });
 
 it('excludes hidden reviews and reviews without a completed customer order from the average', function () {
