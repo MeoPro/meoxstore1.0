@@ -41,22 +41,28 @@
                     <ol class="about-journey-grid">
                         <li>
                             <article class="about-journey-card">
-                                <img class="about-game-logo" src="{{ asset('images/riseofkingdoms.webp') }}" alt="">
-                                <h3 class="about-journey-year"><time datetime="2019">2019</time></h3>
+                                <div class="about-journey-heading">
+                                    <img class="about-game-logo" src="{{ asset('images/riseofkingdoms.webp') }}" alt="">
+                                    <h3 class="about-journey-year"><time datetime="2019">2019</time></h3>
+                                </div>
                                 <p>{{ __('store.our_journey_2019') }}</p>
                             </article>
                         </li>
                         <li>
                             <article class="about-journey-card">
-                                <img class="about-game-logo" src="{{ asset('images/growtopia.png') }}" alt="">
-                                <h3 class="about-journey-year"><time datetime="2021">2021</time></h3>
+                                <div class="about-journey-heading">
+                                    <img class="about-game-logo" src="{{ asset('images/growtopia.png') }}" alt="">
+                                    <h3 class="about-journey-year"><time datetime="2021">2021</time></h3>
+                                </div>
                                 <p>{{ __('store.our_journey_2021') }}</p>
                             </article>
                         </li>
                         <li>
                             <article class="about-journey-card">
-                                <img class="about-game-logo" src="{{ asset('images/roblox.png') }}" alt="">
-                                <h3 class="about-journey-year"><time datetime="2023">2023</time></h3>
+                                <div class="about-journey-heading">
+                                    <img class="about-game-logo" src="{{ asset('images/roblox.png') }}" alt="">
+                                    <h3 class="about-journey-year"><time datetime="2023">2023</time></h3>
+                                </div>
                                 <p>{{ __('store.our_journey_2023') }}</p>
                             </article>
                         </li>

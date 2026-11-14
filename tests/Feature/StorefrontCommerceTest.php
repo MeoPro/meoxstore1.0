@@ -821,6 +821,17 @@ it('shows the sales journey on the about page in every supported language', func
         $response->assertSee('images/riseofkingdoms.webp', false);
         $response->assertSee('images/growtopia.png', false);
         $response->assertSee('images/roblox.png', false);
+        $response->assertSeeInOrder([
+            'class="about-journey-heading"',
+            'images/riseofkingdoms.webp',
+            '<h3 class="about-journey-year"><time datetime="2019">2019</time></h3>',
+            'class="about-journey-heading"',
+            'images/growtopia.png',
+            '<h3 class="about-journey-year"><time datetime="2021">2021</time></h3>',
+            'class="about-journey-heading"',
+            'images/roblox.png',
+            '<h3 class="about-journey-year"><time datetime="2023">2023</time></h3>',
+        ], false);
         foreach (array_keys($milestones) as $year) {
             $response->assertSee($year);
             $response->assertSee($milestones[$year]);

@@ -67,11 +67,19 @@ body.storefront-page {
     padding: 22px;
 }
 
+.about-journey-heading {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
 .about-game-logo {
     border-radius: 5px;
     display: block;
+    flex: 0 0 22px;
     height: 22px;
-    margin-bottom: 12px;
+    margin: 0;
     object-fit: contain;
     width: 22px;
 }
@@ -81,7 +89,7 @@ body.storefront-page {
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: .06em;
-    margin-bottom: 14px;
+    margin-bottom: 0;
 }
 
 .about-journey-card p {
