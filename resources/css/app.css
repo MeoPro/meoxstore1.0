@@ -68,12 +68,12 @@ body.storefront-page {
 }
 
 .about-game-logo {
-    border-radius: 8px;
+    border-radius: 5px;
     display: block;
-    height: 28px;
-    margin-bottom: 16px;
+    height: 22px;
+    margin-bottom: 12px;
     object-fit: contain;
-    width: 28px;
+    width: 22px;
 }
 
 .about-journey-year {
@@ -556,6 +556,10 @@ body.storefront-page {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .8fr);
 }
 
+.storefront-footer-grid > * {
+    min-width: 0;
+}
+
 .storefront-footer-column-stack {
     align-content: start;
     display: grid;
@@ -586,6 +590,7 @@ body.storefront-page {
     color: rgba(255, 255, 255, .82);
     font-family: inherit;
     font-size: 13px;
+    overflow-wrap: anywhere;
     text-decoration: none;
     transition: color .18s ease;
 }
@@ -611,7 +616,9 @@ body.storefront-page {
 .storefront-footer-contact p {
     color: rgba(255, 255, 255, .82);
     font-family: inherit;
+    line-height: 1.6;
     margin: 0;
+    text-align: left;
 }
 
 .storefront-footer-contact-links {
@@ -680,15 +687,36 @@ body.storefront-page {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.storefront-footer-payment-logo {
+.storefront-footer-payment-list > li {
     align-items: center;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
     display: flex;
     justify-content: center;
+    min-width: 0;
+    padding: 0;
+}
+
+.storefront-footer-payment-logo {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+    padding: 0;
+    width: 100%;
 }
 
 .storefront-footer-payment-logo img {
-    height: 16px;
-    max-width: 76px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    height: 22px;
+    max-width: 100%;
     object-fit: contain;
     width: auto;
 }
@@ -706,6 +734,13 @@ body.storefront-page {
 }
 
 @media (max-width: 767.98px) {
+    .storefront-footer {
+        border-radius: 36px 36px 0 0;
+        margin-top: 40px;
+        min-height: 0;
+        padding: 40px 0 22px;
+    }
+
     .store-reviews-page {
         padding-top: 24px;
     }
@@ -722,12 +757,25 @@ body.storefront-page {
     .storefront-footer-contact {
         align-items: flex-start;
         flex-direction: column;
+        gap: 16px;
+    }
+
+    .storefront-footer-contact > * {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .storefront-footer-contact-links a,
+    .storefront-footer-bottom > * {
+        max-width: 100%;
+        overflow-wrap: anywhere;
     }
 }
 
 @media (max-width: 479.98px) {
     .storefront-footer-grid {
-        grid-template-columns: 1fr;
+        gap: 24px 16px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .storefront-footer-payment-list {
@@ -1565,8 +1613,8 @@ body.blog-storefront-page {
 
 .storefront-whatsapp-float {
     align-items: center;
-    background: #25d366;
-    border: 3px solid #fff;
+    background: transparent;
+    border: 0;
     border-radius: 50%;
     bottom: 24px;
     box-shadow: 0 8px 24px rgba(16, 36, 42, .24);
@@ -1584,13 +1632,13 @@ body.blog-storefront-page {
 
 .storefront-whatsapp-float img {
     border-radius: 50%;
-    height: 38px;
-    object-fit: contain;
-    width: 38px;
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
 }
 
 .storefront-whatsapp-float:hover {
-    background: #1ebe5d;
+    background: transparent;
     box-shadow: 0 10px 28px rgba(16, 36, 42, .3);
     color: #fff;
     transform: translateY(-3px);

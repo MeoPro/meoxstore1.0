@@ -135,11 +135,14 @@ it('hides sold-out products from storefront lists while keeping their reviews ac
     ]);
 
     $this->get(route('shop'))
-        ->assertDontSee('Sold-out review product');
+        ->assertDontSee('Sold-out review product')
+        ->assertDontSee('Sold-out game')
+        ->assertDontSee('Sold-out category');
 
     $this->get(route('home'))
         ->assertDontSee('Sold-out review product')
-        ->assertDontSee('Sold-out game');
+        ->assertDontSee('Sold-out game')
+        ->assertDontSee('Sold-out category');
 
     $this->get(route('games.index'))
         ->assertDontSee('Sold-out game');
