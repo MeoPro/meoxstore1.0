@@ -47,8 +47,10 @@ it('shows active products with game category, image, and starting price', functi
         ->assertSee('data-shop-currency="idr"', false)
         ->assertSee('data-myr="RM 11.10"', false)
         ->assertSee('data-usd="$2.65"', false)
-        ->assertSee('data-shop-sort', false)
-        ->assertSee('class="shop-sort-control"', false)
+        ->assertSee('data-shop-sort-menu', false)
+        ->assertSee(__('store.sort_recommended'))
+        ->assertSee('name="sort" value="recommended"', false)
+        ->assertSee('class="shop-sort-option"', false)
         ->assertSee('https://wa.me/6285933875292', false)
         ->assertSee('placeholder="10,000"', false)
         ->assertSee(route('product-details.show', $product), false)
@@ -662,8 +664,7 @@ it('sorts products by displayed starting price in the requested direction', func
     $this->get(route('shop', ['sort' => $sort]))
         ->assertViewHas('selectedSort', $sort)
         ->assertViewHas('products', fn ($products): bool => $products->getCollection()->pluck('name')->all() === $expectedNames)
-        ->assertSee('name="sort" value="'.$sort.'"', false)
-        ->assertSee('value="'.$sort.'" selected', false)
+        ->assertSee('name="sort" value="'.$sort.'" aria-pressed="true"', false)
         ->assertSee(e(route('shop', ['sort' => $sort])), false);
 })->with([
     'cheapest first' => ['price_asc', ['Discounted starting price', 'Middle starting price', 'Highest starting price']],
@@ -1316,7 +1317,7 @@ it('shows review rating distribution and latest reviews before recommendations',
         ->assertDontSee('Hidden review');
 });
 
-it('orders recommended game and item categories by completed sales in carousels', function () {
+it('orders recommended game products and item categories by completed sales in carousels', function () {
     $currentGame = GameCategory::factory()->create(['name' => 'Current game']);
     $currentItemCategory = ItemCategory::factory()->create(['name' => 'Current category']);
     Product::factory()->create([
@@ -1371,20 +1372,73 @@ it('orders recommended game and item categories by completed sales in carousels'
     $recordSale($duplicatePopularProduct, 2);
 
     $this->get(route('product-details.show', Product::query()->where('game_category_id', $currentGame->id)->firstOrFail()))
-        ->assertViewHas('recommendedGames', fn ($categories): bool => $categories->pluck('id')->all() === [
-            $popularGame->id,
-            $secondGame->id,
-            $unsoldGame->id,
+        ->assertViewHas('recommendedGameProducts', fn ($products): bool => $products->pluck('id')->all() === [
+            $popularProduct->id,
+            $secondProduct->id,
+            $duplicatePopularProduct->id,
         ])
         ->assertViewHas('recommendedItemCategories', fn ($categories): bool => $categories->pluck('id')->all() === [
             $popularItemCategory->id,
             $secondItemCategory->id,
             $unsoldItemCategory->id,
         ])
-        ->assertSee('id="recommended-games-track"', false)
+        ->assertSee('id="recommended-game-products-track"', false)
+        ->assertSee('id="game-product-recommendations-heading"', false)
         ->assertSee('id="recommended-item-categories-track"', false)
         ->assertSee('data-recommendation-next', false)
         ->assertSee(__('store.carousel_next'));
+});
+
+it('prioritizes best-selling products from the same game and fills recommendations to three', function () {
+    $currentGame = GameCategory::factory()->create();
+    $currentProduct = Product::factory()->create(['game_category_id' => $currentGame->id]);
+    $sameGameBestSeller = Product::factory()->create(['game_category_id' => $currentGame->id]);
+    $sameGameSecondBestSeller = Product::factory()->create(['game_category_id' => $currentGame->id]);
+
+    $otherGame = GameCategory::factory()->create();
+    $otherGameBestSeller = Product::factory()->create(['game_category_id' => $otherGame->id]);
+    Product::factory()->create(['game_category_id' => $otherGame->id]);
+
+    $buyer = User::factory()->create();
+    $recordSale = function (Product $product, int $quantity) use ($buyer): void {
+        $variant = $product->variants()->firstOrFail();
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => 'completed',
+            'total' => 500,
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => $variant->name,
+            'quantity' => $quantity,
+            'unit_price' => 50,
+        ]);
+    };
+    $recordSale($sameGameBestSeller, 10);
+    $recordSale($sameGameSecondBestSeller, 4);
+    $recordSale($otherGameBestSeller, 8);
+
+    $this->get(route('product-details.show', $currentProduct))
+        ->assertViewHas('recommendedGameProducts', fn ($products): bool => $products->pluck('id')->all() === [
+            $sameGameBestSeller->id,
+            $sameGameSecondBestSeller->id,
+            $otherGameBestSeller->id,
+        ]);
+});
+
+it('does not add products from other games when three same-game recommendations exist', function () {
+    $currentGame = GameCategory::factory()->create();
+    $currentProduct = Product::factory()->create(['game_category_id' => $currentGame->id]);
+    Product::factory()->count(3)->create(['game_category_id' => $currentGame->id]);
+    $otherGame = GameCategory::factory()->create();
+    $otherGameProduct = Product::factory()->create(['game_category_id' => $otherGame->id]);
+
+    $this->get(route('product-details.show', $currentProduct))
+        ->assertViewHas('recommendedGameProducts', fn ($products): bool => $products->count() === 3
+            && $products->every(fn (Product $product): bool => $product->game_category_id === $currentGame->id))
+        ->assertDontSee($otherGameProduct->name);
 });
 
 it('redirects the default product details page to the first active product', function () {
@@ -1416,7 +1470,7 @@ it('does not show inactive products or products without active variants', functi
         ->assertNotFound();
 });
 
-it('shows same-item recommendations and other games without a stray category banner', function () {
+it('shows same-item and other product recommendations without a category banner', function () {
     $bloxFruit = GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $growtopia = GameCategory::factory()->create([
         'name' => 'Growtopia',
@@ -1450,10 +1504,11 @@ it('shows same-item recommendations and other games without a stray category ban
         ->assertOk()
         ->assertSee('Rekomendasi Buah lainnya')
         ->assertSee('Dragon Fruit')
-        ->assertSee('Rekomendasi game lainnya')
+        ->assertSee('Rekomendasi produk lainnya')
         ->assertSee('Growtopia')
+        ->assertSee('World Lock')
         ->assertDontSee('/storage/categories/fruit.webp')
-        ->assertSee('/storage/categories/growtopia.webp');
+        ->assertDontSee('/storage/categories/growtopia.webp');
 });
 
 it('shows up to five same-item product recommendations', function () {

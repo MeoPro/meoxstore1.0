@@ -121,12 +121,30 @@ window.addEventListener('popstate', function() {
 	loadShopResults(new URL(window.location.href), false);
 });
 
-document.addEventListener('change', function(event) {
-	if (!(event.target instanceof HTMLSelectElement) || !event.target.matches('[data-shop-sort]')) {
+document.addEventListener('click', function(event) {
+	if (!(event.target instanceof Element)) {
 		return;
 	}
 
-	event.target.form?.requestSubmit();
+	document.querySelectorAll('[data-shop-sort-menu][open]').forEach(function(menu) {
+		if (!menu.contains(event.target)) {
+			menu.open = false;
+		}
+	});
+});
+
+document.addEventListener('keydown', function(event) {
+	if (event.key !== 'Escape') {
+		return;
+	}
+
+	const openMenu = document.querySelector('[data-shop-sort-menu][open]');
+	if (!(openMenu instanceof HTMLDetailsElement)) {
+		return;
+	}
+
+	openMenu.open = false;
+	openMenu.querySelector('summary')?.focus();
 });
 
 syncItemCategory(new URL(window.location.href));

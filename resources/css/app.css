@@ -713,13 +713,13 @@ body.storefront-page {
     border-radius: 4px;
     display: flex;
     justify-content: center;
-    min-height: 32px;
-    padding: 4px;
+    min-height: 26px;
+    padding: 3px;
 }
 
 .storefront-footer-payment-logo img {
-    height: 21px;
-    max-width: 100%;
+    height: 16px;
+    max-width: 76px;
     object-fit: contain;
     width: auto;
 }

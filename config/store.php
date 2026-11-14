@@ -3,6 +3,11 @@
 return [
     'admin_phone' => env('STORE_ADMIN_PHONE', '+6285933875292'),
     'admin_email' => env('STORE_ADMIN_EMAIL', 'devanoivan@gmail.com'),
+    'seed_admin' => [
+        'name' => env('STORE_SEED_ADMIN_NAME', 'Meoxstore Admin'),
+        'email' => env('STORE_SEED_ADMIN_EMAIL'),
+        'password' => env('STORE_SEED_ADMIN_PASSWORD'),
+    ],
     'address' => env('STORE_ADDRESS'),
     'social_links' => [
         'facebook' => env('STORE_SOCIAL_FACEBOOK'),

@@ -484,36 +484,43 @@
         </section>
       @endif
 
-      @if ($recommendedGames->isNotEmpty())
-        <section class="product-recommendations" aria-labelledby="game-recommendations-heading" data-recommendation-carousel>
+      @if ($recommendedGameProducts->isNotEmpty())
+        <section class="product-recommendations" aria-labelledby="game-product-recommendations-heading" data-recommendation-carousel>
           <div class="product-recommendation-header">
             <div class="section-heading">
-              <h6>{{ __('store.explore_other_games') }}</h6>
-              <h2 id="game-recommendations-heading">{{ __('store.recommended_games') }}</h2>
+              <h6>{{ __('store.explore_other_products') }}</h6>
+              <h2 id="game-product-recommendations-heading">{{ __('store.recommended_products') }}</h2>
             </div>
             <div class="product-recommendation-controls" data-recommendation-controls hidden>
-              <button type="button" aria-label="{{ __('store.carousel_previous') }}" aria-controls="recommended-games-track" data-recommendation-previous disabled>
+              <button type="button" aria-label="{{ __('store.carousel_previous') }}" aria-controls="recommended-game-products-track" data-recommendation-previous disabled>
                 <span aria-hidden="true">&lsaquo;</span>
               </button>
-              <button type="button" aria-label="{{ __('store.carousel_next') }}" aria-controls="recommended-games-track" data-recommendation-next disabled>
+              <button type="button" aria-label="{{ __('store.carousel_next') }}" aria-controls="recommended-game-products-track" data-recommendation-next disabled>
                 <span aria-hidden="true">&rsaquo;</span>
               </button>
             </div>
           </div>
-          <div class="product-recommendation-track" id="recommended-games-track" role="region" aria-labelledby="game-recommendations-heading" tabindex="0" data-recommendation-track>
-            @foreach ($recommendedGames as $recommendedGame)
+          <div class="product-recommendation-track product-recommendation-items" id="recommended-game-products-track" role="region" aria-labelledby="game-product-recommendations-heading" tabindex="0" data-recommendation-track>
+            @foreach ($recommendedGameProducts as $recommendedProduct)
               @php
-                $gameImage = $recommendedGame->image
-                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($recommendedGame->image)
-                    : ($recommendedGame->products->first()?->image
-                        ? \Illuminate\Support\Facades\Storage::disk('public')->url($recommendedGame->products->first()->image)
-                        : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg'));
+                $availableVariants = $recommendedProduct->variants->where('stock', '>', 0);
+                $priceVariants = $availableVariants->isNotEmpty() ? $availableVariants : $recommendedProduct->variants;
+                $recommendedPrice = $priceVariants->min(fn ($variant) => $recommendedProduct->priceInIdr((float) $variant->price, $currencyRates));
+                $recommendedImage = $recommendedProduct->image
+                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($recommendedProduct->image)
+                    : asset('images/trending-0'.(($loop->index % 4) + 1).'.jpg');
               @endphp
-              <div class="category-recommendation-item">
-                <a class="category-recommendation-card d-block text-decoration-none" href="{{ route('shop', ['game' => $recommendedGame->id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
-                  <img src="{{ $gameImage }}" alt="{{ $recommendedGame->name }}">
-                  <h3>{{ $recommendedGame->name }}</h3>
-                </a>
+              <div class="product-recommendation-item">
+                <article class="product-recommendation-card">
+                  <a href="{{ route('product-details.show', ['product' => $recommendedProduct, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
+                    <img src="{{ $recommendedImage }}" alt="{{ $recommendedProduct->name }}">
+                    <div class="product-recommendation-copy">
+                      <span>{{ $recommendedProduct->gameCategory->name }}</span>
+                      <h3>{{ $recommendedProduct->name }}</h3>
+                      <div class="product-recommendation-price">{{ __('store.starts_at') }} Rp {{ number_format((float) $recommendedPrice, 0, ',', '.') }}</div>
+                    </div>
+                  </a>
+                </article>
               </div>
             @endforeach
           </div>

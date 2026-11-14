@@ -12,6 +12,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
@@ -899,12 +900,71 @@ it('requires maximum quantity to match stock and allows zero-stock variants', fu
 });
 
 it('seeds the requested categories, products, and variants', function () {
+    config([
+        'store.seed_admin.name' => 'Seeder Admin',
+        'store.seed_admin.email' => 'seeder-admin@example.test',
+        'store.seed_admin.password' => 'local-seeder-admin-password',
+    ]);
+
     $this->seed(DatabaseSeeder::class);
 
     expect(GameCategory::query()->count())->toBe(4);
     expect(ItemCategory::query()->count())->toBe(4);
     expect(Product::query()->count())->toBe(4);
     expect(ProductVariant::query()->count())->toBe(6);
+
+    $admin = User::query()->where('email', 'seeder-admin@example.test')->firstOrFail();
+    expect($admin->is_admin)->toBeTrue();
+    expect(Hash::check('local-seeder-admin-password', $admin->password))->toBeTrue();
+
+    $this->post(route('login.store'), [
+        'email' => 'seeder-admin@example.test',
+        'password' => 'local-seeder-admin-password',
+    ])->assertRedirectToRoute('home');
+
+    $this->assertAuthenticatedAs($admin);
+    $this->get(route('admin.products.index'))->assertOk();
+
+    config(['store.seed_admin.password' => 'a-different-local-admin-password']);
+    $this->seed(DatabaseSeeder::class);
+
+    expect(Hash::check('local-seeder-admin-password', $admin->fresh()->password))->toBeTrue();
+});
+
+it('rejects a short password when seeding an admin account', function () {
+    config([
+        'store.seed_admin.email' => 'seeder-admin@example.test',
+        'store.seed_admin.password' => 'short-password',
+    ]);
+
+    expect(fn () => $this->seed(DatabaseSeeder::class))
+        ->toThrow(RuntimeException::class, 'at least 16 characters');
+});
+
+it('requires configured credentials when seeding an admin account', function () {
+    config([
+        'store.seed_admin.email' => null,
+        'store.seed_admin.password' => null,
+    ]);
+
+    expect(fn () => $this->seed(DatabaseSeeder::class))
+        ->toThrow(RuntimeException::class, 'STORE_SEED_ADMIN_EMAIL');
+});
+
+it('does not promote an existing customer while seeding an admin account', function () {
+    config([
+        'store.seed_admin.email' => 'existing-customer@example.test',
+        'store.seed_admin.password' => 'local-seeder-admin-password',
+    ]);
+    $customer = User::factory()->create([
+        'email' => 'existing-customer@example.test',
+        'is_admin' => false,
+    ]);
+
+    expect(fn () => $this->seed(DatabaseSeeder::class))
+        ->toThrow(RuntimeException::class, 'belongs to a non-admin user');
+
+    expect($customer->fresh()->is_admin)->toBeFalse();
 });
 
 it('updates variants and removes omitted variants', function () {

@@ -36,13 +36,20 @@
       .shop-category-filter-label { display: none; }
       .shop-discovery-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 16px; max-width: 100%; width: 100%; }
       .shop-sort-form { align-items: center; display: flex; flex: 0 0 auto; justify-content: center; margin: 0; width: auto; }
-      .shop-sort-control { align-items: center; background: #fff; border: 1px solid #dfe5ec; border-radius: 999px; color: #334155; cursor: pointer; display: inline-flex; height: 44px; justify-content: center; margin: 0; position: relative; transition: background .2s ease, border-color .2s ease; width: 48px; }
-      .shop-sort-control:hover { background: #f5f9ff; border-color: #0071f8; }
-      .shop-sort-control:focus-within { outline: 3px solid rgba(0, 113, 248, .28); outline-offset: 2px; }
-      .shop-sort-control > i { font-size: 15px; pointer-events: none; }
-      .shop-sort-control select { appearance: none; background: transparent; border: 0; border-radius: inherit; color: transparent; cursor: pointer; height: 100%; inset: 0; padding: 0; position: absolute; width: 100%; }
-      .shop-sort-control select option { color: #334155; }
-      .shop-sort-caret { border-bottom: 1.5px solid currentColor; border-right: 1.5px solid currentColor; height: 6px; pointer-events: none; position: absolute; right: 9px; top: 17px; transform: rotate(45deg); width: 6px; }
+      .shop-sort-dropdown { flex: 0 0 auto; position: relative; }
+      .shop-sort-trigger { align-items: center; background: #fff; border: 1px solid #e1e7f0; border-radius: 12px; color: #334155; cursor: pointer; display: flex; gap: 12px; list-style: none; min-height: 44px; padding: 0 14px; transition: background .18s ease, border-color .18s ease, box-shadow .18s ease; }
+      .shop-sort-trigger::-webkit-details-marker { display: none; }
+      .shop-sort-trigger::marker { content: ""; }
+      .shop-sort-trigger:hover, .shop-sort-dropdown[open] .shop-sort-trigger { background: #f8fbff; border-color: #cbd9ed; }
+      .shop-sort-trigger:focus-visible { outline: 3px solid rgba(0, 113, 248, .24); outline-offset: 2px; }
+      .shop-sort-trigger > span { font-size: 13px; font-weight: 600; white-space: nowrap; }
+      .shop-sort-trigger > i { color: #718096; font-size: 11px; transition: transform .18s ease; }
+      .shop-sort-dropdown[open] .shop-sort-trigger > i { transform: rotate(180deg); }
+      .shop-sort-options { background: #fff; border: 1px solid #e5eaf2; border-radius: 14px; box-shadow: 0 14px 36px rgba(30, 56, 90, .14); display: grid; gap: 3px; min-width: 190px; padding: 6px; position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; }
+      .shop-sort-option { align-items: center; background: transparent; border: 0; border-radius: 9px; color: #475467; cursor: pointer; display: flex; font-size: 13px; justify-content: space-between; min-height: 38px; padding: 8px 10px; text-align: left; transition: background .15s ease, color .15s ease; width: 100%; }
+      .shop-sort-option:hover, .shop-sort-option:focus-visible { background: #f3f7fd; color: #175cd3; outline: 0; }
+      .shop-sort-option[aria-pressed="true"] { background: #eff6ff; color: #175cd3; font-weight: 600; }
+      .shop-sort-option > i { color: #175cd3; font-size: 12px; }
       .shop-disclosure { flex: 0 1 160px; max-width: 160px; min-width: 0; transition: flex-basis .3s ease, max-width .3s ease; }
       .shop-disclosure.is-open { flex: 1 1 340px; max-width: 340px; }
       .shop-disclosure-trigger { align-items: center; background: #fff; border: 1px solid #dfe5ec; border-radius: 999px; color: #334155; display: flex; gap: 10px; justify-content: center; min-height: 44px; padding: 10px 16px; transition: background .2s ease, border-color .2s ease, color .2s ease; width: 100%; }
@@ -277,6 +284,15 @@ https://templatemo.com/tm-589-lugx-gaming
                 </form>
               </div>
             </section>
+            @php
+              $sortOptions = [
+                  'recommended' => __('store.sort_recommended'),
+                  'price_asc' => __('store.sort_price_ascending'),
+                  'price_desc' => __('store.sort_price_descending'),
+                  'best_selling' => __('store.sort_best_selling'),
+                  'newest' => __('store.sort_newest'),
+              ];
+            @endphp
             <form class="shop-sort-form" method="GET" action="{{ route('shop') }}" data-shop-category-sync data-shop-sort-form>
             @if ($selectedGameCategory)
               <input type="hidden" name="game" value="{{ $selectedGameCategory->id }}">
@@ -294,23 +310,22 @@ https://templatemo.com/tm-589-lugx-gaming
               <input type="hidden" name="max_price" value="{{ $maximumPriceFilter }}">
             @endif
             <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-shop-filter-currency>
-            <label class="shop-sort-control" for="shop-sort">
-              <span class="visually-hidden">{{ __('store.sort_products') }}</span>
-              <i class="fa fa-sort-amount-desc" aria-hidden="true"></i>
-              <select id="shop-sort" name="sort" data-shop-sort>
-                <option value="recommended" @selected($selectedSort === 'recommended')>{{ __('store.sort_recommended') }}</option>
-                <option value="price_asc" @selected($selectedSort === 'price_asc')>{{ __('store.sort_price_ascending') }}</option>
-                <option value="price_desc" @selected($selectedSort === 'price_desc')>{{ __('store.sort_price_descending') }}</option>
-                <option value="best_selling" @selected($selectedSort === 'best_selling')>{{ __('store.sort_best_selling') }}</option>
-                <option value="newest" @selected($selectedSort === 'newest')>{{ __('store.sort_newest') }}</option>
-              </select>
-              <span class="shop-sort-caret" aria-hidden="true"></span>
-            </label>
-            <noscript>
-              <button class="btn btn-outline-primary btn-sm" type="submit" aria-label="{{ __('store.apply_sort') }}">
-                <i class="fa fa-check" aria-hidden="true"></i>
-              </button>
-            </noscript>
+            <details class="shop-sort-dropdown" data-shop-sort-menu>
+              <summary class="shop-sort-trigger" aria-label="{{ __('store.sort_products') }}">
+                <span>{{ $sortOptions[$selectedSort] }}</span>
+                <i class="fa fa-chevron-down" aria-hidden="true"></i>
+              </summary>
+              <div class="shop-sort-options" role="group" aria-label="{{ __('store.sort_products') }}">
+                @foreach ($sortOptions as $sortValue => $sortLabel)
+                  <button class="shop-sort-option" type="submit" name="sort" value="{{ $sortValue }}" aria-pressed="{{ $selectedSort === $sortValue ? 'true' : 'false' }}">
+                    <span>{{ $sortLabel }}</span>
+                    @if ($selectedSort === $sortValue)
+                      <i class="fa fa-check" aria-hidden="true"></i>
+                    @endif
+                  </button>
+                @endforeach
+              </div>
+            </details>
             </form>
           </div>
           <div class="shop-category-filter-row">

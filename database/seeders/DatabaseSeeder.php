@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
@@ -19,13 +20,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'is_admin' => true,
-        ]);
+        $this->seedAdmin();
 
         $gameCategories = collect(['Blox Fruit', 'Fisch', 'Roblox', 'Growtopia'])
             ->mapWithKeys(fn (string $name): array => [
@@ -72,5 +67,44 @@ class DatabaseSeeder extends Seeder
                 );
             }
         }
+    }
+
+    private function seedAdmin(): void
+    {
+        $adminName = config('store.seed_admin.name');
+        $adminEmail = config('store.seed_admin.email');
+        $adminPassword = config('store.seed_admin.password');
+
+        if (! is_string($adminEmail) || trim($adminEmail) === '') {
+            throw new RuntimeException('Set STORE_SEED_ADMIN_EMAIL before running DatabaseSeeder.');
+        }
+
+        $adminEmail = mb_strtolower(trim($adminEmail));
+        if (filter_var($adminEmail, FILTER_VALIDATE_EMAIL) === false) {
+            throw new RuntimeException('STORE_SEED_ADMIN_EMAIL must be a valid email address.');
+        }
+
+        if (! is_string($adminPassword) || strlen($adminPassword) < 16) {
+            throw new RuntimeException('STORE_SEED_ADMIN_PASSWORD must contain at least 16 characters.');
+        }
+
+        $existingUser = User::query()
+            ->whereRaw('LOWER(email) = ?', [$adminEmail])
+            ->first();
+
+        if ($existingUser !== null) {
+            if (! $existingUser->is_admin) {
+                throw new RuntimeException('The configured seed admin email belongs to a non-admin user.');
+            }
+
+            return;
+        }
+
+        User::query()->create([
+            'name' => is_string($adminName) && trim($adminName) !== '' ? trim($adminName) : 'Meoxstore Admin',
+            'email' => $adminEmail,
+            'password' => $adminPassword,
+            'is_admin' => true,
+        ]);
     }
 }

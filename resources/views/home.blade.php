@@ -92,6 +92,7 @@
             @media (max-width: 767.98px) {
                 .main-banner.home-main-banner { padding: 110px 0 60px; }
             }
+            .home-main-banner + .features { margin-top: 0; }
         </style>
     <!--
 

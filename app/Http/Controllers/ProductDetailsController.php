@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\GameCategory;
 use App\Models\ItemCategory;
 use App\Models\Order;
 use App\Models\Product;
@@ -110,26 +109,20 @@ class ProductDetailsController extends Controller
             ->limit(5)
             ->get();
 
-        $recommendedGames = GameCategory::query()
-            ->leftJoinSub(
-                $this->completedCategorySalesQuery('game_category_id'),
-                'category_sales',
-                fn (JoinClause $join) => $join->on('category_sales.category_id', '=', 'game_categories.id'),
-            )
-            ->where('game_categories.status', 'active')
-            ->where('game_categories.id', '!=', $product->game_category_id)
-            ->whereHas('products', fn ($query) => $query
-                ->where('status', 'active')
-                ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active')))
-            ->with(['products' => fn ($query) => $query
-                ->where('status', 'active')
-                ->whereNotNull('image')
-                ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active'))
-                ->select(['id', 'game_category_id', 'image'])
-                ->limit(1)])
-            ->orderByDesc('category_sales.sold_quantity')
-            ->orderBy('game_categories.name')
-            ->get(['game_categories.id', 'game_categories.name', 'game_categories.image']);
+        $recommendedGameProducts = $this->recommendedGameProductsQuery($product, $recommendedProducts->modelKeys())
+            ->where('products.game_category_id', $product->game_category_id)
+            ->limit(5)
+            ->get();
+
+        if ($recommendedGameProducts->count() < 3) {
+            $excludedProductIds = array_merge($recommendedProducts->modelKeys(), $recommendedGameProducts->modelKeys());
+            $fallbackProducts = $this->recommendedGameProductsQuery($product, $excludedProductIds)
+                ->where('products.game_category_id', '!=', $product->game_category_id)
+                ->limit(3 - $recommendedGameProducts->count())
+                ->get();
+
+            $recommendedGameProducts = $recommendedGameProducts->concat($fallbackProducts)->values();
+        }
 
         $recommendedItemCategories = ItemCategory::query()
             ->leftJoinSub(
@@ -166,9 +159,49 @@ class ProductDetailsController extends Controller
             'hasReviewed' => $hasReviewed,
             'canReviewOrder' => $canReviewOrder,
             'recommendedProducts' => $recommendedProducts,
-            'recommendedGames' => $recommendedGames,
+            'recommendedGameProducts' => $recommendedGameProducts,
             'recommendedItemCategories' => $recommendedItemCategories,
         ]);
+    }
+
+    /**
+     * @param  array<int, int|string>  $excludedProductIds
+     */
+    private function recommendedGameProductsQuery(Product $product, array $excludedProductIds = []): Builder
+    {
+        return Product::query()
+            ->leftJoinSub(
+                $this->completedProductSalesQuery(),
+                'product_sales',
+                fn (JoinClause $join) => $join->on('product_sales.product_id', '=', 'products.id'),
+            )
+            ->where('products.status', 'active')
+            ->where('products.id', '!=', $product->id)
+            ->when($excludedProductIds !== [], fn (Builder $query) => $query->whereNotIn('products.id', $excludedProductIds))
+            ->whereHas('variants', fn ($query) => $query->where('status', 'active'))
+            ->with([
+                'gameCategory:id,name',
+                'variants' => fn ($query) => $query
+                    ->where('status', 'active')
+                    ->select(['id', 'product_id', 'price', 'stock'])
+                    ->orderBy('sort_order')
+                    ->orderBy('id'),
+            ])
+            ->select('products.*')
+            ->orderByRaw('COALESCE(product_sales.sold_quantity, 0) DESC')
+            ->orderByDesc('products.is_featured')
+            ->orderByDesc('products.created_at')
+            ->orderByDesc('products.id');
+    }
+
+    private function completedProductSalesQuery(): Builder
+    {
+        return Product::query()
+            ->join('order_items', 'order_items.product_id', '=', 'products.id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.status', 'completed')
+            ->selectRaw('products.id as product_id, SUM(order_items.quantity) as sold_quantity')
+            ->groupBy('products.id');
     }
 
     private function completedCategorySalesQuery(string $categoryForeignKey): Builder
