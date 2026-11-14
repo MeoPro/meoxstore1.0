@@ -104,6 +104,10 @@
         .shop-page-heading h3 { font-size: 22px; }
         .shop-page-section { margin-top: 24px; }
         .shop-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+        .shop-discovery-controls { flex-wrap: nowrap; }
+        .shop-disclosure { flex: 1 1 0; max-width: none; }
+        .shop-disclosure-trigger { gap: 6px; padding: 8px; }
+        .shop-disclosure-status { display: none; }
 
         .shop-product-list > .trending-items { width: 50%; }
         .shop-product-rating-line { gap: 4px; }

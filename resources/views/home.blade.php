@@ -81,13 +81,14 @@
             .home-store-stat-label { color: #756a99; display: block; font-size: 14px; }
             .home-store-stat-value { color: #33265d; display: block; font-size: 23px; font-weight: 700; line-height: 1.4; }
             @media (max-width: 575.98px) {
-                .home-store-stats { grid-template-columns: 1fr; }
-                .home-store-stats > div { padding: 8px 12px; }
-                .home-store-stats > div + div { border-left: 0; border-top: 1px solid #dfe4ec; }
+                .home-store-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .home-store-stats > div { padding: 8px; }
+                .home-store-stats > div + div { border-left: 0; border-top: 0; }
+                .home-store-stats > div:nth-child(even) { border-left: 1px solid #dfe4ec; }
+                .home-store-stats > div:nth-child(3) { border-top: 1px solid #dfe4ec; grid-column: 1 / -1; }
             }
             .store-closed-warning { background: #fff7e8; border: 1px solid #f6d79c; border-radius: 10px; color: #7a4b00; font-size: 14px; line-height: 1.55; margin: 16px auto 0; max-width: 1080px; padding: 12px 16px; }
             .main-banner.home-main-banner { padding: 140px 0 85px; }
-            .main-banner .container > .store-closed-warning { margin-left: 12px; margin-right: 12px; }
             @media (max-width: 767.98px) {
                 .main-banner.home-main-banner { padding: 110px 0 60px; }
             }
@@ -132,6 +133,26 @@
                     <a href="{{ route('games.index') }}">{{ __('store.browse_games') }}</a>
                 </div>
             </div>
+            <div @class(['home-store-status', 'home-store-status--closed' => ! $storeSetting->is_online]) role="status">
+                {{ $storeSetting->is_online ? __('store.home_system_online') : __('store.home_system_offline') }}
+            </div>
+            <div class="home-store-stats" aria-label="{{ __('store.store_statistics') }}">
+                <div>
+                    <span class="home-store-stat-label">{{ __('store.items_sold') }}</span>
+                    <strong class="home-store-stat-value">{{ number_format($completedSoldItemCount) }}</strong>
+                </div>
+                <div>
+                    <span class="home-store-stat-label">{{ __('store.robux_sold') }}</span>
+                    <strong class="home-store-stat-value">{{ $robuxSoldDisplay }}+ Bobux</strong>
+                </div>
+                <div>
+                    <span class="home-store-stat-label">{{ __('store.order_queue') }}</span>
+                    <strong class="home-store-stat-value">{{ number_format($activeOrderQueueCount) }}</strong>
+                </div>
+            </div>
+            @unless ($storeSetting->is_online)
+                <p class="store-closed-warning" role="status">{{ __('store.store_closed_warning') }}</p>
+            @endunless
             </div>
             <div class="col-lg-4 offset-lg-2">
             <div class="right-image">
@@ -141,26 +162,6 @@
             </div>
             </div>
         </div>
-        <div @class(['home-store-status', 'home-store-status--closed' => ! $storeSetting->is_online]) role="status">
-            {{ $storeSetting->is_online ? __('store.home_system_online') : __('store.home_system_offline') }}
-        </div>
-        <div class="home-store-stats" aria-label="{{ __('store.store_statistics') }}">
-            <div>
-                <span class="home-store-stat-label">{{ __('store.items_sold') }}</span>
-                <strong class="home-store-stat-value">{{ number_format($completedSoldItemCount) }}</strong>
-            </div>
-            <div>
-                <span class="home-store-stat-label">{{ __('store.robux_sold') }}</span>
-                <strong class="home-store-stat-value">{{ $robuxSoldDisplay }}+ Bobux</strong>
-            </div>
-            <div>
-                <span class="home-store-stat-label">{{ __('store.order_queue') }}</span>
-                <strong class="home-store-stat-value">{{ number_format($activeOrderQueueCount) }}</strong>
-            </div>
-        </div>
-        @unless ($storeSetting->is_online)
-            <p class="store-closed-warning" role="status">{{ __('store.store_closed_warning') }}</p>
-        @endunless
         </div>
     </div>
 

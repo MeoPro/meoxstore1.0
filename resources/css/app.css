@@ -1629,11 +1629,19 @@ body.blog-storefront-page {
     outline-offset: 3px;
 }
 
+.storefront-cart-notice {
+    bottom: 96px;
+}
+
 @media (max-width: 767.98px) {
     .storefront-whatsapp-float {
         bottom: 16px;
         height: 54px;
         right: 16px;
         width: 54px;
+    }
+
+    .storefront-cart-notice {
+        bottom: 82px;
     }
 }
