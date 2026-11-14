@@ -39,6 +39,8 @@ it('shows the average of visible completed-purchase ratings above the storefront
         ->assertOk()
         ->assertSee(__('store.store_rating_summary', ['rating' => '4']))
         ->assertDontSee(__('store.store_rating_review_count', ['count' => '2']))
+        ->assertSee('class="storefront-whatsapp-float"', false)
+        ->assertSee('https://wa.me/6285933875292', false)
         ->assertSee(route('reviews.index'), false)
         ->assertSeeInOrder([
             __('store.store_rating_summary', ['rating' => '4']),

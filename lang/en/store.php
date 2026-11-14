@@ -3,6 +3,7 @@
 return [
     'main_navigation' => 'Main navigation',
     'toggle_navigation' => 'Toggle navigation',
+    'whatsapp_chat_label' => 'Chat with us on WhatsApp',
     'home' => 'Home',
     'shop' => 'Our Shop',
     'about_us' => 'About Us',

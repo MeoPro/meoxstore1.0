@@ -121,4 +121,12 @@ window.addEventListener('popstate', function() {
 	loadShopResults(new URL(window.location.href), false);
 });
 
+document.addEventListener('change', function(event) {
+	if (!(event.target instanceof HTMLSelectElement) || !event.target.matches('[data-shop-sort]')) {
+		return;
+	}
+
+	event.target.form?.requestSubmit();
+});
+
 syncItemCategory(new URL(window.location.href));

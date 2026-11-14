@@ -3,6 +3,7 @@
 return [
     'main_navigation' => 'Navigasi utama',
     'toggle_navigation' => 'Buka atau tutup navigasi',
+    'whatsapp_chat_label' => 'Chat kami di WhatsApp',
     'home' => 'Beranda',
     'shop' => 'Toko',
     'about_us' => 'Tentang Kami',

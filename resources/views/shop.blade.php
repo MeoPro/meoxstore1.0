@@ -34,9 +34,15 @@
       .shop-category-filters { width: 100%; }
       .shop-category-filter-row { justify-content: center; width: 100%; }
       .shop-category-filter-label { display: none; }
-      .shop-discovery-controls { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 16px; max-width: 520px; width: 100%; }
-      .shop-sort-form { align-items: center; display: flex; gap: 8px; justify-content: center; margin: 0 auto 16px; max-width: 520px; width: 100%; }
-      .shop-sort-form > label { align-items: center; display: flex; flex: 1 1 auto; gap: 8px; margin: 0; min-width: 0; }
+      .shop-discovery-controls { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 16px; max-width: 100%; width: 100%; }
+      .shop-sort-form { align-items: center; display: flex; flex: 0 0 auto; justify-content: center; margin: 0; width: auto; }
+      .shop-sort-control { align-items: center; background: #fff; border: 1px solid #dfe5ec; border-radius: 999px; color: #334155; cursor: pointer; display: inline-flex; height: 44px; justify-content: center; margin: 0; position: relative; transition: background .2s ease, border-color .2s ease; width: 48px; }
+      .shop-sort-control:hover { background: #f5f9ff; border-color: #0071f8; }
+      .shop-sort-control:focus-within { outline: 3px solid rgba(0, 113, 248, .28); outline-offset: 2px; }
+      .shop-sort-control > i { font-size: 15px; pointer-events: none; }
+      .shop-sort-control select { appearance: none; background: transparent; border: 0; border-radius: inherit; color: transparent; cursor: pointer; height: 100%; inset: 0; padding: 0; position: absolute; width: 100%; }
+      .shop-sort-control select option { color: #334155; }
+      .shop-sort-caret { border-bottom: 1.5px solid currentColor; border-right: 1.5px solid currentColor; height: 6px; pointer-events: none; position: absolute; right: 9px; top: 17px; transform: rotate(45deg); width: 6px; }
       .shop-disclosure { flex: 0 1 160px; max-width: 160px; min-width: 0; transition: flex-basis .3s ease, max-width .3s ease; }
       .shop-disclosure.is-open { flex: 1 1 340px; max-width: 340px; }
       .shop-disclosure-trigger { align-items: center; background: #fff; border: 1px solid #dfe5ec; border-radius: 999px; color: #334155; display: flex; gap: 10px; justify-content: center; min-height: 44px; padding: 10px 16px; transition: background .2s ease, border-color .2s ease, color .2s ease; width: 100%; }
@@ -53,7 +59,6 @@
       .shop-price-filter-fields { align-items: end; display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .shop-price-filter-field { min-width: 0; }
       .shop-price-filter-field > span { color: #64748b; display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
-      .shop-sort-form > label > span { color: #64748b; flex: 0 0 auto; font-size: 12px; font-weight: 600; }
       .shop-price-filter-buttons { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
       .shop-price-filter-buttons { grid-column: 1 / -1; }
       .shop-price-filter-buttons .btn { white-space: nowrap; }
@@ -99,7 +104,6 @@
         .shop-page-heading h3 { font-size: 22px; }
         .shop-page-section { margin-top: 24px; }
         .shop-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; margin-bottom: 18px; }
-        .shop-sort-form > label { align-items: stretch; flex-direction: column; gap: 5px; }
 
         .shop-product-list > .trending-items { width: 50%; }
         .shop-product-rating-line { gap: 4px; }
@@ -269,8 +273,7 @@ https://templatemo.com/tm-589-lugx-gaming
                 </form>
               </div>
             </section>
-          </div>
-          <form class="shop-sort-form" method="GET" action="{{ route('shop') }}" data-shop-category-sync>
+            <form class="shop-sort-form" method="GET" action="{{ route('shop') }}" data-shop-category-sync data-shop-sort-form>
             @if ($selectedGameCategory)
               <input type="hidden" name="game" value="{{ $selectedGameCategory->id }}">
             @endif
@@ -287,18 +290,25 @@ https://templatemo.com/tm-589-lugx-gaming
               <input type="hidden" name="max_price" value="{{ $maximumPriceFilter }}">
             @endif
             <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-shop-filter-currency>
-            <label for="shop-sort">
-              <span>{{ __('store.sort_products') }}</span>
-              <select class="form-control" id="shop-sort" name="sort">
+            <label class="shop-sort-control" for="shop-sort">
+              <span class="visually-hidden">{{ __('store.sort_products') }}</span>
+              <i class="fa fa-sort-amount-desc" aria-hidden="true"></i>
+              <select id="shop-sort" name="sort" data-shop-sort>
                 <option value="recommended" @selected($selectedSort === 'recommended')>{{ __('store.sort_recommended') }}</option>
                 <option value="price_asc" @selected($selectedSort === 'price_asc')>{{ __('store.sort_price_ascending') }}</option>
                 <option value="price_desc" @selected($selectedSort === 'price_desc')>{{ __('store.sort_price_descending') }}</option>
                 <option value="best_selling" @selected($selectedSort === 'best_selling')>{{ __('store.sort_best_selling') }}</option>
                 <option value="newest" @selected($selectedSort === 'newest')>{{ __('store.sort_newest') }}</option>
               </select>
+              <span class="shop-sort-caret" aria-hidden="true"></span>
             </label>
-            <button class="btn btn-outline-primary" type="submit">{{ __('store.apply_sort') }}</button>
-          </form>
+            <noscript>
+              <button class="btn btn-outline-primary btn-sm" type="submit" aria-label="{{ __('store.apply_sort') }}">
+                <i class="fa fa-check" aria-hidden="true"></i>
+              </button>
+            </noscript>
+            </form>
+          </div>
           <div class="shop-category-filter-row">
             <span class="shop-category-filter-label">{{ __('store.item') }}</span>
             <ul class="trending-filter" aria-label="{{ __('store.filter_item_category') }}">

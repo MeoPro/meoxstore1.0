@@ -86,7 +86,11 @@
                 .home-store-stats > div + div { border-left: 0; border-top: 1px solid #dfe4ec; }
             }
             .store-closed-warning { background: #fff7e8; border: 1px solid #f6d79c; border-radius: 10px; color: #7a4b00; font-size: 14px; line-height: 1.55; margin: 16px auto 0; max-width: 1080px; padding: 12px 16px; }
+            .main-banner.home-main-banner { padding: 140px 0 85px; }
             .main-banner .container > .store-closed-warning { margin-left: 12px; margin-right: 12px; }
+            @media (max-width: 767.98px) {
+                .main-banner.home-main-banner { padding: 110px 0 60px; }
+            }
         </style>
     <!--
 
@@ -116,7 +120,7 @@
     <x-storefront-header />
     <!-- ***** Header Area End ***** -->
 
-    <div class="main-banner">
+    <div class="main-banner home-main-banner">
         <div class="container">
         <div class="row">
             <div class="col-lg-6 align-self-center">
