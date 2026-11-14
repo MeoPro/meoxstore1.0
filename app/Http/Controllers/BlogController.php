@@ -136,7 +136,7 @@ class BlogController extends Controller
         $metaDescription = $blogPost->meta_description ?: $blogPost->excerpt;
         $coverImageUrl = $blogPost->cover_image
             ? url(Storage::disk('public')->url($blogPost->cover_image))
-            : null;
+            : asset('images/blog-post-02.jpg');
         $canonicalUrl = route('blog.show', $blogPost->slug);
 
         return view('blog.show', array_merge([

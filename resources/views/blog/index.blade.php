@@ -156,9 +156,9 @@ https://templatemo.com/tm-551-stand-blog
                     <div class="blog-post">
                       <div class="blog-thumb">
                         @if ($blogPost->cover_image)
-                          <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="{{ $blogPost->title }}" loading="lazy">
+                          <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="{{ $blogPost->title }}" data-blog-cover data-fallback-src="{{ asset('images/blog-thumb-01.jpg') }}" loading="lazy">
                         @else
-                          <img src="{{ asset('images/blog-thumb-0'.(($loop->index % 6) + 1).'.jpg') }}" alt="{{ $blogPost->title }}" loading="lazy">
+                          <img src="{{ asset('images/blog-thumb-0'.(($loop->index % 6) + 1).'.jpg') }}" alt="{{ $blogPost->title }}" data-blog-cover data-fallback-src="{{ asset('images/blog-thumb-01.jpg') }}" loading="lazy">
                         @endif
                       </div>
                       <div class="down-content">

@@ -115,8 +115,8 @@
         href="https://wa.me/{{ $whatsappPhone }}"
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="{{ __('store.whatsapp_chat_label') }}"
-        title="{{ __('store.whatsapp_chat_label') }}">
+        aria-label="{{ __('store.whatsapp_chat_label') }}">
         <img src="{{ asset('images/wa.png') }}" alt="" aria-hidden="true">
+        <span class="storefront-whatsapp-tooltip" aria-hidden="true">{{ __('store.whatsapp_tooltip') }}</span>
     </a>
 @endif

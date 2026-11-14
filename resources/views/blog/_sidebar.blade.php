@@ -1,5 +1,13 @@
-@if ($recentBlogPosts->isNotEmpty() || $sidebarBlocks->isNotEmpty())
+@if (($showSearchForm ?? false) || $recentBlogPosts->isNotEmpty() || $sidebarBlocks->isNotEmpty())
     <aside class="sidebar" aria-label="{{ __('store.blog_sidebar') }}">
+        @if ($showSearchForm ?? false)
+            <section class="sidebar-item search">
+                <form id="search_form" name="gs" method="GET" action="{{ route('blog.posts') }}">
+                    <input type="text" name="q" class="searchText" value="{{ request()->query('q', '') }}" placeholder="{{ __('store.search') }}" autocomplete="off" aria-label="{{ __('store.search') }}">
+                </form>
+            </section>
+        @endif
+
         @if ($recentBlogPosts->isNotEmpty())
             <section class="sidebar-item recent-posts">
                 <div class="sidebar-heading">

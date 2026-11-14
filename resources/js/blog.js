@@ -1,6 +1,17 @@
 import './owl';
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('img[data-blog-cover]').forEach((image) => {
+        image.addEventListener('error', () => {
+            if (image.dataset.blogFallbackApplied === 'true') {
+                return;
+            }
+
+            image.dataset.blogFallbackApplied = 'true';
+            image.src = image.dataset.fallbackSrc;
+        });
+    });
+
     const $ = window.jQuery;
 
     if (!$ || !$('.owl-banner').length) {

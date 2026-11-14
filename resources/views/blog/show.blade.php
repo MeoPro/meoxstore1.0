@@ -69,11 +69,9 @@
                 <div class="row">
                     <div class="col-12 col-lg-8">
                         <article class="blog-post blog-post-detail">
-                            @if ($coverImageUrl)
-                                <div class="blog-thumb">
-                                    <img src="{{ $coverImageUrl }}" alt="{{ $blogPost->title }}" fetchpriority="high">
-                                </div>
-                            @endif
+                            <div class="blog-thumb">
+                                <img src="{{ $coverImageUrl }}" alt="{{ $blogPost->title }}" data-blog-cover data-fallback-src="{{ asset('images/blog-post-02.jpg') }}" fetchpriority="high">
+                            </div>
                             <div class="down-content">
                                 <ul class="post-info">
                                     <li><a href="{{ route('blog.index') }}">Meoxstore</a></li>
@@ -104,7 +102,7 @@
                         </article>
                     </div>
                     <div class="col-12 col-lg-4">
-                        @include('blog._sidebar')
+                        @include('blog._sidebar', ['showSearchForm' => true])
                     </div>
                 </div>
             </div>

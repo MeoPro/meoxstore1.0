@@ -39,12 +39,17 @@ it('shows published articles with search metadata and safely rendered Markdown',
         ->assertDontSee('A private draft')
         ->assertDontSee('A scheduled article')
         ->assertSee('&lt;img src=x onerror=alert(1)&gt;', false)
+        ->assertSee(asset('images/blog-thumb-01.jpg'), false)
         ->assertDontSee('<img src=x onerror=alert(1)>', false);
 
     $this->get(route('blog.show', 'published-game-guide'))
         ->assertOk()
         ->assertSee('<title>The best guide &lt;script&gt;alert', false)
         ->assertSee('<article class="blog-post blog-post-detail">', false)
+        ->assertSee('src="'.asset('images/blog-post-02.jpg').'"', false)
+        ->assertSee('data-blog-cover', false)
+        ->assertSee('action="'.route('blog.posts').'"', false)
+        ->assertSee('name="q" class="searchText"', false)
         ->assertSee('name="description" content="Review this &lt;img src=x onerror=alert(2)&gt;', false)
         ->assertSee('"@type":"BlogPosting"', false)
         ->assertSee('<h2>Check account details</h2>', false)

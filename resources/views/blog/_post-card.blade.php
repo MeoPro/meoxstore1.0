@@ -1,10 +1,11 @@
 <article class="blog-post">
     <div class="blog-thumb">
-        @if ($blogPost->cover_image)
-            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="" loading="lazy">
-        @else
-            <img src="{{ asset('images/blog-thumb-01.jpg') }}" alt="" loading="lazy">
-        @endif
+        <img
+            src="{{ $blogPost->cover_image ? \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) : asset('images/blog-thumb-01.jpg') }}"
+            alt=""
+            data-blog-cover
+            data-fallback-src="{{ asset('images/blog-thumb-01.jpg') }}"
+            loading="lazy">
     </div>
     <div class="down-content">
         <span>{{ __('store.blog') }}</span>

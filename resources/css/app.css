@@ -1647,6 +1647,43 @@ body.blog-storefront-page {
     width: 100%;
 }
 
+.storefront-whatsapp-tooltip {
+    background: #1f2937;
+    border-radius: 8px;
+    bottom: calc(100% + 12px);
+    box-shadow: 0 6px 18px rgba(16, 36, 42, .2);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    opacity: 0;
+    padding: 10px 12px;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    transform: translateY(4px);
+    transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
+    visibility: hidden;
+    white-space: nowrap;
+}
+
+.storefront-whatsapp-tooltip::after {
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid #1f2937;
+    content: "";
+    position: absolute;
+    right: 20px;
+    top: 100%;
+}
+
+.storefront-whatsapp-float:hover .storefront-whatsapp-tooltip,
+.storefront-whatsapp-float:focus-visible .storefront-whatsapp-tooltip {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+}
+
 .storefront-whatsapp-float:hover {
     background: transparent;
     box-shadow: 0 10px 28px rgba(16, 36, 42, .3);
@@ -1673,5 +1710,12 @@ body.blog-storefront-page {
 
     .storefront-cart-notice {
         bottom: 82px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .storefront-whatsapp-float,
+    .storefront-whatsapp-tooltip {
+        transition: none;
     }
 }

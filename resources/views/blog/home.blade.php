@@ -107,9 +107,9 @@ https://templatemo.com/tm-551-stand-blog
             @php($blogCategory = $blogPost->categories->first())
             <div class="item">
               @if ($blogPost->cover_image)
-                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="{{ $blogPost->title }}" loading="lazy">
+                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="{{ $blogPost->title }}" data-blog-cover data-fallback-src="{{ asset('images/banner-item-01.jpg') }}" loading="lazy">
               @else
-                <img src="{{ asset('images/banner-item-0'.(($loop->index % 6) + 1).'.jpg') }}" alt="{{ $blogPost->title }}" loading="lazy">
+                <img src="{{ asset('images/banner-item-0'.(($loop->index % 6) + 1).'.jpg') }}" alt="{{ $blogPost->title }}" data-blog-cover data-fallback-src="{{ asset('images/banner-item-01.jpg') }}" loading="lazy">
               @endif
               <div class="item-content">
                 <div class="main-content">
@@ -185,9 +185,9 @@ https://templatemo.com/tm-551-stand-blog
                     <div class="blog-post">
                       <div class="blog-thumb">
                         @if ($blogPost->cover_image)
-                          <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="{{ $blogPost->title }}" loading="lazy">
+                          <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($blogPost->cover_image) }}" alt="{{ $blogPost->title }}" data-blog-cover data-fallback-src="{{ asset('images/blog-post-01.jpg') }}" loading="lazy">
                         @else
-                          <img src="{{ asset('images/blog-post-0'.($loop->index + 1).'.jpg') }}" alt="{{ $blogPost->title }}" loading="lazy">
+                          <img src="{{ asset('images/blog-post-0'.($loop->index + 1).'.jpg') }}" alt="{{ $blogPost->title }}" data-blog-cover data-fallback-src="{{ asset('images/blog-post-01.jpg') }}" loading="lazy">
                         @endif
                       </div>
                       <div class="down-content">

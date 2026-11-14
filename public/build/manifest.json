@@ -13,7 +13,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-vHmJxbVA.css",
+    "file": "assets/app-DOG8l8CR.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -64,7 +64,7 @@
     "isEntry": true
   },
   "resources/js/blog.js": {
-    "file": "assets/blog-DywEeIsg.js",
+    "file": "assets/blog-DU1iF2L8.js",
     "name": "blog",
     "src": "resources/js/blog.js",
     "isEntry": true,
