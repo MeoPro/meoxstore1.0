@@ -4,81 +4,124 @@ use App\Models\GameCategory;
 use App\Models\Order;
 use App\Models\PaymentSetting;
 use App\Models\Product;
+use App\Models\ProductReview;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
-it('shows the live Google Maps rating on the storefront home page', function () {
-    config([
-        'services.google_maps.places_api_key' => 'restricted-test-key',
-        'services.google_maps.place_id' => 'place-id-123',
-        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
-    ]);
-    Http::preventStrayRequests();
-    Http::fake([
-        'places.googleapis.com/v1/places/place-id-123' => Http::response([
-            'rating' => 4.8,
-            'userRatingCount' => 126,
-        ]),
-    ]);
+it('shows the average of visible completed-purchase ratings above the storefront logo', function () {
+    $buyer = User::factory()->create(['is_admin' => false]);
+    $product = Product::factory()->create(['status' => 'active']);
 
-    $this->get(route('home'))
-        ->assertOk()
-        ->assertSee('4.8/5')
-        ->assertSee('126')
-        ->assertSee('Google Maps')
-        ->assertSee('https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6');
+    foreach ([5, 3] as $rating) {
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => 'completed',
+            'total' => '10000.00',
+            'completed_at' => now(),
+            'customer_completed_at' => now(),
+        ]);
+        ProductReview::query()->create([
+            'product_id' => $product->id,
+            'user_id' => $buyer->id,
+            'order_id' => $order->id,
+            'rating' => $rating,
+            'is_hidden' => false,
+        ]);
+    }
 
-    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://places.googleapis.com/v1/places/place-id-123'
-        && $request->hasHeader('X-Goog-Api-Key', 'restricted-test-key')
-        && $request->hasHeader('X-Goog-FieldMask', 'rating,userRatingCount'));
-});
-
-it('links to Google Maps without inventing a rating when Places API credentials are missing', function () {
-    config([
-        'services.google_maps.places_api_key' => null,
-        'services.google_maps.place_id' => null,
-        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
-    ]);
     Http::preventStrayRequests();
 
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee(__('store.google_maps_profile'))
-        ->assertSee('https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6')
-        ->assertDontSee('/5');
+        ->assertSee(__('store.store_rating_summary', ['rating' => '4']))
+        ->assertDontSee(__('store.store_rating_review_count', ['count' => '2']))
+        ->assertSee(route('reviews.index'), false)
+        ->assertSeeInOrder([
+            __('store.store_rating_summary', ['rating' => '4']),
+            '<span class="storefront-rating-star" aria-hidden="true">★</span>',
+            __('store.store_rating_brand'),
+        ], false)
+        ->assertSeeInOrder(['class="storefront-rating-banner"', 'class="logo"'], false);
 
     Http::assertNothingSent();
 });
 
-it('keeps the home page available when Google Maps rating data is unavailable', function () {
-    config([
-        'services.google_maps.places_api_key' => 'restricted-test-key',
-        'services.google_maps.place_id' => 'place-id-123',
-        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
+it('lists visible reviews for purchased products on the public reviews page', function () {
+    $buyer = User::factory()->create([
+        'name' => '<script>alert("buyer")</script>',
+        'is_admin' => false,
     ]);
+
+    foreach ([
+        ['name' => 'Fruit Pack', 'status' => 'completed', 'customer_completed' => true, 'rating' => 5, 'hidden' => false, 'comment' => 'Fresh and fast', 'reply' => '<script>alert("reply")</script>'],
+        ['name' => '<img src=x onerror=alert(1)>', 'status' => 'completed', 'customer_completed' => true, 'rating' => 4, 'hidden' => false, 'comment' => '<script>alert("x")</script>'],
+        ['name' => 'Hidden Account', 'status' => 'completed', 'customer_completed' => true, 'rating' => 1, 'hidden' => true, 'comment' => 'Hidden review'],
+        ['name' => 'Unfinished Item', 'status' => 'pending', 'customer_completed' => false, 'rating' => 2, 'hidden' => false, 'comment' => 'Pending review'],
+    ] as $reviewData) {
+        $product = Product::factory()->create(['name' => $reviewData['name']]);
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => $reviewData['status'],
+            'total' => '10000.00',
+            'completed_at' => $reviewData['status'] === 'completed' ? now() : null,
+            'customer_completed_at' => $reviewData['customer_completed'] ? now() : null,
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'variant_name' => 'Standard',
+            'quantity' => 1,
+            'unit_price' => '10000.00',
+        ]);
+        ProductReview::query()->create([
+            'product_id' => $product->id,
+            'user_id' => $buyer->id,
+            'order_id' => $order->id,
+            'rating' => $reviewData['rating'],
+            'comment' => $reviewData['comment'],
+            'admin_reply' => $reviewData['reply'] ?? null,
+            'is_hidden' => $reviewData['hidden'],
+        ]);
+    }
+
+    $this->get(route('reviews.index'))
+        ->assertSee(__('store.store_reviews_title'))
+        ->assertSee('4.5')
+        ->assertSee(__('store.review_count', ['count' => '2']))
+        ->assertSee('Fruit Pack')
+        ->assertSee('<img src=x onerror=alert(1)>')
+        ->assertSee('Fresh and fast')
+        ->assertSee('<script>alert("x")</script>')
+        ->assertSee('<script>alert("buyer")</script>')
+        ->assertSee('<script>alert("reply")</script>')
+        ->assertDontSee('<img src=x onerror=alert(1)>', false)
+        ->assertDontSee('<script>alert("x")</script>', false)
+        ->assertDontSee('<script>alert("buyer")</script>', false)
+        ->assertDontSee('<script>alert("reply")</script>', false)
+        ->assertDontSee('Hidden Account')
+        ->assertDontSee('Hidden review')
+        ->assertDontSee('Unfinished Item')
+        ->assertDontSee('Pending review');
+});
+
+it('shows an empty state when there are no visible purchased-product reviews', function () {
+    $this->get(route('reviews.index'))
+        ->assertSee(__('store.no_store_reviews'))
+        ->assertDontSee(__('store.review_count', ['count' => '0']));
+});
+
+it('does not show a rating bar before the store has completed-purchase reviews', function () {
     Http::preventStrayRequests();
-    Http::fake([
-        'places.googleapis.com/v1/places/place-id-123' => Http::response([], 503),
-    ]);
-    Log::spy();
 
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee(__('store.google_maps_profile'))
-        ->assertDontSee('/5');
+        ->assertDontSee('class="storefront-rating-banner"', false);
 
-    Log::shouldHaveReceived('warning')
-        ->once()
-        ->with('Google Maps rating request returned an unsuccessful response.', [
-            'place_id' => 'place-id-123',
-            'status' => 503,
-        ]);
+    Http::assertNothingSent();
 });
 
 it('renders storefront footer links with only active payment methods and configured contacts', function () {
@@ -87,8 +130,6 @@ it('renders storefront footer links with only active payment methods and configu
         'store.admin_phone' => '+60123456789',
         'store.social_links.tiktok' => 'https://www.tiktok.com/@meoxstore',
         'store.social_links.threads' => 'javascript:alert(1)',
-        'services.google_maps.places_api_key' => null,
-        'services.google_maps.place_id' => null,
     ]);
     PaymentSetting::query()->create([
         'type' => 'bank_transfer',
@@ -124,8 +165,6 @@ it('renders storefront footer links with only active payment methods and configu
 it('embeds the configured Meoxstore map on the contact page', function () {
     config([
         'services.google_maps.embed_url' => 'https://www.google.com/maps?q=-8.5723901%2C115.3047109&z=17&output=embed',
-        'services.google_maps.places_api_key' => null,
-        'services.google_maps.place_id' => null,
     ]);
     Http::preventStrayRequests();
 
@@ -138,25 +177,65 @@ it('embeds the configured Meoxstore map on the contact page', function () {
     Http::assertNothingSent();
 });
 
-it('shows the live Google Maps rating over the contact map when Places API credentials are configured', function () {
-    config([
-        'services.google_maps.places_api_key' => 'restricted-test-key',
-        'services.google_maps.place_id' => 'place-id-123',
-        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
+it('excludes hidden reviews and reviews without a completed customer order from the average', function () {
+    $buyer = User::factory()->create(['is_admin' => false]);
+    $product = Product::factory()->create(['status' => 'active']);
+
+    foreach ([
+        ['status' => 'completed', 'customer_completed' => true, 'rating' => 4, 'is_hidden' => false],
+        ['status' => 'completed', 'customer_completed' => true, 'rating' => 5, 'is_hidden' => true],
+        ['status' => 'pending', 'customer_completed' => false, 'rating' => 1, 'is_hidden' => false],
+        ['status' => 'completed', 'customer_completed' => false, 'rating' => 1, 'is_hidden' => false],
+    ] as $reviewData) {
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => $reviewData['status'],
+            'total' => '10000.00',
+            'completed_at' => $reviewData['status'] === 'completed' ? now() : null,
+            'customer_completed_at' => $reviewData['customer_completed'] ? now() : null,
+        ]);
+        ProductReview::query()->create([
+            'product_id' => $product->id,
+            'user_id' => $buyer->id,
+            'order_id' => $order->id,
+            'rating' => $reviewData['rating'],
+            'is_hidden' => $reviewData['is_hidden'],
+        ]);
+    }
+
+    Http::preventStrayRequests();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee(__('store.store_rating_summary', ['rating' => '4']))
+        ->assertDontSee(__('store.store_rating_review_count', ['count' => '1']));
+
+    Http::assertNothingSent();
+});
+
+it('shows the website review rating above the logo on the contact page without a Maps rating', function () {
+    $buyer = User::factory()->create(['is_admin' => false]);
+    $product = Product::factory()->create(['status' => 'active']);
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'completed',
+        'total' => '10000.00',
+        'completed_at' => now(),
+        'customer_completed_at' => now(),
+    ]);
+    ProductReview::query()->create([
+        'product_id' => $product->id,
+        'user_id' => $buyer->id,
+        'order_id' => $order->id,
+        'rating' => 5,
     ]);
     Http::preventStrayRequests();
-    Http::fake([
-        'places.googleapis.com/v1/places/place-id-123' => Http::response([
-            'rating' => 4.8,
-            'userRatingCount' => 126,
-        ]),
-    ]);
 
     $this->get(route('contact'))
-        ->assertSee('class="contact-google-rating"', false)
-        ->assertSee('4.8/5')
-        ->assertSee('126')
-        ->assertSee('https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6');
+        ->assertSee(__('store.store_rating_summary', ['rating' => '5']))
+        ->assertDontSee('class="contact-google-rating"', false);
+
+    Http::assertNothingSent();
 });
 
 it('shows a Malaysia QRIS warning for IDR checkout when QRIS is available', function () {
@@ -724,11 +803,34 @@ it('shows the sales journey on the about page in every supported language', func
         $response = $this->withSession(['locale' => $locale])->get(route('about'));
 
         $response->assertSee('Our Journey');
+        $response->assertSee(__('store.about_repeat_purchases'));
+        $response->assertSee('fa-chess-knight', false);
+        $response->assertSee('fa-seedling', false);
+        $response->assertSee('fa-cubes', false);
         foreach (array_keys($milestones) as $year) {
             $response->assertSee($year);
             $response->assertSee($milestones[$year]);
         }
     }
+});
+
+it('renders scrollable testimonial links and an embedded Instagram post on the about page', function () {
+    config([
+        'store.about_testimonials.telegram_url' => 'https://t.me/meofeedback',
+        'store.about_testimonials.whatsapp_url' => 'https://whatsapp.com/channel/0029VayXeYP6BIEf1OAxs63A',
+        'services.google_maps.profile_url' => 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6',
+        'store.about_testimonials.instagram_post_url' => 'https://www.instagram.com/p/C9ZykuFpUfy/',
+    ]);
+
+    $this->get(route('about'))
+        ->assertOk()
+        ->assertSee('about-testimonials-scroller', false)
+        ->assertSee('href="https://t.me/meofeedback"', false)
+        ->assertSee('href="https://whatsapp.com/channel/0029VayXeYP6BIEf1OAxs63A"', false)
+        ->assertSee('href="https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6"', false)
+        ->assertSee('data-instgrm-permalink="https://www.instagram.com/p/C9ZykuFpUfy/"', false)
+        ->assertSee('https://www.instagram.com/embed.js', false)
+        ->assertSee('rel="noopener noreferrer"', false);
 });
 
 it('lets an administrator manage payment method details', function () {

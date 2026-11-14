@@ -24,7 +24,7 @@
         ])
         <link rel="stylesheet"href="https://unpkg.com/swiper@7/swiper-bundle.min.css"/>
         <style>
-            .home-trending-items .shop-product-card { background: #fff; border: 1px solid #e6eaf2; box-shadow: 0 12px 30px rgba(30, 56, 90, .07); display: flex; flex-direction: column; height: 100%; position: relative; transition: transform .2s ease, box-shadow .2s ease; width: 100%; }
+            .home-trending-items .shop-product-card { background: #fff; border: 1px solid #e6eaf2; box-shadow: 0 12px 30px rgba(30, 56, 90, .07); display: flex; flex-direction: column; height: auto; position: relative; transition: transform .2s ease, box-shadow .2s ease; width: 100%; }
             .home-trending-items .shop-product-card .thumb { aspect-ratio: 1 / 1; flex: 0 0 auto; overflow: hidden; position: relative; }
             .home-trending-items .shop-product-card .thumb > a, .home-trending-items .shop-product-card .thumb img { display: block; height: 100%; width: 100%; }
             .home-trending-items .shop-product-card .thumb img { object-fit: cover; }
@@ -33,16 +33,16 @@
             .home-trending-items .shop-product-badge--promo, .home-trending-items .shop-product-badge--discount { background: #ee626b; }
             .home-trending-items .shop-product-badge--trending { background: #0071f8; }
             .home-trending-items .shop-product-badge--hot { background: #f97316; }
-            .home-trending-items .shop-product-card .down-content { display: flex; flex: 1; flex-direction: column; }
+            .home-trending-items .shop-product-card .down-content { display: flex; flex: 0 0 auto; flex-direction: column; padding: 12px; }
             .home-trending-items .shop-product-card .down-content .category { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .home-trending-items .shop-product-card .down-content h4 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.4; max-height: 2.8em; min-height: 2.8em; overflow: hidden; }
-            .home-trending-items .shop-product-price { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 10px; }
+            .home-trending-items .shop-product-card .down-content h4 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 16px !important; line-height: 1.3; max-height: 2.6em; min-height: 2.6em; overflow: hidden; text-overflow: ellipsis; }
+            .home-trending-items .shop-product-price { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 12px; }
             .home-trending-items .shop-product-price-current { color: #0071f8; font-size: 18px; font-weight: 700; }
             .home-trending-items .shop-product-price-before { color: #8790a0; font-size: 12px; text-decoration: line-through; }
-            .home-trending-items .shop-product-stats { align-items: flex-start; color: #727b89; display: flex; flex-direction: column; font-size: 12px; gap: 3px; margin-top: auto; padding-top: 8px; }
-            .home-trending-items .shop-product-rating-line { align-items: center; display: flex; gap: 12px; }
+            .home-trending-items .shop-product-stats { align-items: flex-start; color: #727b89; display: flex; flex-direction: column; font-size: 12px; gap: 3px; margin-top: 8px; padding-top: 0; }
+            .home-trending-items .shop-product-rating-line { align-items: center; display: flex; gap: 8px; justify-content: space-between; width: 100%; }
             .home-trending-items .shop-product-rating { align-items: center; color: #edae22; display: inline-flex; gap: 4px; white-space: nowrap; }
-            .home-trending-items .shop-product-rating-count, .home-trending-items .shop-rating-empty { color: #727b89; }
+            .home-trending-items .shop-product-rating-value, .home-trending-items .shop-rating-empty { color: #727b89; }
             .home-category-grid { display: grid; gap: 24px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
             .home-category-card { background: #fff; border: 1px solid #e6eaf2; border-radius: 14px; height: 100%; overflow: hidden; }
             .home-category-card-image { display: block; }
@@ -118,33 +118,6 @@
 
     <div class="main-banner">
         <div class="container">
-        @if (is_string($googleMapsProfileUrl) && $googleMapsProfileUrl !== '')
-            <div class="home-google-rating-wrap">
-                <a
-                    class="home-google-rating"
-                    href="{{ $googleMapsProfileUrl }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    @if ($googleMapsRating !== null)
-                        aria-label="{{ __('store.google_rating_summary', [
-                            'rating' => number_format($googleMapsRating['rating'], 1),
-                            'count' => number_format($googleMapsRating['user_rating_count']),
-                        ]) }} — {{ __('store.footer_google_maps') }}"
-                    @endif
-                >
-                    @if ($googleMapsRating !== null)
-                        <span class="home-google-rating-star" aria-hidden="true">★</span>
-                        <span>{{ __('store.google_rating_summary', [
-                            'rating' => number_format($googleMapsRating['rating'], 1),
-                            'count' => number_format($googleMapsRating['user_rating_count']),
-                        ]) }}</span>
-                        <span class="home-google-rating-source">{{ __('store.footer_google_maps') }}</span>
-                    @else
-                        <span>{{ __('store.google_maps_profile') }}</span>
-                    @endif
-                </a>
-            </div>
-        @endif
         <div class="row">
             <div class="col-lg-6 align-self-center">
             <div class="caption header-text">
@@ -174,7 +147,7 @@
             </div>
             <div>
                 <span class="home-store-stat-label">{{ __('store.robux_sold') }}</span>
-                <strong class="home-store-stat-value">{{ $robuxSoldDisplay }} Bobux</strong>
+                <strong class="home-store-stat-value">{{ $robuxSoldDisplay }}+ Bobux</strong>
             </div>
             <div>
                 <span class="home-store-stat-label">{{ __('store.order_queue') }}</span>
@@ -250,10 +223,12 @@
             </div>
             @forelse ($trendingItems as $product)
                 @php
-                    $startingPrice = $product->variants->min(
+                    $availableVariants = $product->variants->where('stock', '>', 0);
+                    $priceVariants = $availableVariants->isNotEmpty() ? $availableVariants : $product->variants;
+                    $startingPrice = $priceVariants->min(
                         fn ($variant) => $product->priceInIdr((float) $variant->price, $currencyRates),
                     );
-                    $startingPriceBeforeDiscount = $product->variants->min(
+                    $startingPriceBeforeDiscount = $priceVariants->min(
                         fn ($variant) => $product->priceBeforeDiscountInIdr((float) $variant->price, $currencyRates),
                     );
                     $stockCount = $product->variants->sum('stock');
@@ -291,13 +266,11 @@
                             <div class="shop-product-stats">
                                 <span>{{ __('store.stock_count', ['count' => number_format($stockCount)]) }}</span>
                                 <div class="shop-product-rating-line">
-                                    <span class="shop-product-rating" aria-label="{{ __('store.rating_out_of_five', ['rating' => number_format((float) ($product->reviews_avg_rating ?? 0), 1)]) }}">
-                                        @for ($star = 1; $star <= 5; $star++)
-                                            <span @class(['shop-rating-empty' => $star > round((float) ($product->reviews_avg_rating ?? 0))])>★</span>
-                                        @endfor
-                                        <span class="shop-product-rating-count">{{ number_format((float) ($product->reviews_avg_rating ?? 0), 1) }} ({{ $product->reviews_count }})</span>
-                                    </span>
                                     <span>{{ __('store.sold_count', ['count' => number_format((int) ($product->sold_quantity ?? 0))]) }}</span>
+                                    <span class="shop-product-rating" aria-label="{{ __('store.rating_out_of_five', ['rating' => number_format((float) ($product->reviews_avg_rating ?? 0), 1)]) }}">
+                                        <span @class(['shop-product-rating-star', 'shop-rating-empty' => round((float) ($product->reviews_avg_rating ?? 0)) < 1]) aria-hidden="true">★</span>
+                                        <span class="shop-product-rating-value">{{ number_format((float) ($product->reviews_avg_rating ?? 0), 1) }}</span>
+                                    </span>
                                 </div>
                             </div>
                         </div>

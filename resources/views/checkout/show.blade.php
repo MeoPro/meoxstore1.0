@@ -35,12 +35,12 @@
         .checkout-total { align-items: center; display: flex; justify-content: space-between; padding-top: 18px; }
         .checkout-total strong { color: #182230; font-size: 20px; }
         .checkout-contact-note { color: #77818e; font-size: 13px; line-height: 1.6; margin: -6px 0 18px; }
-        .payment-method { align-items: center; background: #fff; border: 1px solid #e7ebef; border-radius: 9px; cursor: pointer; display: flex; min-height: 76px; padding: 14px; transition: border-color .15s, background-color .15s; }
+        .payment-method { align-items: center; background: #fff; border: 1px solid #e7ebef; border-radius: 9px; cursor: pointer; display: flex; min-height: 64px; padding: 10px 14px; transition: border-color .15s, background-color .15s; }
         .payment-method:has(input:checked) { background: #f3f8ff; border-color: #4d9ce0; }
         .payment-method + .payment-method { margin-top: 9px; }
         .payment-method-choice { align-items: center; display: flex; gap: 14px; width: 100%; }
         .payment-method-choice input { flex: 0 0 auto; margin: 0; }
-        .payment-method-logo { flex: 0 0 56px; height: 44px; object-fit: contain; width: 56px; }
+        .payment-method-logo { flex: 0 0 44px; height: 30px; object-fit: contain; width: 44px; }
         .payment-method-name { color: #182230; font-size: 15px; }
         .checkout-submit { background: #009b69; border: 0; border-radius: 8px; color: #fff; font-weight: 650; min-height: 48px; }
         .checkout-submit:hover { background: #00845a; color: #fff; }

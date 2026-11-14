@@ -54,10 +54,14 @@ return [
     ],
 
     'google_maps' => [
-        'places_api_key' => env('GOOGLE_MAPS_PLACES_API_KEY'),
-        'place_id' => env('GOOGLE_MAPS_PLACE_ID'),
         'profile_url' => env('GOOGLE_MAPS_PROFILE_URL', 'https://maps.app.goo.gl/EDWrmX65TUEFuuKJ6'),
         'embed_url' => env('GOOGLE_MAPS_EMBED_URL', 'https://www.google.com/maps?q=-8.5723901%2C115.3047109&z=17&output=embed'),
+    ],
+
+    'google_business_profile' => [
+        'client_id' => env('GOOGLE_BUSINESS_PROFILE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_BUSINESS_PROFILE_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_BUSINESS_PROFILE_REDIRECT_URI'),
     ],
 
 ];

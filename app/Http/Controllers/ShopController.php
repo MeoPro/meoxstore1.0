@@ -9,6 +9,7 @@ use App\Models\ProductCurrencyRate;
 use App\Models\ProductVariant;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
 
 class ShopController extends Controller
@@ -48,7 +49,7 @@ class ShopController extends Controller
             ? GameCategory::query()->where('status', 'active')->find($selectedGameCategoryId)
             : null;
 
-        $itemCategories = ItemCategory::query()
+        $availableItemCategories = ItemCategory::query()
             ->where('status', 'active')
             ->whereHas('products', function (Builder $query) use ($activeVariants, $selectedGameCategoryId): void {
                 $query->where('status', 'active')
@@ -57,12 +58,21 @@ class ShopController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'name']);
-        $selectedItemCategory = $itemCategories->firstWhere('id', $request->integer('item_category'));
+        $selectedItemCategory = $availableItemCategories->firstWhere('id', $request->integer('item_category'));
+        $selectedItemCategoryIds = $selectedItemCategory === null
+            ? []
+            : $availableItemCategories
+                ->filter(fn (ItemCategory $itemCategory): bool => $itemCategory->localizedName() === $selectedItemCategory->localizedName())
+                ->pluck('id')
+                ->all();
+        $itemCategories = $availableItemCategories
+            ->unique(fn (ItemCategory $itemCategory): string => $itemCategory->localizedName())
+            ->values();
 
         $productQuery = Product::query()
             ->where('status', 'active')
             ->when($selectedGameCategoryId > 0, fn (Builder $query) => $query->where('game_category_id', $selectedGameCategoryId))
-            ->when($selectedItemCategory !== null, fn (Builder $query) => $query->where('item_category_id', $selectedItemCategory->id))
+            ->when($selectedItemCategory !== null, fn (Builder $query) => $query->whereIn('item_category_id', $selectedItemCategoryIds))
             ->when($searchTerm !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$searchTerm.'%'))
             ->whereHas('variants', $activeVariants);
 
@@ -165,6 +175,16 @@ SQL;
             ->selectRaw('MIN('.$minimumPriceExpression.')', $priceBindings)
             ->leftJoin('item_categories', 'item_categories.id', '=', 'products.item_category_id')
             ->whereColumn('product_variants.product_id', 'products.id')
-            ->where('product_variants.status', 'active');
+            ->where('product_variants.status', 'active')
+            ->where(function (Builder $query): void {
+                $query->where('product_variants.stock', '>', 0)
+                    ->orWhereNotExists(function (QueryBuilder $availableVariants): void {
+                        $availableVariants->selectRaw('1')
+                            ->from('product_variants as available_variants')
+                            ->whereColumn('available_variants.product_id', 'products.id')
+                            ->where('available_variants.status', 'active')
+                            ->where('available_variants.stock', '>', 0);
+                    });
+            });
     }
 }

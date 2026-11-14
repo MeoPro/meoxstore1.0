@@ -5,6 +5,7 @@ use App\Models\ItemCategory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductCurrencyRate;
+use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -46,12 +47,51 @@ it('shows active products with game category, image, and starting price', functi
         ->assertSee('data-shop-currency="idr"', false)
         ->assertSee('data-myr="RM 11.10"', false)
         ->assertSee('data-usd="$2.65"', false)
+        ->assertSee('placeholder="10,000"', false)
         ->assertSee(route('product-details.show', $product), false)
         ->assertDontSee('data-cart-add', false)
         ->assertDontSee('shop-add-cart', false)
         ->assertDontSee('shop-buy', false)
         ->assertDontSee('shop-view-product', false)
         ->assertDontSee('Draft Product');
+});
+
+it('uses the cheapest available variant for shop prices and price filters', function () {
+    $soldOutProduct = Product::factory()->create(['name' => 'Sold-out fallback']);
+    $soldOutProduct->variants()->firstOrFail()->update([
+        'price' => '7000.00',
+        'stock' => 0,
+    ]);
+
+    $middlePriceProduct = Product::factory()->create(['name' => 'Middle available']);
+    $middlePriceProduct->variants()->firstOrFail()->update([
+        'price' => '25000.00',
+        'stock' => 2,
+    ]);
+
+    $availableVariantProduct = Product::factory()->create(['name' => 'Cheapest available variant']);
+    $availableVariantProduct->variants()->firstOrFail()->update([
+        'price' => '10000.00',
+        'stock' => 0,
+    ]);
+    ProductVariant::factory()->for($availableVariantProduct)->create([
+        'price' => '50000.00',
+        'stock' => 3,
+    ]);
+
+    $this->get(route('shop', ['sort' => 'price_asc']))
+        ->assertViewHas('products', fn ($products): bool => $products->getCollection()->pluck('name')->all() === [
+            'Sold-out fallback',
+            'Middle available',
+            'Cheapest available variant',
+        ])
+        ->assertSee('data-idr="Rp 50,000"', false)
+        ->assertDontSee('data-idr="Rp 10,000"', false);
+
+    $this->get(route('shop', ['min_price' => '40000', 'max_price' => '60000']))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee('Cheapest available variant')
+        ->assertDontSee('Middle available');
 });
 
 it('rounds converted product prices to the nearest five cents', function (string $idrPrice, string $expectedPrice) {
@@ -134,6 +174,10 @@ it('shows the most purchased active items on the homepage using completed order 
         'status' => 'inactive',
     ]);
     $mostPurchased->variants()->firstOrFail()->update(['price' => '1000.00', 'stock' => 8]);
+    ProductVariant::factory()->for($mostPurchased)->create([
+        'price' => '500.00',
+        'stock' => 0,
+    ]);
 
     $recordOrderItem = function (Product $product, string $status, int $quantity) use ($buyer): void {
         $variant = $product->variants()->firstOrFail();
@@ -171,6 +215,7 @@ it('shows the most purchased active items on the homepage using completed order 
         ->assertSee(__('store.discount_badge', ['percent' => '10']))
         ->assertSee('Rp 1,000')
         ->assertSee('Rp 900')
+        ->assertDontSee('Rp 450')
         ->assertSee(__('store.stock_count', ['count' => '8']))
         ->assertSee(__('store.items_sold'))
         ->assertSee(__('store.home_system_online'))
@@ -581,6 +626,7 @@ it('filters by the selected currency using the discounted item category price', 
         ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
         ->assertSee('Discounted Bobux')
         ->assertSee('data-usd="$8.00"', false)
+        ->assertSee('placeholder="1.00"', false)
         ->assertDontSee('Outside Dollar Range');
 
     $this->get(route('shop', [
@@ -592,6 +638,7 @@ it('filters by the selected currency using the discounted item category price', 
         ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
         ->assertSee('Discounted Bobux')
         ->assertSee('data-myr="RM 8.00"', false)
+        ->assertSee('placeholder="10.00"', false)
         ->assertDontSee('Outside Dollar Range');
 });
 
@@ -788,6 +835,47 @@ it('searches products only within the selected item category', function () {
         ->assertDontSee('Account Bundle')
         ->assertSee('name="item_category" value="'.$accountCategory->id.'"', false)
         ->assertSee('value="Account"', false);
+});
+
+it('shows one filter for duplicate localized item categories across games', function () {
+    $originalLocale = app()->getLocale();
+
+    try {
+        app()->setLocale('id');
+
+        $firstGame = GameCategory::factory()->create(['name' => 'Growtopia']);
+        $secondGame = GameCategory::factory()->create(['name' => 'Roblox']);
+        $firstAccountCategory = ItemCategory::factory()->create(['name' => 'Account']);
+        $secondAccountCategory = ItemCategory::factory()->create(['name' => 'Akun']);
+        Product::factory()->create([
+            'game_category_id' => $firstGame->id,
+            'item_category_id' => $firstAccountCategory->id,
+            'name' => 'Growtopia Account',
+            'status' => 'active',
+        ]);
+        Product::factory()->create([
+            'game_category_id' => $secondGame->id,
+            'item_category_id' => $secondAccountCategory->id,
+            'name' => 'Roblox Account',
+            'status' => 'active',
+        ]);
+
+        $this->get(route('shop'))
+            ->assertOk()
+            ->assertViewHas('itemCategories', fn ($categories): bool => $categories->count() === 1
+                && $categories->first()->localizedName() === 'Akun')
+            ->assertSee(route('shop', ['item_category' => $firstAccountCategory->id]), false)
+            ->assertSee('Growtopia Account')
+            ->assertSee('Roblox Account');
+
+        $this->get(route('shop', ['item_category' => $firstAccountCategory->id]))
+            ->assertViewHas('products', fn ($products): bool => $products->total() === 2)
+            ->assertViewHas('selectedItemCategory', fn ($category): bool => $category?->is($firstAccountCategory) ?? false)
+            ->assertSee('Growtopia Account')
+            ->assertSee('Roblox Account');
+    } finally {
+        app()->setLocale($originalLocale);
+    }
 });
 
 it('escapes the product search term in the search field', function () {
@@ -992,6 +1080,10 @@ it('lists all available games with an image and a link to their shop products', 
         ->assertOk()
         ->assertSee('Jelajahi semua game')
         ->assertSee('Blox Fruit')
+        ->assertSee(__('store.buyer_protection'))
+        ->assertSee(__('store.money_back_guarantee'))
+        ->assertSee(__('store.customer_service_availability'))
+        ->assertDontSee(__('store.account_security'))
         ->assertSee('Roblox')
         ->assertSee('Fisch')
         ->assertSee('2 produk tersedia')
@@ -1057,10 +1149,22 @@ it('shows product details with active variants and safely rendered description',
     $response
         ->assertOk()
         ->assertSee('<nav class="product-detail-breadcrumb"', false)
+        ->assertSeeInOrder([
+            '<nav class="product-detail-breadcrumb"',
+            '<div class="product-detail-highlights">',
+            '<div class="product-detail-panel">',
+            'data-product-price',
+            '<div class="product-detail-summary">',
+            '<div class="product-detail-rating"',
+        ], false)
+        ->assertSee('class="product-detail-rating-star"', false)
         ->assertSee('aria-current="page">Kitsune Fruit</li>', false)
         ->assertSee('href="'.route('shop', ['game' => $gameCategory->id]).'">Blox Fruit</a>', false)
         ->assertSee('Kitsune Fruit')
         ->assertSee('Blox Fruit')
+        ->assertDontSee('class="product-detail-category">Blox Fruit</span>', false)
+        ->assertDontSee('<div class="product-detail-meta">', false)
+        ->assertDontSee('<p class="product-purchase-product-name">Kitsune Fruit</p>', false)
         ->assertDontSee('Kategori item')
         ->assertSee('Rare in-game fruit.')
         ->assertSee('Physical')
@@ -1074,14 +1178,210 @@ it('shows product details with active variants and safely rendered description',
         ->assertSee('Beli')
         ->assertSee('Rp 40,000')
         ->assertSee('data-product-variant', false)
+        ->assertSee('id="product-description-copy"', false)
         ->assertDontSee('<select', false)
         ->assertSee('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;', false)
         ->assertDontSee('<script>alert("xss")</script>', false)
         ->assertDontSee('Hidden variant');
 
+    expect(substr_count($response->getContent(), 'class="product-detail-rating-star"'))->toBe(1);
+
     expect($response->getContent())->toMatch(
         '/<button(?=[^>]*value="'.$cheapestVariant->id.'")(?=[^>]*aria-pressed="true")[^>]*>/',
     );
+});
+
+it('selects the cheapest in-stock variant and disables sold-out variants', function () {
+    $product = Product::factory()->create(['name' => 'Stock-aware product']);
+    $soldOutVariant = $product->variants()->firstOrFail();
+    $soldOutVariant->update([
+        'name' => 'Sold out',
+        'price' => '10000.00',
+        'stock' => 0,
+    ]);
+    $availableVariant = ProductVariant::factory()->for($product)->create([
+        'name' => 'Available',
+        'price' => '50000.00',
+        'stock' => 2,
+    ]);
+
+    $response = $this->get(route('product-details.show', $product))
+        ->assertSee('Rp 50,000')
+        ->assertSee('aria-disabled="true"', false)
+        ->assertSee('aria-disabled="false"', false);
+
+    expect($response->getContent())
+        ->toMatch('/<button(?=[^>]*value="'.$soldOutVariant->id.'")(?=[^>]*aria-pressed="false")(?=[^>]*disabled)[^>]*>/')
+        ->and($response->getContent())
+        ->toMatch('/<button(?=[^>]*value="'.$availableVariant->id.'")(?=[^>]*aria-pressed="true")[^>]*>/');
+});
+
+it('shows example images for account listings on the product detail page', function () {
+    $product = Product::factory()->create([
+        'is_account_listing' => true,
+        'images' => ['products/account-main.jpg', 'products/account-example.jpg'],
+    ]);
+
+    $this->get(route('product-details.show', $product))
+        ->assertSeeInOrder([
+            '<nav class="product-detail-breadcrumb"',
+            '<div class="product-detail-highlights">',
+            '<ul class="product-detail-account-features"',
+            '<div class="product-detail-panel">',
+            'data-product-price',
+            '<div class="product-detail-summary">',
+            '<div class="product-detail-rating"',
+        ], false)
+        ->assertSee(__('store.account_image_examples'))
+        ->assertSee(__('store.account_security'))
+        ->assertSee(__('store.account_anti_hackback'))
+        ->assertSee(__('store.account_full_selection'))
+        ->assertSee('fa-shield', false)
+        ->assertSee('fa-user-secret', false)
+        ->assertSee('fa-check-circle', false)
+        ->assertSee('data-product-gallery-thumbnail', false)
+        ->assertSee('products/account-example.jpg');
+});
+
+it('shows account features for products in an account category', function () {
+    $accountCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    $product = Product::factory()->create([
+        'item_category_id' => $accountCategory->id,
+        'is_account_listing' => false,
+    ]);
+
+    $this->get(route('product-details.show', $product))
+        ->assertSee(__('store.account_security'))
+        ->assertSee(__('store.account_anti_hackback'))
+        ->assertSee(__('store.account_full_selection'));
+});
+
+it('shows a collapsible long description', function () {
+    $product = Product::factory()->create([
+        'description' => str_repeat('Detailed product information. ', 20),
+    ]);
+
+    $this->get(route('product-details.show', $product))
+        ->assertSee(__('store.show_more'))
+        ->assertSee('data-product-description-toggle', false)
+        ->assertSee('class="product-detail-description-copy "', false);
+});
+
+it('shows review rating distribution and latest reviews before recommendations', function () {
+    $product = Product::factory()->create([
+        'item_category_id' => ItemCategory::factory()->create(['name' => 'Fruit'])->id,
+    ]);
+    $recommendedProduct = Product::factory()->create([
+        'game_category_id' => $product->game_category_id,
+        'item_category_id' => $product->item_category_id,
+    ]);
+
+    foreach ([
+        ['rating' => 5, 'comment' => 'Five star review', 'is_hidden' => false],
+        ['rating' => 3, 'comment' => 'Three star review', 'is_hidden' => false],
+        ['rating' => 1, 'comment' => 'Hidden review', 'is_hidden' => true],
+    ] as $reviewData) {
+        $buyer = User::factory()->create(['is_admin' => false]);
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => 'completed',
+            'total' => '10000.00',
+            'completed_at' => now(),
+            'customer_completed_at' => now(),
+        ]);
+        ProductReview::query()->create([
+            'product_id' => $product->id,
+            'user_id' => $buyer->id,
+            'order_id' => $order->id,
+            'rating' => $reviewData['rating'],
+            'comment' => $reviewData['comment'],
+            'is_hidden' => $reviewData['is_hidden'],
+        ]);
+    }
+
+    $this->get(route('product-details.show', $product))
+        ->assertSeeInOrder([
+            'class="product-detail-buy"',
+            'id="reviews"',
+            'id="item-recommendations-heading"',
+        ], false)
+        ->assertSee('4.0')
+        ->assertSee('data-rating-row="5" data-rating-count="1"', false)
+        ->assertSee('data-rating-row="3" data-rating-count="1"', false)
+        ->assertSee('Five star review')
+        ->assertSee('Three star review')
+        ->assertDontSee('Hidden review');
+});
+
+it('orders recommended game and item categories by completed sales in carousels', function () {
+    $currentGame = GameCategory::factory()->create(['name' => 'Current game']);
+    $currentItemCategory = ItemCategory::factory()->create(['name' => 'Current category']);
+    Product::factory()->create([
+        'game_category_id' => $currentGame->id,
+        'item_category_id' => $currentItemCategory->id,
+    ]);
+
+    $popularGame = GameCategory::factory()->create(['name' => 'Popular game']);
+    $popularItemCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    $popularProduct = Product::factory()->create([
+        'game_category_id' => $popularGame->id,
+        'item_category_id' => $popularItemCategory->id,
+    ]);
+    $secondGame = GameCategory::factory()->create(['name' => 'Second game']);
+    $secondItemCategory = ItemCategory::factory()->create(['name' => 'Second category']);
+    $secondProduct = Product::factory()->create([
+        'game_category_id' => $secondGame->id,
+        'item_category_id' => $secondItemCategory->id,
+    ]);
+    $duplicatePopularItemCategory = ItemCategory::factory()->create(['name' => 'Akun']);
+    $duplicatePopularProduct = Product::factory()->create([
+        'game_category_id' => $secondGame->id,
+        'item_category_id' => $duplicatePopularItemCategory->id,
+    ]);
+
+    $unsoldGame = GameCategory::factory()->create(['name' => 'Unsold game']);
+    $unsoldItemCategory = ItemCategory::factory()->create(['name' => 'Unsold category']);
+    Product::factory()->create([
+        'game_category_id' => $unsoldGame->id,
+        'item_category_id' => $unsoldItemCategory->id,
+    ]);
+
+    $buyer = User::factory()->create();
+    $recordSale = function (Product $product, int $quantity) use ($buyer): void {
+        $variant = $product->variants()->firstOrFail();
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => 'completed',
+            'total' => 500,
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => $variant->name,
+            'quantity' => $quantity,
+            'unit_price' => 50,
+        ]);
+    };
+    $recordSale($popularProduct, 8);
+    $recordSale($secondProduct, 3);
+    $recordSale($duplicatePopularProduct, 2);
+
+    $this->get(route('product-details.show', Product::query()->where('game_category_id', $currentGame->id)->firstOrFail()))
+        ->assertViewHas('recommendedGames', fn ($categories): bool => $categories->pluck('id')->all() === [
+            $popularGame->id,
+            $secondGame->id,
+            $unsoldGame->id,
+        ])
+        ->assertViewHas('recommendedItemCategories', fn ($categories): bool => $categories->pluck('id')->all() === [
+            $popularItemCategory->id,
+            $secondItemCategory->id,
+            $unsoldItemCategory->id,
+        ])
+        ->assertSee('id="recommended-games-track"', false)
+        ->assertSee('id="recommended-item-categories-track"', false)
+        ->assertSee('data-recommendation-next', false)
+        ->assertSee(__('store.carousel_next'));
 });
 
 it('redirects the default product details page to the first active product', function () {

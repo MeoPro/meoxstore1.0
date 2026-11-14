@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\GameCategory;
 use App\Models\Product;
+use App\Models\ProductReview;
 use App\Models\StoreSetting;
 use Illuminate\Contracts\View\View as ViewContract;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,6 +32,17 @@ class AppServiceProvider extends ServiceProvider
         });
 
         View::composer('components.storefront-header', function (ViewContract $view): void {
+            $ratingStatistics = ProductReview::query()
+                ->where('is_hidden', false)
+                ->whereHas('order', fn (Builder $query) => $query
+                    ->where('status', 'completed')
+                    ->whereNotNull('customer_completed_at'))
+                ->toBase()
+                ->selectRaw('COUNT(*) as review_count, AVG(rating) as average_rating')
+                ->first();
+
+            $ratingCount = (int) $ratingStatistics->review_count;
+
             $salesByGame = Product::query()
                 ->join('order_items', 'order_items.product_id', '=', 'products.id')
                 ->join('orders', 'orders.id', '=', 'order_items.order_id')
@@ -57,6 +69,8 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'storefrontFeaturedGames' => $featuredGames,
                 'storefrontCartCount' => collect(session('cart', []))->sum(),
+                'storefrontRatingAverage' => $ratingCount > 0 ? (float) $ratingStatistics->average_rating : null,
+                'storefrontRatingCount' => $ratingCount,
             ]);
         });
     }

@@ -325,6 +325,8 @@
                 <p class="admin-nav-label">Settings</p>
                 <a href="{{ route('admin.rates.index') }}" class="{{ request()->routeIs('admin.rates.*') ? 'active' : '' }}">Rates</a>
                 <a href="{{ route('admin.payment-settings.index') }}" class="{{ request()->routeIs('admin.payment-settings.*') ? 'active' : '' }}">Payment Methods</a>
+                <a href="{{ route('admin.social-links.index') }}" class="{{ request()->routeIs('admin.social-links.*') ? 'active' : '' }}">Social Media</a>
+                <a href="{{ route('admin.google-business-profile.index') }}" class="{{ request()->routeIs('admin.google-business-profile.*') ? 'active' : '' }}">Google Reviews</a>
             </div>
         </nav>
         <div class="admin-rail-footer">

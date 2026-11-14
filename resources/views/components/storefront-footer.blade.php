@@ -27,12 +27,6 @@
                         <li><a href="{{ route('orders.lookup') }}">{{ __('store.footer_track_order') }}</a></li>
                     </ul>
                 </section>
-                <section aria-labelledby="storefront-footer-sellers">
-                    <h2 id="storefront-footer-sellers">{{ __('store.footer_sellers') }}</h2>
-                    <ul>
-                        <li><a href="{{ route('contact') }}">{{ __('store.footer_seller_contact') }}</a></li>
-                    </ul>
-                </section>
             </div>
             <section class="storefront-footer-payments" aria-labelledby="storefront-footer-payments-heading">
                 <h2 id="storefront-footer-payments-heading">{{ __('store.footer_payment_methods') }}</h2>
@@ -64,7 +58,9 @@
                                     rel="noopener noreferrer"
                                     aria-label="{{ $socialLink['label'] }}"
                                     title="{{ $socialLink['label'] }}">
-                                    @if ($socialLink['icon'] !== '')
+                                    @if ($socialLink['logo_url'] !== null)
+                                        <img src="{{ $socialLink['logo_url'] }}" alt="" loading="lazy">
+                                    @elseif ($socialLink['icon'] !== '')
                                         <i class="fa {{ $socialLink['icon'] }}" aria-hidden="true"></i>
                                     @else
                                         <span aria-hidden="true">{{ $socialLink['mark'] }}</span>

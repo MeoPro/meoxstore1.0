@@ -4,12 +4,14 @@ use App\Http\Controllers\Admin\BlogCategoryController;
 use App\Http\Controllers\Admin\BlogPostController;
 use App\Http\Controllers\Admin\BlogSidebarBlockController;
 use App\Http\Controllers\Admin\GameCategoryController;
+use App\Http\Controllers\Admin\GoogleBusinessProfileController;
 use App\Http\Controllers\Admin\ItemCategoryController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductCurrencyRateController;
 use App\Http\Controllers\Admin\ProductReviewController as AdminProductReviewController;
+use App\Http\Controllers\Admin\SocialLinkController;
 use App\Http\Controllers\Admin\StoreStatusController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -26,9 +28,8 @@ use App\Http\Controllers\ProductReviewController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\StoreReviewController;
 use App\Http\Controllers\TelegramWebhookController;
-use App\Services\GoogleMapsRatingService;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Route;
 
@@ -48,15 +49,11 @@ Route::get('/robots.txt', function (): Response {
 
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
 Route::get('/games', [GameCatalogController::class, 'index'])->name('games.index');
+Route::get('/reviews', [StoreReviewController::class, 'index'])->name('reviews.index');
 Route::get('/product-details', [ProductDetailsController::class, 'index'])->name('product-details');
 Route::get('/product-details/{product}', [ProductDetailsController::class, 'show'])->name('product-details.show');
 Route::view('/about', 'about')->name('about');
-Route::get('/contact', function (GoogleMapsRatingService $googleMapsRatingService): View {
-    return view('contact', [
-        'googleMapsRating' => $googleMapsRatingService->fetch(),
-        'googleMapsProfileUrl' => config('services.google_maps.profile_url'),
-    ]);
-})->name('contact');
+Route::view('/contact', 'contact')->name('contact');
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 Route::post('/telegram/webhook', TelegramWebhookController::class)->name('telegram.webhook');
 
@@ -112,6 +109,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::delete('reviews/{review}', [AdminProductReviewController::class, 'destroy'])->name('reviews.destroy');
     Route::post('payment-settings/bulk', [PaymentSettingsController::class, 'bulk'])->name('payment-settings.bulk');
     Route::resource('payment-settings', PaymentSettingsController::class)->except(['show']);
+    Route::resource('social-links', SocialLinkController::class)->except(['show']);
+    Route::get('google-business-profile', [GoogleBusinessProfileController::class, 'index'])
+        ->name('google-business-profile.index');
+    Route::get('google-business-profile/authorize', [GoogleBusinessProfileController::class, 'authorize'])
+        ->name('google-business-profile.authorize');
+    Route::get('google-business-profile/callback', [GoogleBusinessProfileController::class, 'callback'])
+        ->name('google-business-profile.callback');
+    Route::put('google-business-profile/location', [GoogleBusinessProfileController::class, 'updateLocation'])
+        ->name('google-business-profile.location.update');
+    Route::delete('google-business-profile', [GoogleBusinessProfileController::class, 'disconnect'])
+        ->name('google-business-profile.disconnect');
     Route::get('game-categories/{game_category}/item-categories', [GameCategoryController::class, 'itemCategories'])
         ->name('game-categories.item-categories');
     Route::post('game-categories/bulk', [GameCategoryController::class, 'bulk'])->name('game-categories.bulk');

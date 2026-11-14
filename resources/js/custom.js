@@ -5,6 +5,19 @@ const hidePreloader = function() {
     }
 };
 
+const productDescriptionToggle = document.querySelector('[data-product-description-toggle]');
+if (productDescriptionToggle) {
+	const description = document.querySelector('[data-product-description]');
+	productDescriptionToggle.addEventListener('click', function() {
+		const isExpanded = productDescriptionToggle.getAttribute('aria-expanded') === 'true';
+		description.classList.toggle('is-expanded', !isExpanded);
+		productDescriptionToggle.setAttribute('aria-expanded', String(!isExpanded));
+		productDescriptionToggle.textContent = isExpanded
+			? productDescriptionToggle.dataset.showMoreLabel
+			: productDescriptionToggle.dataset.showLessLabel;
+	});
+}
+
 const storefrontCurrencies = ['idr', 'myr', 'usd'];
 const storefrontCurrencyKey = 'meoxstore_currency';
 const currentUrl = new URL(window.location.href);
@@ -166,6 +179,8 @@ document.querySelectorAll('[data-storefront-shop-toggle]').forEach(function(togg
 		menu.classList.toggle('is-open', isOpen);
 		if (isOpen) {
 			menu.classList.remove('is-dismissed');
+		} else {
+			menu.classList.add('is-dismissed');
 		}
 		toggle.setAttribute('aria-expanded', String(isOpen));
 	};
@@ -421,6 +436,41 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 	updateProductVariant(document.querySelector('[data-product-variant][aria-pressed="true"]'));
 }
 
+document.querySelectorAll('[data-recommendation-carousel]').forEach(function(carousel) {
+	const track = carousel.querySelector('[data-recommendation-track]');
+	const controls = carousel.querySelector('[data-recommendation-controls]');
+	const previousButton = carousel.querySelector('[data-recommendation-previous]');
+	const nextButton = carousel.querySelector('[data-recommendation-next]');
+
+	if (!track || !controls || !previousButton || !nextButton) {
+		return;
+	}
+
+	const updateControls = function() {
+		const hasOverflow = track.scrollWidth > track.clientWidth + 1;
+		controls.hidden = !hasOverflow;
+		previousButton.disabled = track.scrollLeft <= 1;
+		nextButton.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+	};
+	const scrollTrack = function(direction) {
+		const firstCard = track.firstElementChild;
+		const cardWidth = firstCard ? firstCard.getBoundingClientRect().width : track.clientWidth;
+		const distance = Math.max(cardWidth, track.clientWidth - cardWidth);
+
+		track.scrollBy({ left: direction * distance, behavior: 'smooth' });
+	};
+
+	previousButton.addEventListener('click', function() {
+		scrollTrack(-1);
+	});
+	nextButton.addEventListener('click', function() {
+		scrollTrack(1);
+	});
+	track.addEventListener('scroll', updateControls, { passive: true });
+	window.addEventListener('resize', updateControls);
+	updateControls();
+});
+
 (function ($) {
 	
 	"use strict";
@@ -466,8 +516,9 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 	if (currencyToggle) {
 		const priceElements = document.querySelectorAll('[data-shop-price]');
 		const priceCurrencyLabels = document.querySelectorAll('[data-shop-filter-price-currency]');
-		const priceCurrencyInput = document.querySelector('[data-shop-filter-currency]');
+		const priceCurrencyInputs = document.querySelectorAll('[data-shop-filter-currency]');
 		const updateShopCurrency = function(currency, updateUrl) {
+			const currencyChanged = currency !== selectedStorefrontCurrency;
 			const shopUrl = updateUrl ? new URL(window.location.href) : null;
 			if (shopUrl) {
 				if (currency === 'idr') {
@@ -481,13 +532,22 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 					return value !== null && value !== '';
 				});
 				const hasPriceSort = ['price_asc', 'price_desc'].includes(shopUrl.searchParams.get('sort'));
-				if ((hasPriceFilter || hasPriceSort) && currency !== selectedStorefrontCurrency) {
+				if (currencyChanged && hasPriceFilter) {
+					shopUrl.searchParams.delete('min_price');
+					shopUrl.searchParams.delete('max_price');
+				}
+				if ((hasPriceFilter || hasPriceSort) && currencyChanged) {
 					persistStorefrontCurrency(currency);
 					window.location.assign(shopUrl.toString());
 					return;
 				}
 			}
 
+			if (currencyChanged) {
+				document.querySelectorAll('[data-shop-price-input]').forEach(function(input) {
+					input.value = '';
+				});
+			}
 			priceElements.forEach(function(price) {
 				price.textContent = price.dataset[currency];
 			});
@@ -497,9 +557,13 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 			priceCurrencyLabels.forEach(function(label) {
 				label.textContent = currency.toUpperCase();
 			});
-			if (priceCurrencyInput) {
-				priceCurrencyInput.value = currency;
-			}
+			document.querySelectorAll('[data-shop-price-input]').forEach(function(input) {
+				const placeholderKey = `placeholder${currency.charAt(0).toUpperCase()}${currency.slice(1)}`;
+				input.placeholder = input.dataset[placeholderKey];
+			});
+			priceCurrencyInputs.forEach(function(input) {
+				input.value = currency;
+			});
 			persistStorefrontCurrency(currency);
 
 			if (shopUrl) {

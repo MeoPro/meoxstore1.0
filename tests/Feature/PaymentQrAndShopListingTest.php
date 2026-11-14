@@ -168,7 +168,9 @@ it('shows product rating and only completed sales in the shop listing', function
     $this->get(route('shop'))
         ->assertOk()
         ->assertSee('Rated shop item')
-        ->assertSee('4.0 (1)')
+        ->assertSee('class="shop-product-rating-star" aria-hidden="true">★</span>', false)
+        ->assertSee('class="shop-product-rating-value">4.0</span>', false)
+        ->assertDontSee('4.0 (1)')
         ->assertSee(__('store.sold_count', ['count' => '2']))
         ->assertDontSee('shop-item-category', false)
         ->assertDontSee(__('store.variants'));

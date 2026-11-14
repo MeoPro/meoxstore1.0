@@ -35,6 +35,8 @@
       .shop-category-filter-row { justify-content: center; width: 100%; }
       .shop-category-filter-label { display: none; }
       .shop-discovery-controls { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 16px; max-width: 520px; width: 100%; }
+      .shop-sort-form { align-items: center; display: flex; gap: 8px; justify-content: center; margin: 0 auto 16px; max-width: 520px; width: 100%; }
+      .shop-sort-form > label { align-items: center; display: flex; flex: 1 1 auto; gap: 8px; margin: 0; min-width: 0; }
       .shop-disclosure { flex: 0 1 160px; max-width: 160px; min-width: 0; transition: flex-basis .3s ease, max-width .3s ease; }
       .shop-disclosure.is-open { flex: 1 1 340px; max-width: 340px; }
       .shop-disclosure-trigger { align-items: center; background: #fff; border: 1px solid #dfe5ec; border-radius: 999px; color: #334155; display: flex; gap: 10px; justify-content: center; min-height: 44px; padding: 10px 16px; transition: background .2s ease, border-color .2s ease, color .2s ease; width: 100%; }
@@ -49,9 +51,9 @@
       .shop-search-controls { align-items: center; display: flex; gap: 8px; width: 100%; }
       .shop-search-controls .form-control { flex: 1 1 auto; }
       .shop-price-filter-fields { align-items: end; display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .shop-price-filter-field, .shop-sort-field { min-width: 0; }
-      .shop-sort-field { grid-column: 1 / -1; }
-      .shop-price-filter-field > span, .shop-sort-field > span { color: #64748b; display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+      .shop-price-filter-field { min-width: 0; }
+      .shop-price-filter-field > span { color: #64748b; display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+      .shop-sort-form > label > span { color: #64748b; flex: 0 0 auto; font-size: 12px; font-weight: 600; }
       .shop-price-filter-buttons { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
       .shop-price-filter-buttons { grid-column: 1 / -1; }
       .shop-price-filter-buttons .btn { white-space: nowrap; }
@@ -59,11 +61,11 @@
       .shop-category-filter-row .trending-filter li { margin-top: 0; margin-bottom: 0; }
       .shop-category-filter-row .trending-filter li { flex: 0 0 auto; margin: 0; }
       .trending ul.trending-filter li[hidden] { display: none; }
-      .trending .shop-product-card { background: #fff; border: 1px solid #e6eaf2; box-shadow: 0 12px 30px rgba(30, 56, 90, .07); display: flex; flex-direction: column; height: 100%; position: relative; transition: transform .2s ease, box-shadow .2s ease; width: 100%; }
+      .trending .shop-product-card { background: #fff; border: 1px solid #e6eaf2; box-shadow: 0 12px 30px rgba(30, 56, 90, .07); display: flex; flex-direction: column; height: auto; position: relative; transition: transform .2s ease, box-shadow .2s ease; width: 100%; }
       @media (hover: hover) and (prefers-reduced-motion: no-preference) {
         .trending .shop-product-card:hover { box-shadow: 0 20px 42px rgba(30, 56, 90, .16); transform: scale(1.035); z-index: 2; }
       }
-      .shop-product-card .thumb { aspect-ratio: 1 / 1; flex: 0 0 auto; }
+      .shop-product-card .thumb { aspect-ratio: 4 / 3; flex: 0 0 auto; }
       .shop-product-card .thumb > a { display: block; height: 100%; }
       .shop-product-card .thumb > a > img { height: 100%; object-fit: cover; width: 100%; }
       .shop-product-badges { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 6px; left: 12px; position: absolute; right: 12px; top: 12px; z-index: 1; }
@@ -72,16 +74,17 @@
       .shop-product-badge--trending { background: #0071f8; }
       .shop-product-badge--hot { background: #f97316; }
       .shop-product-badge--discount { background: #ee626b; }
-      .shop-product-card .down-content { display: flex; flex: 1; flex-direction: column; }
+      .shop-product-card .down-content { display: flex; flex: 0 0 auto; flex-direction: column; }
       .shop-product-card .down-content .category { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .shop-product-card .down-content h4 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.4; max-height: 2.8em; min-height: 2.8em; overflow: hidden; }
-      .shop-product-price { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 10px; }
+      .trending .shop-product-card .down-content { padding: 12px; }
+      .trending .shop-product-card .down-content h4 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 16px !important; line-height: 1.3; max-height: 2.6em; min-height: 2.6em; overflow: hidden; text-overflow: ellipsis; }
+      .shop-product-price { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 12px; }
       .shop-product-price-current { color: #0071f8; font-size: 18px; font-weight: 700; }
       .shop-product-price-before { color: #8790a0; font-size: 12px; text-decoration: line-through; }
-      .shop-product-stats { align-items: flex-start; color: #727b89; display: flex; flex-direction: column; font-size: 12px; gap: 3px; margin-top: auto; padding-top: 8px; }
-      .shop-product-rating-line { align-items: center; display: flex; gap: 12px; }
-      .shop-product-rating { align-items: center; color: #edae22; display: inline-flex; gap: 4px; white-space: nowrap; }
-      .shop-product-rating-count { color: #727b89; }
+      .shop-product-stats { align-items: stretch; color: #727b89; display: flex; flex-direction: column; font-size: 12px; gap: 3px; margin-top: 8px; padding-top: 0; }
+      .shop-product-rating-line { align-items: center; display: flex; gap: 6px; justify-content: space-between; width: 100%; }
+      .shop-product-rating { align-items: center; color: #edae22; display: inline-flex; gap: 2px; white-space: nowrap; }
+      .shop-product-rating-value { color: #727b89; }
       .shop-product-rating .shop-rating-empty { color: #d8dde3; }
       .shop-product-list .trending-items { display: flex; }
       .shop-product-list > .trending-items { margin-bottom: 30px; }
@@ -96,8 +99,13 @@
         .shop-page-heading h3 { font-size: 22px; }
         .shop-page-section { margin-top: 24px; }
         .shop-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+        .shop-sort-form > label { align-items: stretch; flex-direction: column; gap: 5px; }
 
         .shop-product-list > .trending-items { width: 50%; }
+        .shop-product-rating-line { gap: 4px; }
+        .shop-product-rating, .shop-product-rating-value { font-size: 10.5px; }
+        .shop-product-rating { gap: 1px; }
+        .shop-product-rating-line > span:last-child { font-size: 11px; white-space: nowrap; }
       }
       @media (prefers-reduced-motion: reduce) {
         .shop-disclosure, .shop-disclosure-trigger, .shop-disclosure-panel { transition: none; }
@@ -190,7 +198,7 @@ https://templatemo.com/tm-589-lugx-gaming
                     <input type="hidden" name="max_price" value="{{ $maximumPriceFilter }}">
                   @endif
                   <input type="hidden" name="sort" value="{{ $selectedSort }}">
-                  <input type="hidden" name="currency" value="{{ $selectedCurrency }}">
+                  <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-shop-filter-currency>
                   <div class="shop-search-controls">
                     <label class="visually-hidden" for="product-search">{{ __('store.search_products') }}</label>
                     <input class="form-control" id="product-search" name="search" type="search" value="{{ $searchTerm }}" placeholder="{{ __('store.search_products') }}">
@@ -219,7 +227,7 @@ https://templatemo.com/tm-589-lugx-gaming
               >
                 <i class="fa fa-filter" aria-hidden="true"></i>
                 <span>{{ __('store.filter') }}</span>
-                @if ($minimumPriceFilter !== null || $maximumPriceFilter !== null || $selectedSort !== 'recommended')
+                @if ($minimumPriceFilter !== null || $maximumPriceFilter !== null)
                   <span class="shop-disclosure-status">{{ __('store.filter_active') }}</span>
                 @endif
               </button>
@@ -235,24 +243,15 @@ https://templatemo.com/tm-589-lugx-gaming
                     <input type="hidden" name="search" value="{{ $searchTerm }}">
                   @endif
                   <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-shop-filter-currency>
+                  <input type="hidden" name="sort" value="{{ $selectedSort }}">
                   <div class="shop-price-filter-fields">
                     <label class="shop-price-filter-field" for="product-min-price">
                       <span>{{ __('store.minimum_price') }} (<span data-shop-filter-price-currency>{{ strtoupper($selectedCurrency) }}</span>)</span>
-                      <input class="form-control" id="product-min-price" name="min_price" type="text" inputmode="decimal" maxlength="18" pattern="[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?|[0-9]+(\.[0-9]{1,2})?" placeholder="10,000" data-shop-price-input value="{{ $minimumPriceFilter }}">
+                      <input class="form-control" id="product-min-price" name="min_price" type="text" inputmode="decimal" maxlength="18" pattern="[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?|[0-9]+(\.[0-9]{1,2})?" placeholder="{{ match ($selectedCurrency) { 'myr' => '10.00', 'usd' => '1.00', default => '10,000' } }}" data-placeholder-idr="10,000" data-placeholder-myr="10.00" data-placeholder-usd="1.00" data-shop-price-input value="{{ $minimumPriceFilter }}">
                     </label>
                     <label class="shop-price-filter-field" for="product-max-price">
                       <span>{{ __('store.maximum_price') }} (<span data-shop-filter-price-currency>{{ strtoupper($selectedCurrency) }}</span>)</span>
-                      <input class="form-control" id="product-max-price" name="max_price" type="text" inputmode="decimal" maxlength="18" pattern="[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?|[0-9]+(\.[0-9]{1,2})?" placeholder="10,000" data-shop-price-input value="{{ $maximumPriceFilter }}">
-                    </label>
-                    <label class="shop-sort-field" for="shop-sort">
-                      <span>{{ __('store.sort_products') }}</span>
-                      <select class="form-control" id="shop-sort" name="sort">
-                        <option value="recommended" @selected($selectedSort === 'recommended')>{{ __('store.sort_recommended') }}</option>
-                        <option value="price_asc" @selected($selectedSort === 'price_asc')>{{ __('store.sort_price_ascending') }}</option>
-                        <option value="price_desc" @selected($selectedSort === 'price_desc')>{{ __('store.sort_price_descending') }}</option>
-                        <option value="best_selling" @selected($selectedSort === 'best_selling')>{{ __('store.sort_best_selling') }}</option>
-                        <option value="newest" @selected($selectedSort === 'newest')>{{ __('store.sort_newest') }}</option>
-                      </select>
+                      <input class="form-control" id="product-max-price" name="max_price" type="text" inputmode="decimal" maxlength="18" pattern="[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?|[0-9]+(\.[0-9]{1,2})?" placeholder="{{ match ($selectedCurrency) { 'myr' => '10.00', 'usd' => '1.00', default => '10,000' } }}" data-placeholder-idr="10,000" data-placeholder-myr="10.00" data-placeholder-usd="1.00" data-shop-price-input value="{{ $maximumPriceFilter }}">
                     </label>
                     <div class="shop-price-filter-buttons">
                       <button class="btn btn-outline-primary" type="submit">{{ __('store.apply_filters') }}</button>
@@ -271,6 +270,35 @@ https://templatemo.com/tm-589-lugx-gaming
               </div>
             </section>
           </div>
+          <form class="shop-sort-form" method="GET" action="{{ route('shop') }}" data-shop-category-sync>
+            @if ($selectedGameCategory)
+              <input type="hidden" name="game" value="{{ $selectedGameCategory->id }}">
+            @endif
+            @if ($selectedItemCategory)
+              <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
+            @endif
+            @if ($searchTerm !== '')
+              <input type="hidden" name="search" value="{{ $searchTerm }}">
+            @endif
+            @if ($minimumPriceFilter !== null)
+              <input type="hidden" name="min_price" value="{{ $minimumPriceFilter }}">
+            @endif
+            @if ($maximumPriceFilter !== null)
+              <input type="hidden" name="max_price" value="{{ $maximumPriceFilter }}">
+            @endif
+            <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-shop-filter-currency>
+            <label for="shop-sort">
+              <span>{{ __('store.sort_products') }}</span>
+              <select class="form-control" id="shop-sort" name="sort">
+                <option value="recommended" @selected($selectedSort === 'recommended')>{{ __('store.sort_recommended') }}</option>
+                <option value="price_asc" @selected($selectedSort === 'price_asc')>{{ __('store.sort_price_ascending') }}</option>
+                <option value="price_desc" @selected($selectedSort === 'price_desc')>{{ __('store.sort_price_descending') }}</option>
+                <option value="best_selling" @selected($selectedSort === 'best_selling')>{{ __('store.sort_best_selling') }}</option>
+                <option value="newest" @selected($selectedSort === 'newest')>{{ __('store.sort_newest') }}</option>
+              </select>
+            </label>
+            <button class="btn btn-outline-primary" type="submit">{{ __('store.apply_sort') }}</button>
+          </form>
           <div class="shop-category-filter-row">
             <span class="shop-category-filter-label">{{ __('store.item') }}</span>
             <ul class="trending-filter" aria-label="{{ __('store.filter_item_category') }}">
@@ -292,7 +320,7 @@ https://templatemo.com/tm-589-lugx-gaming
                 <li>
                   <a
                     data-shop-item-filter-link
-                    @class(['is_active' => $selectedItemCategory?->is($itemCategory)])
+                    @class(['is_active' => $selectedItemCategory?->localizedName() === $itemCategory->localizedName()])
                     href="{{ route('shop', [
                         'game' => $selectedGameCategory?->id,
                         'item_category' => $itemCategory->id,
@@ -313,22 +341,24 @@ https://templatemo.com/tm-589-lugx-gaming
         <div class="row trending-box shop-product-list">
           @forelse ($products as $product)
             @php
-              $minimumPrice = $product->variants->min(
+              $availableVariants = $product->variants->where('stock', '>', 0);
+              $priceVariants = $availableVariants->isNotEmpty() ? $availableVariants : $product->variants;
+              $minimumPrice = $priceVariants->min(
                 fn ($variant) => $product->priceInIdr((float) $variant->price, $currencyRates),
               );
-              $minimumPriceBeforeDiscount = $product->variants->min(
+              $minimumPriceBeforeDiscount = $priceVariants->min(
                 fn ($variant) => $product->priceBeforeDiscountInIdr((float) $variant->price, $currencyRates),
               );
-              $minimumMyrPrice = $product->variants->min(
+              $minimumMyrPrice = $priceVariants->min(
                 fn ($variant) => $product->priceInMyr((float) $variant->price, $currencyRates),
               );
-              $minimumMyrPriceBeforeDiscount = $product->variants->min(
+              $minimumMyrPriceBeforeDiscount = $priceVariants->min(
                 fn ($variant) => $product->priceBeforeDiscountInMyr((float) $variant->price, $currencyRates),
               );
-              $minimumUsdPrice = $product->variants->min(
+              $minimumUsdPrice = $priceVariants->min(
                 fn ($variant) => $product->priceInUsd((float) $variant->price, $currencyRates),
               );
-              $minimumUsdPriceBeforeDiscount = $product->variants->min(
+              $minimumUsdPriceBeforeDiscount = $priceVariants->min(
                 fn ($variant) => $product->priceBeforeDiscountInUsd((float) $variant->price, $currencyRates),
               );
             @endphp
@@ -386,13 +416,11 @@ https://templatemo.com/tm-589-lugx-gaming
                   <div class="shop-product-stats">
                     <span>{{ __('store.stock_count', ['count' => number_format($stockCount)]) }}</span>
                     <div class="shop-product-rating-line">
-                      <span class="shop-product-rating" aria-label="{{ __('store.rating_out_of_five', ['rating' => number_format((float) ($product->reviews_avg_rating ?? 0), 1)]) }}">
-                        @for ($star = 1; $star <= 5; $star++)
-                          <span class="{{ $star <= round((float) ($product->reviews_avg_rating ?? 0)) ? '' : 'shop-rating-empty' }}">★</span>
-                        @endfor
-                        <span class="shop-product-rating-count">{{ number_format((float) ($product->reviews_avg_rating ?? 0), 1) }} ({{ $product->reviews_count }})</span>
-                      </span>
                       <span>{{ __('store.sold_count', ['count' => number_format((int) ($product->sold_quantity ?? 0))]) }}</span>
+                      <span class="shop-product-rating" aria-label="{{ __('store.rating_out_of_five', ['rating' => number_format((float) ($product->reviews_avg_rating ?? 0), 1)]) }}">
+                        <span @class(['shop-product-rating-star', 'shop-rating-empty' => round((float) ($product->reviews_avg_rating ?? 0)) < 1]) aria-hidden="true">★</span>
+                        <span class="shop-product-rating-value">{{ number_format((float) ($product->reviews_avg_rating ?? 0), 1) }}</span>
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -2122,7 +2122,7 @@ body {
   font-weight: 600;
 }
 
-@media (min-width: 768px) and (max-width: 1400px) {
+@media (min-width: 768px) and (max-width: 1200px) {
   .header-area {
     height: 80px;
     padding: 0 15px;
@@ -2219,7 +2219,7 @@ body {
   }
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
   .header-area .main-nav .nav {
     max-height: calc(100vh - 100px);
     overflow-y: auto;
@@ -2236,7 +2236,9 @@ body {
   }
 
   .storefront-shop-trigger-row {
+    justify-content: center;
     min-height: 50px;
+    position: relative;
   }
 
   .storefront-shop-trigger-row.is-active {
@@ -2254,7 +2256,10 @@ body {
 
   .header-area .main-nav .nav .storefront-shop-trigger-row > a {
     min-height: 50px;
-    justify-content: space-between;
+    justify-content: center;
+    padding-left: 56px;
+    padding-right: 56px;
+    text-align: center;
   }
 
   .header-area .main-nav .nav .storefront-shop-menu .storefront-shop-toggle {
@@ -2262,10 +2267,11 @@ body {
     flex: 0 0 56px;
     height: 50px;
     margin: 0;
+    position: absolute;
+    right: 0;
     width: 56px;
   }
 
-  .storefront-shop-menu:focus-within .storefront-shop-dropdown,
   .storefront-shop-menu.is-open .storefront-shop-dropdown {
     display: block;
     opacity: 1;
@@ -2302,8 +2308,8 @@ body {
     border-radius: 0;
     height: 44px;
     line-height: 44px;
-    padding: 0 20px 0 36px;
-    text-align: left;
+    padding: 0 20px;
+    text-align: center;
   }
 
   .storefront-shop-dropdown .storefront-shop-dropdown-more {
@@ -2325,6 +2331,24 @@ body {
     border-color: #ddd;
     color: #1e1e1e;
     height: 42px;
+    justify-content: center;
+    margin: 0 auto;
     padding: 0 12px;
+  }
+
+  .storefront-language-switch,
+  .storefront-language-dropdown {
+    width: 100%;
+  }
+
+  .storefront-language-options {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+
+  .storefront-language-options button {
+    justify-content: center;
+    text-align: center;
   }
 }

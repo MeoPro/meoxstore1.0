@@ -20,15 +20,25 @@
     .product-detail-panel { padding: 28px; }
     .single-product .product-purchase-card { display: block; padding: clamp(26px, 3vw, 38px); width: 100%; }
     .product-purchase-card h2 { color: #182230; font-size: clamp(24px, 2.2vw, 30px); font-weight: 700; letter-spacing: -.6px; margin-bottom: 8px; }
-    .product-purchase-product-name { color: #7a8493; font-size: 15px; margin-bottom: 24px; overflow-wrap: anywhere; }
     .product-detail-image { align-items: center; background: #f7f8fb; border-radius: 20px; display: flex; justify-content: center; min-height: 360px; overflow: hidden; }
     .product-detail-image img { height: 100%; max-height: 460px; object-fit: contain; width: 100%; }
     .product-detail-gallery { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); margin-top: 12px; }
+    .product-detail-gallery-heading { color: #303b4a; font-size: 14px; font-weight: 600; margin: 14px 0 0; }
     .product-detail-gallery button { background: #fff; border: 2px solid transparent; border-radius: 10px; cursor: pointer; overflow: hidden; padding: 0; }
     .product-detail-gallery button[aria-pressed="true"] { border-color: #0071f8; }
     .product-detail-gallery img { aspect-ratio: 1; display: block; object-fit: cover; width: 100%; }
-    .product-detail-category { color: #7a7a7a; font-size: 14px; }
     .product-detail-title { font-size: clamp(26px, 4vw, 38px); line-height: 1.25; margin: 12px 0; overflow-wrap: anywhere; }
+    .product-detail-highlights { margin: 0 0 24px; }
+    .product-detail-rating { align-items: center; color: #344054; display: flex; flex: 0 0 auto; font-size: 14px; gap: 6px; }
+    .product-detail-rating-star { color: #f3a712; font-size: 18px; line-height: 1; }
+    .product-detail-review-count { color: #778499; font-size: 13px; }
+    .product-detail-account-features { align-items: center; display: flex; flex-wrap: wrap; gap: 10px 18px; list-style: none; margin: 0; padding: 0; }
+    .product-detail-highlights .product-detail-account-features { margin: 0; }
+    .single-product .product-detail-account-features li { align-items: center; color: #111; display: flex; font-size: 13px; font-weight: 600; gap: 8px; }
+    .product-detail-highlights .product-detail-account-features li { margin: 0; }
+    .single-product .product-detail-account-features li span { color: #111; display: inline; width: auto; }
+    .product-detail-account-features i { color: #0071f8; font-size: 16px; }
+    .product-detail-account-features li:nth-child(2) i { color: #ee626b; }
     .product-detail-price { color: #0071f8; font-size: 30px; font-weight: 700; }
     .product-detail-controls { display: grid; gap: 16px; }
     .product-purchase-card .product-detail-controls { margin-bottom: 26px; }
@@ -47,7 +57,18 @@
     .single-product .product-detail-variant .product-detail-variant-stock { color: #1e1e1e; }
     .product-detail-variant:hover:not(:disabled) { border-color: #a7bdf7; transform: translateY(-1px); }
     .single-product .product-detail-controls .product-detail-variant[aria-pressed="true"] { background: #0071f8; border-color: #0071f8; box-shadow: 0 0 0 3px rgba(0, 113, 248, .16); }
-    .product-detail-variant:disabled { color: #999; cursor: not-allowed; }
+    .single-product .product-detail-variant:disabled,
+    .single-product .product-detail-variant:disabled:hover {
+      background: #f1f3f5;
+      border-color: #e4e7ec;
+      box-shadow: none;
+      color: #98a2b3;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .single-product .product-detail-variant:disabled .product-detail-variant-name,
+    .single-product .product-detail-variant:disabled .product-detail-variant-stock,
+    .single-product .product-detail-variant:disabled .product-detail-variant-bobux { color: #98a2b3; }
     .product-detail-variant-name { font-size: 14px; font-weight: 600; }
     .product-detail-variant-stock { color: #7a7a7a; font-size: 12px; margin-left: 12px; white-space: nowrap; }
     .product-detail-variant-bobux { color: #7a7a7a; display: block; font-size: 12px; }
@@ -58,14 +79,16 @@
     .product-detail-stars .is-empty, .review-stars .is-empty { color: #d8dde3; }
     .product-detail-sold { color: #7a7a7a; font-size: 13px; }
     .product-detail-description { color: #6a6a6a; line-height: 1.9; overflow-wrap: anywhere; white-space: pre-line; }
-    .product-detail-meta { border-top: 1px solid #eee; display: grid; gap: 12px; margin-top: 26px; padding-top: 20px; }
-    .product-detail-meta span { color: #7a7a7a; display: inline-block; min-width: 110px; }
-    .product-detail-meta strong { color: #1e1e1e; font-weight: 600; }
+    .product-detail-description-copy { max-height: 7.6em; overflow: hidden; position: relative; }
+    .product-detail-description-copy:not(.is-expanded)::after { background: linear-gradient(transparent, #f7f8fb); bottom: 0; content: ""; height: 2em; left: 0; pointer-events: none; position: absolute; right: 0; }
+    .product-detail-description-copy.is-expanded { max-height: none; }
+    .product-detail-description-toggle { background: none; border: 0; color: #0071f8; cursor: pointer; font-weight: 600; margin-top: 8px; padding: 0; }
     .product-detail-currency { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
     .product-detail-currency .btn { border-color: #ee626b; color: #ee626b; }
     .product-detail-currency .btn[aria-pressed="true"] { background: #ee626b; color: #fff; }
     .product-detail-description-card { background: #f7f8fb; border-radius: 20px; margin-top: 28px; padding: 28px; }
-    .product-detail-description-card h5 { margin-bottom: 14px; }
+    .product-detail-description-card h5 { margin-bottom: 6px; }
+    .product-detail-description-card .product-detail-description { margin-top: 0; }
     .product-detail-buy { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr); margin-top: 26px; }
     .product-detail-buy > div { min-width: 0; }
     .product-detail-buy label { color: #1e1e1e; display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -76,6 +99,17 @@
     .product-detail-buy button:hover { background: #0071f8; }
     .product-detail-buy button:disabled { cursor: not-allowed; opacity: .55; }
     .product-recommendations, .product-reviews { margin-top: 56px; }
+    .product-recommendation-header { align-items: flex-end; display: flex; gap: 16px; justify-content: space-between; }
+    .product-recommendation-header .section-heading { flex: 1 1 auto; margin-bottom: 0; min-width: 0; }
+    .product-recommendation-controls { display: flex; flex: 0 0 auto; gap: 8px; padding-bottom: 4px; }
+    .product-recommendation-controls[hidden] { display: none; }
+    .product-recommendation-controls button { align-items: center; background: #fff; border: 1px solid #dfe5ef; border-radius: 50%; color: #1769d2; cursor: pointer; display: inline-flex; font-size: 30px; height: 40px; justify-content: center; line-height: 1; padding: 0 0 4px; width: 40px; }
+    .product-recommendation-controls button:hover:not(:disabled) { background: #1769d2; border-color: #1769d2; color: #fff; }
+    .product-recommendation-controls button:focus-visible { outline: 3px solid rgba(23, 105, 210, .3); outline-offset: 2px; }
+    .product-recommendation-controls button:disabled { color: #aab4c2; cursor: not-allowed; }
+    .product-recommendation-track { display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 4px 3px 14px; scroll-snap-type: x mandatory; scrollbar-color: #9bb9e7 #edf2f8; scrollbar-width: thin; }
+    .product-recommendation-track > .product-recommendation-item,
+    .product-recommendation-track > .category-recommendation-item { flex: 0 0 calc((100% - 64px) / 5); max-width: calc((100% - 64px) / 5); min-width: 0; scroll-snap-align: start; }
     .review-rating { display: flex; flex-direction: row-reverse; gap: 5px; justify-content: flex-end; margin: 4px 0 14px; }
     .review-rating input { height: 1px; opacity: 0; position: absolute; width: 1px; }
     .review-rating label { color: #cbd3de; cursor: pointer; font-size: 30px; line-height: 1; transition: color .15s ease, transform .15s ease; }
@@ -102,7 +136,30 @@
     .category-recommendation-card img { aspect-ratio: 1 / 1; background: #f7f8fb; display: block; height: auto; object-fit: cover; width: 100%; }
     .category-recommendation-card h3 { font-size: 17px; padding: 16px; }
     .review-summary { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 14px; }
-    .review-card { background: #fff; border: 1px solid #eee; border-radius: 14px; margin-top: 14px; padding: 18px; }
+    .product-reviews { background: #fff; border: 1px solid #e6eaf2; border-radius: 18px; padding: 28px; }
+    .product-review-overview { align-items: center; border-bottom: 1px solid #e5e7eb; display: grid; gap: 24px; grid-template-columns: minmax(140px, .7fr) minmax(0, 3fr); padding-bottom: 24px; }
+    .product-review-average { align-items: center; display: flex; flex-direction: column; justify-content: center; }
+    .product-review-average-rating { align-items: center; display: flex; gap: 10px; }
+    .product-review-average-star { color: #f3a712; font-size: 34px; line-height: 1; }
+    .product-review-average-rating strong { color: #182230; font-size: 40px; line-height: 1; }
+    .product-review-average-count { color: #667085; font-size: 14px; margin-top: 8px; }
+    .product-review-distribution { display: grid; gap: 5px; }
+    .product-review-distribution-row { align-items: center; color: #4b5563; display: grid; gap: 8px; grid-template-columns: 16px 12px minmax(0, 1fr) 42px; }
+    .product-review-distribution-star { color: #f3a712; font-size: 18px; line-height: 1; }
+    .product-review-distribution-bar { background: #e5e7eb; border-radius: 99px; height: 10px; overflow: hidden; }
+    .product-review-distribution-bar span { background: #ffad00; border-radius: inherit; display: block; height: 100%; }
+    .product-review-distribution-count { color: #778499; font-size: 13px; text-align: right; }
+    .product-review-latest { margin-top: 20px; }
+    .product-review-latest h3 { color: #344054; font-size: 18px; margin: 0 0 14px; }
+    .product-review-list { display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 0 0 8px; scroll-snap-type: x mandatory; }
+    .product-review-card { background: #fff; border: 1px solid #dfe3e8; border-radius: 14px; flex: 0 0 min(370px, 85vw); min-height: 150px; padding: 20px; scroll-snap-align: start; }
+    .product-review-card-header { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
+    .product-review-card-name { color: #111; font-size: 14px; font-weight: 700; }
+    .product-review-card-date { color: #8992a1; font-size: 12px; white-space: nowrap; }
+    .product-review-card-stars { color: #f3a712; letter-spacing: 2px; margin-top: 8px; }
+    .product-review-card-stars .is-empty { color: #d8dde3; }
+    .product-review-card-comment { color: #526071; font-size: 14px; line-height: 1.65; margin: 10px 0 0; overflow-wrap: anywhere; }
+    .product-review-empty { color: #667085; margin: 0; }
     .review-form { background: #f7f8fb; border-radius: 18px; margin-top: 24px; padding: 24px; }
     .review-form .form-control, .review-form .form-select { border-color: #e7e7e7; border-radius: 10px; }
     .review-form button { background: #ee626b; border: 0; border-radius: 22px; color: #fff; font-weight: 600; padding: 10px 18px; }
@@ -125,8 +182,19 @@
     .product-detail-breadcrumb li + li::before { color: #667085; content: "›"; margin-right: 8px; }
     .product-detail-breadcrumb a { color: #667085; text-decoration: none; }
     .product-detail-breadcrumb a:hover { color: #0071f8; }
-    @media (min-width: 1200px) {
-      .product-recommendation-items > .product-recommendation-item { flex: 0 0 20%; max-width: 20%; }
+    .product-detail-page .header-area.header-has-storefront-rating ~ .single-product.section { margin-top: 160px; }
+    @media (min-width: 768px) and (max-width: 1199.98px) {
+      .product-recommendation-track > .product-recommendation-item,
+      .product-recommendation-track > .category-recommendation-item { flex-basis: calc((100% - 32px) / 3); max-width: calc((100% - 32px) / 3); }
+    }
+    @media (max-width: 767.98px) {
+      .product-recommendation-header { align-items: flex-start; }
+      .product-recommendation-track > .product-recommendation-item,
+      .product-recommendation-track > .category-recommendation-item { flex-basis: calc((100% - 16px) / 2); max-width: calc((100% - 16px) / 2); }
+      .product-reviews { padding: 20px; }
+      .product-review-overview { gap: 18px; grid-template-columns: 1fr; }
+      .product-review-average { align-items: flex-start; }
+      .product-review-average-rating { flex-direction: row; }
     }
     @media (max-width: 767.98px) {
       .product-detail-panel { padding: 18px; }
@@ -146,11 +214,18 @@
   <x-storefront-header />
 
   @php
+    $isAccountProduct = $product->is_account_listing
+        || in_array(
+            $product->itemCategory?->localizedName(),
+            [__('item_categories.account'), __('item_categories.akun')],
+            true,
+        );
     $productImages = array_map(
         fn ($image) => \Illuminate\Support\Facades\Storage::disk('public')->url($image),
         $product->galleryImages(),
     );
     $productImage = $productImages[0] ?? asset('images/trending-01.jpg');
+    $productDescription = $product->description ?: __('store.no_description');
     $selectedIdrPrice = 'Rp '.rtrim(rtrim(number_format($product->priceInIdr((float) $selectedVariant->price, $currencyRates), 2, '.', ','), '0'), '.');
     $robuxTransactionsDisabled = $product->usesRobuxPricing()
         && ! $currencyRates->bobuxTransactionsEnabled($product->bobuxType());
@@ -166,6 +241,23 @@
           <li aria-current="page">{{ $product->name }}</li>
         </ol>
       </nav>
+      @if ($isAccountProduct)
+        <div class="product-detail-highlights">
+          <ul class="product-detail-account-features" aria-label="{{ __('store.account_features') }}">
+            <li><i class="fa fa-shield" aria-hidden="true"></i><span>{{ __('store.account_security') }}</span></li>
+            <li><i class="fa fa-user-secret" aria-hidden="true"></i><span>{{ __('store.account_anti_hackback') }}</span></li>
+            <li><i class="fa fa-check-circle" aria-hidden="true"></i><span>{{ __('store.account_full_selection') }}</span></li>
+          </ul>
+        </div>
+      @else
+        <div class="product-detail-highlights">
+          <ul class="product-detail-account-features" aria-label="{{ __('store.product_benefits') }}">
+            <li><i class="fa fa-shield" aria-hidden="true"></i><span>{{ __('store.buyer_protection') }}</span></li>
+            <li><i class="fa fa-hand-holding-usd" aria-hidden="true"></i><span>{{ __('store.money_back_guarantee') }}</span></li>
+            <li><i class="fa fa-headset" aria-hidden="true"></i><span>{{ __('store.customer_service_availability') }}</span></li>
+          </ul>
+        </div>
+      @endif
       <div class="row align-items-start g-4">
         <div class="col-lg-7">
           <div class="product-detail-panel">
@@ -174,6 +266,9 @@
                   <div class="product-detail-image">
                     <img src="{{ $productImage }}" alt="{{ $product->name }}" data-product-gallery-main>
                   </div>
+                  @if ($isAccountProduct && count($productImages) > 1)
+                    <h2 class="product-detail-gallery-heading">{{ __('store.account_image_examples') }}</h2>
+                  @endif
                   @if (count($productImages) > 1)
                     <div class="product-detail-gallery" aria-label="Product images">
                       @foreach ($productImages as $image)
@@ -185,11 +280,10 @@
                   @endif
                 </div>
                 <div class="col-md-7">
-                  <span class="product-detail-category">{{ $product->gameCategory->name }}</span>
                   <h1 class="product-detail-title">{{ $product->name }}</h1>
 
                   <div class="product-detail-currency" data-product-currency-toggle role="group" aria-label="Pilih mata uang">
-                    <span class="product-detail-category">Mata uang:</span>
+                    <span class="text-muted">Mata uang:</span>
                     <button class="btn btn-sm" type="button" data-product-currency="idr" aria-pressed="{{ $selectedCurrency === 'idr' ? 'true' : 'false' }}">IDR</button>
                     <button class="btn btn-sm" type="button" data-product-currency="myr" aria-pressed="{{ $selectedCurrency === 'myr' ? 'true' : 'false' }}">RM</button>
                     <button class="btn btn-sm" type="button" data-product-currency="usd" aria-pressed="{{ $selectedCurrency === 'usd' ? 'true' : 'false' }}">USD</button>
@@ -200,24 +294,35 @@
                       default => $selectedIdrPrice,
                   } }}</div>
                   <div class="product-detail-summary">
-                    <div class="review-summary">
-                      <span class="product-detail-stars" aria-label="Rating {{ number_format($averageRating, 1) }} dari 5">
-                        @for ($star = 1; $star <= 5; $star++)
-                          <span class="{{ $star <= round($averageRating) ? '' : 'is-empty' }}">★</span>
-                        @endfor
-                      </span>
-                      <span class="product-detail-sold">{{ number_format($averageRating, 1) }} ({{ __('store.review_count', ['count' => $reviewCount]) }})</span>
+                    <div class="product-detail-rating" aria-label="Rating {{ number_format($averageRating, 1) }} dari 5">
+                      <span class="product-detail-rating-star" aria-hidden="true">★</span>
+                      <span>{{ number_format($averageRating, 1) }}</span>
+                      <span class="product-detail-review-count">({{ __('store.review_count', ['count' => $reviewCount]) }})</span>
                     </div>
                     <span class="product-detail-sold">{{ __('store.sold_count', ['count' => number_format($soldCount)]) }}</span>
                   </div>
 
-                  <div class="product-detail-meta">
-                    <div><span>{{ __('store.game') }}</span><strong>{{ $product->gameCategory->name }}</strong></div>
-                  </div>
                 </div>
                 <section class="product-detail-description-card" aria-labelledby="product-description-heading">
                   <h5 id="product-description-heading">{{ __('store.description') }}</h5>
-                  <p class="product-detail-description mb-0">{{ $product->description ?: __('store.no_description') }}</p>
+                  <div
+                    id="product-description-copy"
+                    class="product-detail-description-copy {{ \Illuminate\Support\Str::length($productDescription) > 320 ? '' : 'is-expanded' }}"
+                    data-product-description
+                  >
+                    <p class="product-detail-description mb-0">{{ $productDescription }}</p>
+                  </div>
+                  @if (\Illuminate\Support\Str::length($productDescription) > 320)
+                    <button
+                      class="product-detail-description-toggle"
+                      type="button"
+                      aria-expanded="false"
+                      aria-controls="product-description-copy"
+                      data-product-description-toggle
+                      data-show-more-label="{{ __('store.show_more') }}"
+                      data-show-less-label="{{ __('store.show_less') }}"
+                    >{{ __('store.show_more') }}</button>
+                  @endif
                 </section>
             </div>
           </div>
@@ -232,7 +337,6 @@
                   data-request-error-label="{{ __('store.cart_add_failed') }}">
               @csrf
               <h2>{{ __('store.purchase_details_title') }}</h2>
-              <p class="product-purchase-product-name">{{ $product->name }}</p>
 
               <input type="hidden" name="variant_id" value="{{ $selectedVariant->id }}" data-order-variant-id>
               <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-order-currency>
@@ -258,6 +362,7 @@
                       data-minimum="{{ $variant->minimum_quantity }}"
                       data-maximum="{{ min($variant->maximum_quantity, $variant->stock) }}"
                       aria-pressed="{{ $variant->id === $selectedVariant->id ? 'true' : 'false' }}"
+                      aria-disabled="{{ $variant->stock < 1 ? 'true' : 'false' }}"
                       @disabled($variant->stock < 1)
                     >
                       <span class="product-detail-variant-name">{{ $variant->name }}</span>
@@ -327,21 +432,42 @@
         </div>
       </div>
 
+      @include('components.product-reviews', [
+          'product' => $product,
+          'averageRating' => $averageRating,
+          'reviewCount' => $reviewCount,
+          'reviewRatingCounts' => $reviewRatingCounts,
+          'canReviewOrder' => $canReviewOrder,
+          'hasReviewed' => $hasReviewed,
+      ])
+
       @if ($recommendedProducts->isNotEmpty())
-        <section class="product-recommendations" aria-labelledby="item-recommendations-heading">
-          <div class="section-heading">
-            <h6>{{ __('store.similar_products') }}</h6>
-            <h2 id="item-recommendations-heading">{{ __('store.more_category_products', ['category' => $product->itemCategory->localizedName()]) }}</h2>
+        <section class="product-recommendations" aria-labelledby="item-recommendations-heading" data-recommendation-carousel>
+          <div class="product-recommendation-header">
+            <div class="section-heading">
+              <h6>{{ __('store.similar_products') }}</h6>
+              <h2 id="item-recommendations-heading">{{ __('store.more_category_products', ['category' => $product->itemCategory->localizedName()]) }}</h2>
+            </div>
+            <div class="product-recommendation-controls" data-recommendation-controls hidden>
+              <button type="button" aria-label="{{ __('store.carousel_previous') }}" aria-controls="recommended-products-track" data-recommendation-previous disabled>
+                <span aria-hidden="true">&lsaquo;</span>
+              </button>
+              <button type="button" aria-label="{{ __('store.carousel_next') }}" aria-controls="recommended-products-track" data-recommendation-next disabled>
+                <span aria-hidden="true">&rsaquo;</span>
+              </button>
+            </div>
           </div>
-          <div class="row g-3 product-recommendation-items">
+          <div class="product-recommendation-track product-recommendation-items" id="recommended-products-track" role="region" aria-labelledby="item-recommendations-heading" tabindex="0" data-recommendation-track>
             @foreach ($recommendedProducts as $recommendedProduct)
               @php
-                $recommendedPrice = $recommendedProduct->variants->min(fn ($variant) => $recommendedProduct->priceInIdr((float) $variant->price, $currencyRates));
+                $availableVariants = $recommendedProduct->variants->where('stock', '>', 0);
+                $priceVariants = $availableVariants->isNotEmpty() ? $availableVariants : $recommendedProduct->variants;
+                $recommendedPrice = $priceVariants->min(fn ($variant) => $recommendedProduct->priceInIdr((float) $variant->price, $currencyRates));
                 $recommendedImage = $recommendedProduct->image
                     ? \Illuminate\Support\Facades\Storage::disk('public')->url($recommendedProduct->image)
                     : asset('images/trending-0'.(($loop->index % 4) + 1).'.jpg');
               @endphp
-              <div class="col-6 col-md-4 col-lg-3 product-recommendation-item">
+              <div class="product-recommendation-item">
                 <article class="product-recommendation-card">
                   <a href="{{ route('product-details.show', ['product' => $recommendedProduct, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
                     <img src="{{ $recommendedImage }}" alt="{{ $recommendedProduct->name }}">
@@ -359,12 +485,22 @@
       @endif
 
       @if ($recommendedGames->isNotEmpty())
-        <section class="product-recommendations" aria-labelledby="game-recommendations-heading">
-          <div class="section-heading">
-            <h6>{{ __('store.explore_other_games') }}</h6>
-            <h2 id="game-recommendations-heading">{{ __('store.recommended_games') }}</h2>
+        <section class="product-recommendations" aria-labelledby="game-recommendations-heading" data-recommendation-carousel>
+          <div class="product-recommendation-header">
+            <div class="section-heading">
+              <h6>{{ __('store.explore_other_games') }}</h6>
+              <h2 id="game-recommendations-heading">{{ __('store.recommended_games') }}</h2>
+            </div>
+            <div class="product-recommendation-controls" data-recommendation-controls hidden>
+              <button type="button" aria-label="{{ __('store.carousel_previous') }}" aria-controls="recommended-games-track" data-recommendation-previous disabled>
+                <span aria-hidden="true">&lsaquo;</span>
+              </button>
+              <button type="button" aria-label="{{ __('store.carousel_next') }}" aria-controls="recommended-games-track" data-recommendation-next disabled>
+                <span aria-hidden="true">&rsaquo;</span>
+              </button>
+            </div>
           </div>
-          <div class="row g-3">
+          <div class="product-recommendation-track" id="recommended-games-track" role="region" aria-labelledby="game-recommendations-heading" tabindex="0" data-recommendation-track>
             @foreach ($recommendedGames as $recommendedGame)
               @php
                 $gameImage = $recommendedGame->image
@@ -373,7 +509,7 @@
                         ? \Illuminate\Support\Facades\Storage::disk('public')->url($recommendedGame->products->first()->image)
                         : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg'));
               @endphp
-              <div class="col-6 col-lg-3">
+              <div class="category-recommendation-item">
                 <a class="category-recommendation-card d-block text-decoration-none" href="{{ route('shop', ['game' => $recommendedGame->id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
                   <img src="{{ $gameImage }}" alt="{{ $recommendedGame->name }}">
                   <h3>{{ $recommendedGame->name }}</h3>
@@ -385,12 +521,22 @@
       @endif
 
       @if ($recommendedItemCategories->isNotEmpty())
-        <section class="product-recommendations" aria-labelledby="item-category-recommendations-heading">
-          <div class="section-heading">
-            <h6>{{ __('store.explore_other_items') }}</h6>
-            <h2 id="item-category-recommendations-heading">{{ __('store.recommended_item_categories') }}</h2>
+        <section class="product-recommendations" aria-labelledby="item-category-recommendations-heading" data-recommendation-carousel>
+          <div class="product-recommendation-header">
+            <div class="section-heading">
+              <h6>{{ __('store.explore_other_items') }}</h6>
+              <h2 id="item-category-recommendations-heading">{{ __('store.recommended_item_categories') }}</h2>
+            </div>
+            <div class="product-recommendation-controls" data-recommendation-controls hidden>
+              <button type="button" aria-label="{{ __('store.carousel_previous') }}" aria-controls="recommended-item-categories-track" data-recommendation-previous disabled>
+                <span aria-hidden="true">&lsaquo;</span>
+              </button>
+              <button type="button" aria-label="{{ __('store.carousel_next') }}" aria-controls="recommended-item-categories-track" data-recommendation-next disabled>
+                <span aria-hidden="true">&rsaquo;</span>
+              </button>
+            </div>
           </div>
-          <div class="row g-3">
+          <div class="product-recommendation-track" id="recommended-item-categories-track" role="region" aria-labelledby="item-category-recommendations-heading" tabindex="0" data-recommendation-track>
             @foreach ($recommendedItemCategories as $recommendedCategory)
               @php
                 $categoryImage = $recommendedCategory->image
@@ -399,7 +545,7 @@
                         ? \Illuminate\Support\Facades\Storage::disk('public')->url($recommendedCategory->products->first()->image)
                         : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg'));
               @endphp
-              <div class="col-6 col-lg-3">
+              <div class="category-recommendation-item">
                 <a class="category-recommendation-card d-block text-decoration-none" href="{{ route('shop', ['currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency, 'item_category' => $recommendedCategory->id]) }}">
                   <img src="{{ $categoryImage }}" alt="{{ $recommendedCategory->localizedName() }}">
                   <h3>{{ $recommendedCategory->localizedName() }}</h3>
@@ -410,87 +556,6 @@
         </section>
       @endif
 
-      <section class="product-reviews" id="reviews" aria-labelledby="product-reviews-heading">
-        <div class="section-heading">
-          <h6>{{ __('store.customer_experience') }}</h6>
-          <h2 id="product-reviews-heading">{{ __('store.product_reviews') }}</h2>
-        </div>
-        <div class="review-summary mb-3">
-          <span class="product-detail-stars" aria-label="Rating rata-rata {{ number_format($averageRating, 1) }} dari 5">
-            @for ($star = 1; $star <= 5; $star++)
-              <span class="{{ $star <= round($averageRating) ? '' : 'is-empty' }}">★</span>
-            @endfor
-          </span>
-          <strong>{{ number_format($averageRating, 1) }} / 5</strong>
-          <span class="text-secondary">{{ __('store.review_count', ['count' => $reviewCount]) }}</span>
-        </div>
-        @if (session('success'))
-          <div class="alert alert-success" role="status">{{ session('success') }}</div>
-        @endif
-        @if ($product->reviews->isEmpty())
-          <p class="text-secondary">{{ __('store.no_reviews') }}</p>
-        @else
-          @foreach ($product->reviews as $review)
-            <article class="review-card">
-              <div class="d-flex flex-wrap justify-content-between gap-2">
-                <strong>{{ $review->user?->name ?? __('store.verified_buyer') }}</strong>
-                <span class="review-stars" aria-label="Rating {{ $review->rating }} dari 5">
-                  @for ($star = 1; $star <= 5; $star++)
-                    <span class="{{ $star <= $review->rating ? '' : 'is-empty' }}">★</span>
-                  @endfor
-                </span>
-              </div>
-              @if (filled($review->comment))
-                <p class="text-secondary mt-2 mb-0">{{ $review->comment }}</p>
-              @endif
-              @if ($review->admin_reply)
-                <div class="border-start border-3 ps-3 mt-3">
-                  <strong>{{ __('store.store_reply') }}</strong>
-                  <p class="text-secondary mt-1 mb-0">{{ $review->admin_reply }}</p>
-                  @if ($review->admin_reply_image)
-                    <a class="d-inline-block mt-2" href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($review->admin_reply_image) }}" target="_blank" rel="noopener noreferrer">
-                      <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($review->admin_reply_image) }}" alt="{{ __('store.review_reply_image_alt') }}" style="max-height: 220px; max-width: 100%; object-fit: contain;">
-                    </a>
-                  @endif
-                </div>
-              @elseif ($review->admin_reply_image)
-                <a class="d-inline-block mt-2" href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($review->admin_reply_image) }}" target="_blank" rel="noopener noreferrer">
-                  <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($review->admin_reply_image) }}" alt="{{ __('store.review_reply_image_alt') }}" style="max-height: 220px; max-width: 100%; object-fit: contain;">
-                </a>
-              @endif
-            </article>
-          @endforeach
-        @endif
-
-        @if ($canReviewOrder)
-          <form class="review-form" method="POST" action="{{ route('products.reviews.store', $product) }}">
-            @csrf
-            <h3 class="h5 mb-3">{{ __('store.write_review') }}</h3>
-            <div class="mb-3">
-              <fieldset class="border-0 m-0 p-0">
-                <legend class="form-label">{{ __('store.give_stars') }}</legend>
-                <div class="review-rating" role="radiogroup" aria-label="{{ __('store.give_stars') }}">
-                  @foreach (range(5, 1) as $rating)
-                    <input id="review-rating-{{ $rating }}" type="radio" name="rating" value="{{ $rating }}" aria-label="{{ __('store.stars', ['count' => $rating]) }}" required @checked(old('rating') == $rating)>
-                    <label for="review-rating-{{ $rating }}" title="{{ __('store.stars', ['count' => $rating]) }}" aria-hidden="true">★</label>
-                  @endforeach
-                </div>
-                @error('rating')<div class="text-danger small">{{ $message }}</div>@enderror
-              </fieldset>
-            </div>
-            <div class="mb-3">
-              <label class="form-label" for="review-comment">{{ __('store.review') }}</label>
-              <textarea class="form-control @error('comment') is-invalid @enderror" id="review-comment" name="comment" rows="4" maxlength="2000">{{ old('comment') }}</textarea>
-              @error('comment')<div class="invalid-feedback">{{ $message }}</div>@enderror
-            </div>
-            <button type="submit">{{ __('store.send_review') }}</button>
-          </form>
-        @elseif (auth()->check() && ! $hasReviewed)
-          <p class="text-secondary mt-4">{{ __('store.review_after_completion') }}</p>
-        @elseif (auth()->guest())
-          <p class="text-secondary mt-4">{{ __('store.guest_review_tracking') }} <a href="{{ route('orders.lookup') }}">{{ __('store.track_order') }}</a>.</p>
-        @endif
-      </section>
     </div>
   </main>
 

@@ -17,7 +17,7 @@ const syncItemCategory = function(url) {
 		}
 	});
 
-	document.querySelectorAll('.shop-search-form').forEach(function(form) {
+	document.querySelectorAll('.shop-search-form, [data-shop-category-sync]').forEach(function(form) {
 		const categoryInput = form.querySelector('input[name="item_category"]');
 		if (selectedItemCategory === null) {
 			categoryInput?.remove();

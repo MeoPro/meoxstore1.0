@@ -8,6 +8,8 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductCurrencyRate;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -50,7 +52,9 @@ class ProductDetailsController extends Controller
 
         abort_unless($product->status === 'active' && $product->variants->isNotEmpty(), 404);
         $currencyRates = ProductCurrencyRate::current();
-        $selectedVariant = $product->variants
+        $availableVariants = $product->variants->where('stock', '>', 0);
+        $variantsForSelection = $availableVariants->isNotEmpty() ? $availableVariants : $product->variants;
+        $selectedVariant = $variantsForSelection
             ->sortBy(fn ($variant): float => $product->priceInIdr((float) $variant->price, $currencyRates))
             ->first();
 
@@ -59,8 +63,19 @@ class ProductDetailsController extends Controller
             ->sum('quantity');
         $reviewSummary = $product->reviews()
             ->where('is_hidden', false)
-            ->selectRaw('COUNT(*) as count, AVG(rating) as average')
+            ->selectRaw(
+                'COUNT(*) as count, AVG(rating) as average, '.
+                'SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END) as rating_5_count, '.
+                'SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END) as rating_4_count, '.
+                'SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END) as rating_3_count, '.
+                'SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END) as rating_2_count, '.
+                'SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END) as rating_1_count',
+            )
             ->first();
+        $reviewRatingCounts = collect([5, 4, 3, 2, 1])
+            ->mapWithKeys(fn (int $rating): array => [
+                $rating => (int) ($reviewSummary->{"rating_{$rating}_count"} ?? 0),
+            ]);
         $hasReviewed = auth()->check()
             && $product->reviews()->where('user_id', auth()->id())->exists();
         $canReviewOrder = null;
@@ -86,7 +101,7 @@ class ProductDetailsController extends Controller
                 'itemCategory:id,bobux_type,uses_robux',
                 'variants' => fn ($query) => $query
                     ->where('status', 'active')
-                    ->select(['id', 'product_id', 'price'])
+                    ->select(['id', 'product_id', 'price', 'stock'])
                     ->orderBy('sort_order')
                     ->orderBy('id'),
             ])
@@ -96,8 +111,13 @@ class ProductDetailsController extends Controller
             ->get();
 
         $recommendedGames = GameCategory::query()
-            ->where('status', 'active')
-            ->where('id', '!=', $product->game_category_id)
+            ->leftJoinSub(
+                $this->completedCategorySalesQuery('game_category_id'),
+                'category_sales',
+                fn (JoinClause $join) => $join->on('category_sales.category_id', '=', 'game_categories.id'),
+            )
+            ->where('game_categories.status', 'active')
+            ->where('game_categories.id', '!=', $product->game_category_id)
             ->whereHas('products', fn ($query) => $query
                 ->where('status', 'active')
                 ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active')))
@@ -107,13 +127,18 @@ class ProductDetailsController extends Controller
                 ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active'))
                 ->select(['id', 'game_category_id', 'image'])
                 ->limit(1)])
-            ->orderBy('name')
-            ->limit(4)
-            ->get(['id', 'name', 'image']);
+            ->orderByDesc('category_sales.sold_quantity')
+            ->orderBy('game_categories.name')
+            ->get(['game_categories.id', 'game_categories.name', 'game_categories.image']);
 
         $recommendedItemCategories = ItemCategory::query()
-            ->where('status', 'active')
-            ->where('id', '!=', $product->item_category_id)
+            ->leftJoinSub(
+                $this->completedCategorySalesQuery('item_category_id'),
+                'category_sales',
+                fn (JoinClause $join) => $join->on('category_sales.category_id', '=', 'item_categories.id'),
+            )
+            ->where('item_categories.status', 'active')
+            ->where('item_categories.id', '!=', $product->item_category_id)
             ->whereHas('products', fn ($query) => $query
                 ->where('status', 'active')
                 ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active')))
@@ -123,9 +148,11 @@ class ProductDetailsController extends Controller
                 ->whereHas('variants', fn ($variantQuery) => $variantQuery->where('status', 'active'))
                 ->select(['id', 'item_category_id', 'image'])
                 ->limit(1)])
-            ->orderBy('name')
-            ->limit(4)
-            ->get(['id', 'name', 'image']);
+            ->orderByDesc('category_sales.sold_quantity')
+            ->orderBy('item_categories.name')
+            ->get(['item_categories.id', 'item_categories.name', 'item_categories.image'])
+            ->unique(fn (ItemCategory $itemCategory): string => $itemCategory->localizedName())
+            ->values();
 
         return view('product-details', [
             'product' => $product,
@@ -135,11 +162,24 @@ class ProductDetailsController extends Controller
             'soldCount' => $soldCount,
             'reviewCount' => (int) $reviewSummary->count,
             'averageRating' => (float) ($reviewSummary->average ?? 0),
+            'reviewRatingCounts' => $reviewRatingCounts,
             'hasReviewed' => $hasReviewed,
             'canReviewOrder' => $canReviewOrder,
             'recommendedProducts' => $recommendedProducts,
             'recommendedGames' => $recommendedGames,
             'recommendedItemCategories' => $recommendedItemCategories,
         ]);
+    }
+
+    private function completedCategorySalesQuery(string $categoryForeignKey): Builder
+    {
+        return Product::query()
+            ->join('order_items', 'order_items.product_id', '=', 'products.id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('products.status', 'active')
+            ->where('orders.status', 'completed')
+            ->whereHas('variants', fn ($query) => $query->where('status', 'active'))
+            ->selectRaw('products.'.$categoryForeignKey.' as category_id, SUM(order_items.quantity) as sold_quantity')
+            ->groupBy('products.'.$categoryForeignKey);
     }
 }

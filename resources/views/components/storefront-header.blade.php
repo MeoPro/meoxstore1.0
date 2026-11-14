@@ -4,7 +4,19 @@
     'header-area',
     'header-sticky',
     'header-scroll-toggle' => request()->routeIs('profile.*', 'checkout.show', 'orders.show', 'orders.lookup*'),
+    'header-has-storefront-rating' => $storefrontRatingAverage !== null,
 ])>
+    @if ($storefrontRatingAverage !== null)
+        <div class="storefront-rating-banner">
+            <div class="container">
+                <a class="storefront-rating-link" href="{{ route('reviews.index') }}">
+                    <span>{{ __('store.store_rating_summary', ['rating' => rtrim(rtrim(number_format($storefrontRatingAverage, 1, '.', ''), '0'), '.')]) }}</span>
+                    <span class="storefront-rating-star" aria-hidden="true">★</span>
+                    <span>{{ __('store.store_rating_brand') }}</span>
+                </a>
+            </div>
+        </div>
+    @endif
     <div class="container">
         <div class="row">
             <div class="col-12">
@@ -61,6 +73,8 @@
         transition: transform .25s ease, background-color .5s ease, box-shadow .5s ease;
         z-index: 1000;
     }
+    .header-area.header-has-storefront-rating { top: 40px !important; }
+    .header-area.header-has-storefront-rating .storefront-rating-banner { top: -40px; }
     .header-area.header-scroll-toggle.header-hidden { transform: translateY(-100%); }
     .header-area.header-scroll-toggle .main-nav .logo { margin-top: 18px; }
     .header-area.header-scroll-toggle .main-nav .logo img { max-width: 110px; }
@@ -94,3 +108,15 @@
     }
 </style>
 <div class="storefront-cart-notice" data-cart-notice role="status" aria-live="polite" aria-atomic="true"></div>
+@php($whatsappPhone = preg_replace('/\D+/', '', (string) config('store.admin_phone', '')))
+@if ($whatsappPhone !== '')
+    <a
+        class="storefront-whatsapp-float"
+        href="https://wa.me/{{ $whatsappPhone }}"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="{{ __('store.whatsapp_chat_label') }}"
+        title="{{ __('store.whatsapp_chat_label') }}">
+        <i class="fa fa-whatsapp" aria-hidden="true"></i>
+    </a>
+@endif

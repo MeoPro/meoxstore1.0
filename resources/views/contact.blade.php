@@ -46,10 +46,6 @@
         .contact-detail-value { color: #1e1e1e; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
         .contact-map-panel { position: relative; }
         .contact-map-panel iframe { border: 0; display: block; height: 100%; min-height: 270px; width: 100%; }
-        .contact-google-rating { align-items: center; background: #fff; border: 1px solid #e6eaf2; border-radius: 999px; box-shadow: 0 4px 14px rgba(30, 56, 90, .16); color: #344054; display: inline-flex; gap: 7px; left: 12px; padding: 8px 13px; position: absolute; text-decoration: none; top: 12px; z-index: 1; }
-        .contact-google-rating:hover { color: #1d2939; }
-        .contact-google-rating-star { color: #fbbc04; font-size: 19px; line-height: 1; }
-        .contact-google-rating-source { color: #667085; font-size: 12px; }
         .contact-form-panel { padding: clamp(22px, 4vw, 32px); }
         .contact-form-panel .form-label { color: #333; font-size: 13px; font-weight: 600; }
         .contact-form-panel .form-control { border-color: #e1e5eb; border-radius: 10px; min-height: 46px; }
@@ -160,24 +156,6 @@
                     </div>
                     <div class="col-lg-7">
                         <div class="contact-map-panel">
-                            @if ($googleMapsRating !== null)
-                                <a
-                                    class="contact-google-rating"
-                                    href="{{ $googleMapsProfileUrl }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label="{{ __('store.google_rating_summary', [
-                                        'rating' => number_format($googleMapsRating['rating'], 1),
-                                        'count' => number_format($googleMapsRating['user_rating_count']),
-                                    ]) }} — {{ __('store.footer_google_maps') }}">
-                                    <span class="contact-google-rating-star" aria-hidden="true">★</span>
-                                    <span>{{ __('store.google_rating_summary', [
-                                        'rating' => number_format($googleMapsRating['rating'], 1),
-                                        'count' => number_format($googleMapsRating['user_rating_count']),
-                                    ]) }}</span>
-                                    <span class="contact-google-rating-source">{{ __('store.footer_google_maps') }}</span>
-                                </a>
-                            @endif
                             <iframe
                                 src="{{ config('services.google_maps.embed_url') }}"
                                 title="{{ __('store.contact_map_title') }}"
