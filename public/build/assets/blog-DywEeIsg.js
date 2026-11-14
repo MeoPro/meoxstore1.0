@@ -1,0 +1,1 @@
+import"./owl-B3ad9mzp.js";document.addEventListener("DOMContentLoaded",()=>{const e=window.jQuery;if(!e||!e(".owl-banner").length)return;const n=e(".owl-banner .item").length;e(".owl-banner").owlCarousel({loop:n>1,nav:!0,dots:!0,items:3,margin:10,autoplay:!1,smartSpeed:700,responsive:{0:{items:1,margin:0},576:{items:1,margin:10},992:{items:3,margin:10}}})});

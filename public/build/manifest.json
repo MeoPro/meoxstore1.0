@@ -1,0 +1,90 @@
+{
+  "_owl-B3ad9mzp.js": {
+    "file": "assets/owl-B3ad9mzp.js",
+    "name": "owl"
+  },
+  "resources/css/animate.css": {
+    "file": "assets/animate-C_GcMKiE.css",
+    "src": "resources/css/animate.css",
+    "isEntry": true,
+    "name": "animate",
+    "names": [
+      "animate.css"
+    ]
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-CXGetyuf.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/css/fontawesome.css": {
+    "file": "assets/fontawesome-CeqTMUTD.css",
+    "src": "resources/css/fontawesome.css",
+    "isEntry": true,
+    "name": "fontawesome",
+    "names": [
+      "fontawesome.css"
+    ]
+  },
+  "resources/css/owl.css": {
+    "file": "assets/owl-Bz1eOXqi.css",
+    "src": "resources/css/owl.css",
+    "isEntry": true,
+    "name": "owl",
+    "names": [
+      "owl.css"
+    ]
+  },
+  "resources/css/templatemo-lugx-gaming.css": {
+    "file": "assets/templatemo-lugx-gaming-CmeUK_Cb.css",
+    "src": "resources/css/templatemo-lugx-gaming.css",
+    "isEntry": true,
+    "name": "templatemo-lugx-gaming",
+    "names": [
+      "templatemo-lugx-gaming.css"
+    ]
+  },
+  "resources/css/templatemo-stand-blog.css": {
+    "file": "assets/templatemo-stand-blog-Ch3kpOjZ.css",
+    "src": "resources/css/templatemo-stand-blog.css",
+    "isEntry": true,
+    "name": "templatemo-stand-blog",
+    "names": [
+      "templatemo-stand-blog.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-pwi3XBSU.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/blog.js": {
+    "file": "assets/blog-DywEeIsg.js",
+    "name": "blog",
+    "src": "resources/js/blog.js",
+    "isEntry": true,
+    "imports": [
+      "_owl-B3ad9mzp.js"
+    ]
+  },
+  "resources/js/customblog.js": {
+    "file": "assets/customblog-x5Uep5_H.js",
+    "name": "customblog",
+    "src": "resources/js/customblog.js",
+    "isEntry": true,
+    "imports": [
+      "_owl-B3ad9mzp.js"
+    ]
+  },
+  "resources/js/shop.js": {
+    "file": "assets/shop-DoenfMMD.js",
+    "name": "shop",
+    "src": "resources/js/shop.js",
+    "isEntry": true
+  }
+}
