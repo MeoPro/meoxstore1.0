@@ -724,7 +724,7 @@ body.storefront-page {
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    height: 22px;
+    height: 28px;
     max-width: 100%;
     object-fit: contain;
     width: auto;
@@ -789,7 +789,7 @@ body.storefront-page {
 
     .storefront-footer-payment-list {
         gap: 8px 4px;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 }
 
@@ -1648,39 +1648,29 @@ body.blog-storefront-page {
 }
 
 .storefront-whatsapp-tooltip {
-    background: #1f2937;
-    border-radius: 8px;
-    bottom: calc(100% + 12px);
-    box-shadow: 0 6px 18px rgba(16, 36, 42, .2);
+    background: #25d366;
+    border-radius: 999px;
+    bottom: 50%;
+    box-shadow: 0 4px 12px rgba(16, 36, 42, .18);
     color: #fff;
     font-size: 13px;
     font-weight: 600;
     line-height: 1;
     opacity: 0;
-    padding: 10px 12px;
+    padding: 9px 14px;
     pointer-events: none;
     position: absolute;
-    right: 0;
-    transform: translateY(4px);
+    right: calc(100% + 10px);
+    transform: translate(4px, 50%);
     transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
     visibility: hidden;
     white-space: nowrap;
 }
 
-.storefront-whatsapp-tooltip::after {
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 6px solid #1f2937;
-    content: "";
-    position: absolute;
-    right: 20px;
-    top: 100%;
-}
-
 .storefront-whatsapp-float:hover .storefront-whatsapp-tooltip,
 .storefront-whatsapp-float:focus-visible .storefront-whatsapp-tooltip {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(0, 50%);
     visibility: visible;
 }
 

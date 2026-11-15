@@ -797,6 +797,18 @@ it('persists the selected language and renders the matching local dictionary', f
         ->assertSee('Tentang Meoxstore');
 });
 
+it('serves the about page under a concise blog URL and keeps the original URL available', function () {
+    $this->assertSame(url('/blog/about-us'), route('about'));
+
+    $this->get('/blog/about-us')
+        ->assertOk()
+        ->assertSee(__('store.about_title'));
+
+    $this->get('/about')
+        ->assertOk()
+        ->assertSee(__('store.about_title'));
+});
+
 it('shows the sales journey on the about page in every supported language', function () {
     $journeys = [
         'id' => [

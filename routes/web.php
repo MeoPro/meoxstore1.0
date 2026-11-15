@@ -37,6 +37,7 @@ Route::get('/', HomeController::class)->name('home');
 Route::get('/blog', [BlogController::class, 'home'])->name('blog.index');
 Route::get('/blog/posts', [BlogController::class, 'index'])->name('blog.posts');
 Route::get('/blog/category/{blogCategory:slug}', [BlogController::class, 'category'])->name('blog.categories.show');
+Route::view('/blog/about-us', 'about')->name('about');
 Route::get('/blog/{blogPost:slug}', [BlogController::class, 'show'])->name('blog.show');
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/robots.txt', function (): Response {
@@ -52,7 +53,7 @@ Route::get('/games', [GameCatalogController::class, 'index'])->name('games.index
 Route::get('/reviews', [StoreReviewController::class, 'index'])->name('reviews.index');
 Route::get('/product-details', [ProductDetailsController::class, 'index'])->name('product-details');
 Route::get('/product-details/{product}', [ProductDetailsController::class, 'show'])->name('product-details.show');
-Route::view('/about', 'about')->name('about');
+Route::view('/about', 'about');
 Route::view('/contact', 'contact')->name('contact');
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 Route::post('/telegram/webhook', TelegramWebhookController::class)->name('telegram.webhook');
