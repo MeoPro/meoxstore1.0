@@ -21,7 +21,7 @@
         .cart-toolbar .form-check { margin: 0; }
         .cart-item { align-items: center; border-bottom: 1px solid #e3e7ec; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) auto; padding: 22px 0; }
         .cart-item-main { align-items: center; display: flex; gap: 12px; min-width: 0; }
-        .cart-item-main img { background: #f5f6f8; border-radius: 9px; flex: 0 0 auto; height: 96px; object-fit: cover; width: 104px; }
+        .cart-item-main img { background: #f5f6f8; border-radius: 9px; flex: 0 0 auto; height: 96px; object-fit: cover; width: 96px; }
         .cart-item-main h2 { font-size: 16px; font-weight: 650; margin: 0 0 5px; }
         .cart-item-main .form-check-input { flex: 0 0 auto; margin: 0; }
         .cart-item-price { color: #1976bd; font-size: 18px; font-weight: 700; }
@@ -52,7 +52,7 @@
         .page-heading.header-text h3 { font-size: 26px; margin: 10px 0; }
         @media (max-width: 900px) { .cart-layout { grid-template-columns: 1fr; } .cart-summary { position: static; } }
         @media (max-width: 767.98px) { .page-heading.header-text { padding: 96px 0 18px; } .page-heading.header-text h3 { font-size: 22px; } }
-        @media (max-width: 650px) { .cart-item { align-items: start; gap: 10px; } .cart-item-main img { height: 70px; width: 76px; } .cart-item-main h2 { font-size: 14px; } .cart-item-price { font-size: 15px; grid-column: 1 / -1; } .cart-item-details form { max-width: calc(100vw - 32px); } .cart-actions { justify-content: flex-end; } .cart-toolbar { align-items: flex-start; flex-direction: column; } }
+        @media (max-width: 650px) { .cart-item { align-items: start; gap: 10px; } .cart-item-main img { height: 70px; width: 70px; } .cart-item-main h2 { font-size: 14px; } .cart-item-price { font-size: 15px; grid-column: 1 / -1; } .cart-item-details form { max-width: calc(100vw - 32px); } .cart-actions { justify-content: flex-end; } .cart-toolbar { align-items: flex-start; flex-direction: column; } }
     </style>
 </head>
 <body class="storefront-page">

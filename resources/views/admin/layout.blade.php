@@ -257,6 +257,8 @@
         .form-check-input:checked { background-color: #32766e; border-color: #32766e; }
         .alert { border: 0; border-radius: 12px; box-shadow: var(--panel-shadow); font-size: 12px; }
         .product-thumb { background: #e8eeee; border-radius: 10px; height: 48px; object-fit: cover; width: 48px; }
+        .admin-product-image { aspect-ratio: 1 / 1; object-fit: cover; width: 100%; }
+        .admin-product-placeholder { aspect-ratio: 1 / 1; }
         .variant-row { background: #fbfcfc; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
         .badge-status { font-size: 11px; font-weight: 600; }
         .category-inline-create summary,

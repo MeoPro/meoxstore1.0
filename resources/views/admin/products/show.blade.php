@@ -11,9 +11,9 @@
         <div class="row g-4">
             <div class="col-12 col-md-3">
                 @if ($product->image)
-                    <img class="img-fluid rounded" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($product->image) }}" alt="{{ $product->name }}">
+                    <img class="admin-product-image img-fluid rounded" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($product->image) }}" alt="{{ $product->name }}">
                 @else
-                    <div class="align-items-center bg-light d-flex justify-content-center rounded text-muted" style="min-height: 180px">No image</div>
+                    <div class="admin-product-placeholder align-items-center bg-light d-flex justify-content-center rounded text-muted">No image</div>
                 @endif
             </div>
             <div class="col-12 col-md-9">

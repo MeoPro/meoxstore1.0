@@ -77,7 +77,7 @@
       @media (hover: hover) and (prefers-reduced-motion: no-preference) {
         .trending .shop-product-card:hover { box-shadow: 0 20px 42px rgba(30, 56, 90, .16); transform: scale(1.035); z-index: 2; }
       }
-      .shop-product-card .thumb { aspect-ratio: 4 / 3; flex: 0 0 auto; }
+      .shop-product-card .thumb { aspect-ratio: 1 / 1; flex: 0 0 auto; }
       .shop-product-card .thumb > a { display: block; height: 100%; }
       .shop-product-card .thumb > a > img { height: 100%; object-fit: cover; width: 100%; }
       .shop-product-badges { align-items: flex-start; display: flex; flex-wrap: wrap; gap: 6px; left: 12px; position: absolute; right: 12px; top: 12px; z-index: 1; }

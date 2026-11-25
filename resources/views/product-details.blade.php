@@ -20,8 +20,8 @@
     .product-detail-panel { padding: 28px; }
     .single-product .product-purchase-card { display: block; padding: clamp(26px, 3vw, 38px); width: 100%; }
     .product-purchase-card h2 { color: #182230; font-size: clamp(24px, 2.2vw, 30px); font-weight: 700; letter-spacing: -.6px; margin-bottom: 8px; }
-    .product-detail-image { align-items: center; background: #f7f8fb; border-radius: 20px; display: flex; justify-content: center; min-height: 360px; overflow: hidden; }
-    .product-detail-image img { height: 100%; max-height: 460px; object-fit: contain; width: 100%; }
+    .product-detail-image { aspect-ratio: 1 / 1; align-items: center; background: #f7f8fb; border-radius: 20px; display: flex; justify-content: center; overflow: hidden; width: 100%; }
+    .product-detail-image img { height: 100%; object-fit: contain; width: 100%; }
     .product-detail-gallery { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); margin-top: 12px; }
     .product-detail-gallery-heading { color: #303b4a; font-size: 14px; font-weight: 600; margin: 14px 0 0; }
     .product-detail-gallery button { background: #fff; border: 2px solid transparent; border-radius: 10px; cursor: pointer; overflow: hidden; padding: 0; }
@@ -127,7 +127,7 @@
       .category-recommendation-card:hover { box-shadow: 0 20px 42px rgba(30, 56, 90, .16); transform: scale(1.035); z-index: 2; }
     }
     .product-recommendation-card > a { color: inherit; display: block; text-decoration: none; }
-    .product-recommendation-card img { background: #f7f8fb; height: 180px; object-fit: cover; width: 100%; }
+    .product-recommendation-card img { aspect-ratio: 1 / 1; background: #f7f8fb; height: auto; object-fit: cover; width: 100%; }
     .product-recommendation-copy { padding: 16px; }
     .product-recommendation-copy span { color: #7a7a7a; font-size: 12px; }
     .product-recommendation-copy h3 { font-size: 16px; margin: 6px 0; overflow-wrap: anywhere; }
@@ -198,7 +198,6 @@
     }
     @media (max-width: 767.98px) {
       .product-detail-panel { padding: 18px; }
-      .product-detail-image { min-height: 250px; }
       .product-detail-description-card { padding: 20px; }
     }
   </style>

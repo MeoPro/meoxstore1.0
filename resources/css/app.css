@@ -1143,6 +1143,11 @@ body:not(.blog-storefront-page) h6 {
     width: 100%;
 }
 
+.blog-sidebar-product img {
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+}
+
 .blog-sidebar-link {
     color: #0071f8;
     font-size: 12px;
