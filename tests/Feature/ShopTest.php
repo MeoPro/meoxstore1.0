@@ -1310,6 +1310,23 @@ it('selects the cheapest in-stock variant and disables sold-out variants', funct
         ->toMatch('/<button(?=[^>]*value="'.$availableVariant->id.'")(?=[^>]*aria-pressed="true")[^>]*>/');
 });
 
+it('hides the default variant choice while keeping it selected for purchase', function () {
+    $product = Product::factory()->create(['name' => 'Default variant product']);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update([
+        'name' => 'Default',
+        'price' => '25000.00',
+        'stock' => 10,
+    ]);
+
+    $this->get(route('product-details.show', $product))
+        ->assertOk()
+        ->assertSee('class="product-detail-variants d-none"', false)
+        ->assertSee('data-product-variant', false)
+        ->assertSee('name="variant_id" value="'.$variant->id.'"', false)
+        ->assertSee('data-product-stock', false);
+});
+
 it('shows example images for account listings on the product detail page', function () {
     $product = Product::factory()->create([
         'is_account_listing' => true,

@@ -225,6 +225,10 @@
     );
     $productImage = $productImages[0] ?? asset('images/trending-01.jpg');
     $productDescription = $product->description ?: __('store.no_description');
+    $variantCount = $product->variants->count();
+    $showVariantSelector = $variantCount > 1
+        || ($variantCount === 1
+            && strcasecmp(trim($product->variants->first()->name), 'default') !== 0);
     $selectedIdrPrice = 'Rp '.rtrim(rtrim(number_format($product->priceInIdr((float) $selectedVariant->price, $currencyRates), 2, '.', ','), '0'), '.');
     $robuxTransactionsDisabled = $product->usesRobuxPricing()
         && ! $currencyRates->bobuxTransactionsEnabled($product->bobuxType());
@@ -340,7 +344,7 @@
               <input type="hidden" name="variant_id" value="{{ $selectedVariant->id }}" data-order-variant-id>
               <input type="hidden" name="currency" value="{{ $selectedCurrency }}" data-order-currency>
               <div class="product-detail-controls">
-                <div class="product-detail-variants" role="group" aria-label="{{ __('store.choose_variant') }}">
+                <div @class(['product-detail-variants', 'd-none' => ! $showVariantSelector]) role="group" aria-label="{{ __('store.choose_variant') }}">
                   <label class="form-label mb-0">{{ __('store.choose_variant') }}</label>
                   @foreach ($product->variants as $variant)
                     @php
