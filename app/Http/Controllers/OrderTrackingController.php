@@ -23,7 +23,7 @@ class OrderTrackingController extends Controller
     {
         $validated = $request->validate([
             'order_number' => ['required', 'string', 'regex:/^MEOX-(?:[A-Z0-9]{12}|\d{8,})$/i'],
-            'phone' => ['required', 'string', 'regex:/^[+0-9][0-9\s().-]{6,39}$/'],
+            'contact' => ['required', 'string', 'max:255'],
         ]);
 
         $orderNumber = Str::upper($validated['order_number']);
@@ -31,10 +31,17 @@ class OrderTrackingController extends Controller
             ? Order::query()->where('public_number', $orderNumber)->first()
             : Order::query()->find((int) substr($orderNumber, 5));
 
-        if (
-            $order === null
-            || ! hash_equals($this->normalizePhone($order->contact_phone), $this->normalizePhone($validated['phone']))
-        ) {
+        $contact = trim($validated['contact']);
+        $contactMatches = $order !== null && (
+            ($order->contact_email !== null && strcasecmp($order->contact_email, $contact) === 0)
+            || (
+                $order->contact_phone !== null
+                && preg_match('/^[+0-9][0-9\s().-]{6,39}$/', $contact) === 1
+                && hash_equals($this->normalizePhone($order->contact_phone), $this->normalizePhone($contact))
+            )
+        );
+
+        if (! $contactMatches) {
             throw ValidationException::withMessages([
                 'order_number' => __('store.order_lookup_not_found'),
             ]);

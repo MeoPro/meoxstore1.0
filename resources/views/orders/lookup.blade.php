@@ -48,9 +48,9 @@
                     @error('order_number')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="mb-4">
-                    <label class="form-label" for="order-phone">{{ __('store.phone') }}</label>
-                    <input class="form-control @error('phone') is-invalid @enderror" id="order-phone" name="phone" type="tel" value="{{ old('phone') }}" maxlength="40" autocomplete="tel" required>
-                    @error('phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <label class="form-label" for="order-contact">{{ __('store.order_lookup_contact') }}</label>
+                    <input class="form-control @error('contact') is-invalid @enderror" id="order-contact" name="contact" type="text" value="{{ old('contact') }}" maxlength="255" autocomplete="off" required>
+                    @error('contact')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <button class="btn tracking-submit w-100" type="submit">{{ __('store.find_order') }} <i class="fa fa-arrow-right ms-1" aria-hidden="true"></i></button>
             </form>

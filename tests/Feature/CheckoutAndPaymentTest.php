@@ -833,8 +833,8 @@ it('requires guest checkout contact details and creates a guest-accessible payme
 
     $this->post(route('checkout.store'), ['payment_method_id' => $paymentSetting->id])
         ->assertInvalid([
-            'customer_email' => 'The customer email field is required.',
-            'customer_phone' => 'The customer phone field is required.',
+            'customer_email' => __('store.checkout_contact_required'),
+            'customer_phone' => __('store.checkout_contact_required'),
         ]);
     expect(Order::query()->count())->toBe(0);
 
@@ -868,6 +868,47 @@ it('requires guest checkout contact details and creates a guest-accessible payme
     $this->app['session']->flush();
     $this->get(route('orders.show', $order))->assertNotFound();
 });
+
+it('creates an order when guest checkout provides only one contact method', function (array $contactInput, ?string $expectedEmail, ?string $expectedPhone) {
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 1, 'maximum_quantity' => 1]);
+    $paymentSetting = PaymentSetting::query()->create([
+        'type' => 'bank_transfer',
+        'name' => 'Guest Bank',
+        'bank_name' => 'Guest Bank',
+        'account_number' => '987654321',
+        'is_active' => true,
+    ]);
+    $checkout = [
+        'source' => 'direct',
+        'items' => [$variant->id => 1],
+        'currencies' => [$variant->id => 'idr'],
+    ];
+    Mail::fake();
+
+    $response = $this->withSession(['checkout' => $checkout])
+        ->post(route('checkout.store'), [
+            'payment_method_id' => $paymentSetting->id,
+            ...$contactInput,
+        ]);
+    $order = Order::query()->sole();
+
+    $response->assertRedirect(route('orders.show', $order));
+    expect($order->contact_email)->toBe($expectedEmail)
+        ->and($order->contact_phone)->toBe($expectedPhone);
+})->with([
+    'email only' => [
+        ['customer_email' => 'guest@example.com', 'customer_phone' => ''],
+        'guest@example.com',
+        null,
+    ],
+    'phone only' => [
+        ['customer_email' => '', 'customer_phone' => '08123456789'],
+        null,
+        '08123456789',
+    ],
+]);
 
 it('allows administrators to create, update, list, and delete payment methods', function () {
     $admin = User::factory()->create(['is_admin' => true]);

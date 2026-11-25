@@ -489,6 +489,23 @@ it('allows customers to review each completed purchase once', function () {
     expect(ProductReview::query()->where('product_id', $product->id)->where('user_id', $buyer->id)->count())->toBe(2);
 });
 
+it('lets a guest find an order by email when the order has no phone number', function () {
+    $order = Order::query()->create([
+        'status' => 'pending',
+        'total' => '10000.00',
+        'contact_email' => 'guest@example.test',
+    ]);
+
+    $this->post(route('orders.lookup.submit'), [
+        'order_number' => $order->publicNumber(),
+        'contact' => 'guest@example.test',
+    ])->assertRedirect(route('orders.show', $order));
+
+    $this->get(route('orders.show', $order))
+        ->assertOk()
+        ->assertSee($order->publicNumber());
+});
+
 it('lets a guest find an order by order number and phone, complete it, and review its product', function () {
     $product = Product::factory()->create(['name' => 'Guest Review Product', 'status' => 'active']);
     $variant = $product->variants()->firstOrFail();
@@ -512,11 +529,11 @@ it('lets a guest find an order by order number and phone, complete it, and revie
 
     $this->get(route('orders.lookup'))
         ->assertSee('name="order_number"', false)
-        ->assertSee('name="phone"', false);
+        ->assertSee('name="contact"', false);
     $this->get(route('orders.show', $order))->assertNotFound();
     $this->post(route('orders.lookup.submit'), [
         'order_number' => $orderNumber,
-        'phone' => '0812-345-6789',
+        'contact' => '0812-345-6789',
     ])->assertRedirect(route('orders.show', $order));
     $orderDetailResponse = $this->get(route('orders.show', $order));
     $orderDetailResponse->assertSee($orderNumber);
@@ -698,7 +715,7 @@ it('does not reveal a public order when the phone number does not match', functi
 
     $this->post(route('orders.lookup.submit'), [
         'order_number' => $order->publicNumber(),
-        'phone' => '08111111111',
+        'contact' => '08111111111',
     ])->assertInvalid(['order_number']);
     $this->get(route('orders.show', $order))->assertNotFound();
 });

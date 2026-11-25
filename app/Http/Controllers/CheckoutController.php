@@ -218,11 +218,15 @@ class CheckoutController extends Controller
     {
         $validated = $request->validate([
             'payment_method_id' => ['required', 'integer', 'exists:payment_settings,id'],
-            'customer_email' => ['required', 'string', 'email', 'max:255'],
-            'customer_phone' => ['required', 'string', 'regex:/^[+0-9][0-9\s().-]{6,39}$/'],
+            'customer_email' => ['required_without:customer_phone', 'nullable', 'string', 'email', 'max:255'],
+            'customer_phone' => ['required_without:customer_email', 'nullable', 'string', 'regex:/^[+0-9][0-9\s().-]{6,39}$/'],
         ], [
+            'customer_email.required_without' => __('store.checkout_contact_required'),
             'customer_phone.regex' => __('store.checkout_phone_invalid'),
+            'customer_phone.required_without' => __('store.checkout_contact_required'),
         ]);
+        $customerEmail = $validated['customer_email'] ?? null;
+        $customerPhone = $validated['customer_phone'] ?? null;
         $checkout = $request->session()->get('checkout');
 
         if (! is_array($checkout) || ($checkout['items'] ?? []) === []) {
@@ -235,7 +239,7 @@ class CheckoutController extends Controller
         $currencyRates = ProductCurrencyRate::current();
         $cartDetails = $request->session()->get('cart_details', []);
 
-        $order = DB::transaction(function () use ($request, $validated, $checkout, $cartDetails, $checkoutCurrency, $currencyRates): Order {
+        $order = DB::transaction(function () use ($request, $validated, $customerEmail, $customerPhone, $checkout, $cartDetails, $checkoutCurrency, $currencyRates): Order {
             $currencyRates = ProductCurrencyRate::query()
                 ->whereKey($currencyRates->id)
                 ->lockForUpdate()
@@ -298,8 +302,8 @@ class CheckoutController extends Controller
 
             $order = Order::query()->create([
                 'user_id' => $request->user()?->id,
-                'contact_email' => $validated['customer_email'],
-                'contact_phone' => $validated['customer_phone'],
+                'contact_email' => $customerEmail,
+                'contact_phone' => $customerPhone,
                 'status' => 'pending',
                 'total' => $total,
                 'payment_details' => [
@@ -327,8 +331,8 @@ class CheckoutController extends Controller
                     ? []
                     : json_decode(Crypt::decryptString($encryptedDetails), true, 512, JSON_THROW_ON_ERROR);
                 $customerDetails = [
-                    'contact_email' => $validated['customer_email'],
-                    'contact_phone' => $validated['customer_phone'],
+                    'contact_email' => $customerEmail,
+                    'contact_phone' => $customerPhone,
                 ];
 
                 if (isset($savedDetails['purchase_details'])) {

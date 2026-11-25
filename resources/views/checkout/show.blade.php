@@ -116,13 +116,13 @@
                     <div class="d-grid gap-3 mb-4">
                         <div>
                             <label class="form-label" for="customer-email">{{ __('store.email') }}</label>
-                            <input class="form-control @error('customer_email') is-invalid @enderror" id="customer-email" name="customer_email" type="email" value="{{ old('customer_email', $customerEmail) }}" maxlength="255" autocomplete="email" required>
+                            <input class="form-control @error('customer_email') is-invalid @enderror" id="customer-email" name="customer_email" type="email" value="{{ old('customer_email', $customerEmail) }}" maxlength="255" autocomplete="email">
                             <div class="form-text">{{ __('store.checkout_email_required_note') }}</div>
                             @error('customer_email')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div>
                             <label class="form-label" for="customer-phone">{{ __('store.phone') }}</label>
-                            <input class="form-control @error('customer_phone') is-invalid @enderror" id="customer-phone" name="customer_phone" type="tel" value="{{ old('customer_phone', $customerPhone) }}" maxlength="40" autocomplete="tel" required>
+                            <input class="form-control @error('customer_phone') is-invalid @enderror" id="customer-phone" name="customer_phone" type="tel" value="{{ old('customer_phone', $customerPhone) }}" maxlength="40" autocomplete="tel">
                             @error('customer_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>
