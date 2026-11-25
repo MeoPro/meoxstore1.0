@@ -162,6 +162,8 @@ it('renders storefront footer links with only active payment methods and configu
         ->assertDontSee(__('store.footer_seller_contact'))
         ->assertSee('mailto:support@example.test')
         ->assertSee('tel:+60123456789')
+        ->assertSee('class="storefront-footer-whatsapp-link"', false)
+        ->assertSee('href="https://wa.me/60123456789"', false)
         ->assertSee('https://www.tiktok.com/@meoxstore')
         ->assertSee('TikTok')
         ->assertDontSee('javascript:alert(1)', false)

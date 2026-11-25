@@ -742,6 +742,27 @@ body.storefront-page {
     padding-top: 18px;
 }
 
+.storefront-footer-whatsapp-link {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 44px;
+    justify-content: center;
+    width: 44px;
+}
+
+.storefront-footer-whatsapp-link img {
+    border-radius: 50%;
+    height: 100%;
+    object-fit: contain;
+    width: 100%;
+}
+
+.storefront-footer-whatsapp-link:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+}
+
 @media (max-width: 767.98px) {
     .storefront-footer {
         border-radius: 36px 36px 0 0;
