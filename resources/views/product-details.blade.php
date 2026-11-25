@@ -107,7 +107,8 @@
     .product-recommendation-controls button:hover:not(:disabled) { background: #1769d2; border-color: #1769d2; color: #fff; }
     .product-recommendation-controls button:focus-visible { outline: 3px solid rgba(23, 105, 210, .3); outline-offset: 2px; }
     .product-recommendation-controls button:disabled { color: #aab4c2; cursor: not-allowed; }
-    .product-recommendation-track { display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 4px 3px 14px; scroll-snap-type: x mandatory; scrollbar-color: #9bb9e7 #edf2f8; scrollbar-width: thin; }
+    .product-recommendation-track { display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 4px 3px 14px; scroll-snap-type: x mandatory; scrollbar-width: none; }
+    .product-recommendation-track::-webkit-scrollbar { display: none; }
     .product-recommendation-track > .product-recommendation-item,
     .product-recommendation-track > .category-recommendation-item { flex: 0 0 calc((100% - 64px) / 5); max-width: calc((100% - 64px) / 5); min-width: 0; scroll-snap-align: start; }
     .review-rating { display: flex; flex-direction: row-reverse; gap: 5px; justify-content: flex-end; margin: 4px 0 14px; }
