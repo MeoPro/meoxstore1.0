@@ -43,7 +43,7 @@ class ProductDetailsController extends Controller
         $product->load([
             'gameCategory:id,name',
             'itemCategory:id,name,bobux_type,uses_robux',
-            'itemSubcategory:id,parent_id,name',
+            'itemSubcategories:id,parent_id,name',
             'reviews' => fn ($query) => $query->where('is_hidden', false)->with('user:id,name')->latest()->limit(20),
             'variants' => fn ($query) => $query
                 ->where('status', 'active')

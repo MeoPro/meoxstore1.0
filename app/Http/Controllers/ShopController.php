@@ -99,7 +99,11 @@ class ShopController extends Controller
             ->where('status', 'active')
             ->when($selectedGameCategoryId > 0, fn (Builder $query) => $query->where('game_category_id', $selectedGameCategoryId))
             ->when($selectedItemCategory !== null, fn (Builder $query) => $query->whereIn('item_category_id', $selectedItemCategoryIds))
-            ->when($selectedItemSubcategory !== null, fn (Builder $query) => $query->whereIn('item_subcategory_id', $selectedItemSubcategoryIds))
+            ->when($selectedItemSubcategory !== null, fn (Builder $query) => $query
+                ->whereHas(
+                    'itemSubcategories',
+                    fn (Builder $subcategories) => $subcategories->whereIn('item_categories.id', $selectedItemSubcategoryIds),
+                ))
             ->when($searchTerm !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$searchTerm.'%'))
             ->whereHas('variants', $availableVariants);
 
@@ -123,7 +127,7 @@ class ShopController extends Controller
             ->with([
                 'gameCategory:id,name',
                 'itemCategory:id,name,bobux_type,uses_robux',
-                'itemSubcategory:id,parent_id,name',
+                'itemSubcategories:id,parent_id,name',
                 'variants' => fn ($query) => $activeVariants($query)
                     ->select(['id', 'product_id', 'name', 'price', 'stock', 'minimum_quantity', 'maximum_quantity', 'sort_order'])
                     ->orderBy('sort_order')

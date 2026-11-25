@@ -6,6 +6,7 @@ use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -19,7 +20,6 @@ class Product extends Model
     protected $fillable = [
         'game_category_id',
         'item_category_id',
-        'item_subcategory_id',
         'name',
         'description',
         'badges',
@@ -61,9 +61,14 @@ class Product extends Model
         return $this->belongsTo(ItemCategory::class);
     }
 
-    public function itemSubcategory(): BelongsTo
+    public function itemSubcategories(): BelongsToMany
     {
-        return $this->belongsTo(ItemCategory::class, 'item_subcategory_id');
+        return $this->belongsToMany(
+            ItemCategory::class,
+            'item_subcategory_product',
+            'product_id',
+            'item_category_id',
+        )->orderBy('item_categories.name');
     }
 
     public function variants(): HasMany

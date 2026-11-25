@@ -245,9 +245,9 @@
           @if ($product->itemCategory)
             <li><a href="{{ route('shop', ['game' => $product->game_category_id, 'item_category' => $product->item_category_id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->itemCategory->localizedName() }}</a></li>
           @endif
-          @if ($product->itemSubcategory)
-            <li><a href="{{ route('shop', ['game' => $product->game_category_id, 'item_category' => $product->item_category_id, 'item_subcategory' => $product->item_subcategory_id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->itemSubcategory->localizedName() }}</a></li>
-          @endif
+          @foreach ($product->itemSubcategories as $itemSubcategory)
+            <li><a href="{{ route('shop', ['game' => $product->game_category_id, 'item_category' => $product->item_category_id, 'item_subcategory' => $itemSubcategory->id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $itemSubcategory->localizedName() }}</a></li>
+          @endforeach
           <li aria-current="page">{{ $product->name }}</li>
         </ol>
       </nav>

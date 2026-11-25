@@ -271,10 +271,7 @@ class ItemCategoryController extends Controller
                 ]);
 
                 if ($status === 'inactive') {
-                    Product::query()
-                        ->where('item_category_id', $itemCategory->id)
-                        ->orWhere('item_subcategory_id', $itemCategory->id)
-                        ->update(['status' => 'inactive']);
+                    $this->deactivateProductsInCategory($itemCategory);
                 }
 
                 if ($parentCategory === null) {
@@ -316,13 +313,6 @@ class ItemCategoryController extends Controller
         $imagePath = DB::transaction(function () use ($itemCategory): ?string {
             $lockedCategory = ItemCategory::query()->lockForUpdate()->findOrFail($itemCategory->id);
             if ($lockedCategory->parent_id === null) {
-                $lockedCategory->products()->update([
-                    'item_category_id' => null,
-                    'item_subcategory_id' => null,
-                    'status' => 'inactive',
-                ]);
-            } else {
-                $lockedCategory->subcategoryProducts()->update(['item_subcategory_id' => null]);
                 $lockedCategory->products()->update([
                     'item_category_id' => null,
                     'status' => 'inactive',
@@ -369,10 +359,13 @@ class ItemCategoryController extends Controller
 
             if ($validated['action'] === 'archive') {
                 ItemCategory::query()->whereKey($validated['ids'])->update(['status' => 'inactive']);
-                Product::query()
-                    ->whereIn('item_category_id', $validated['ids'])
-                    ->orWhereIn('item_subcategory_id', $validated['ids'])
-                    ->update(['status' => 'inactive']);
+                Product::query()->where(function ($query) use ($validated): void {
+                    $query->whereIn('item_category_id', $validated['ids'])
+                        ->orWhereHas(
+                            'itemSubcategories',
+                            fn ($subcategories) => $subcategories->whereIn('item_categories.id', $validated['ids']),
+                        );
+                })->update(['status' => 'inactive']);
 
                 return [];
             }
@@ -389,13 +382,8 @@ class ItemCategoryController extends Controller
 
             Product::query()->whereIn('item_category_id', $validated['ids'])->update([
                 'item_category_id' => null,
-                'item_subcategory_id' => null,
                 'status' => 'inactive',
             ]);
-            Product::query()
-                ->whereIn('item_subcategory_id', $validated['ids'])
-                ->whereNotIn('item_category_id', $validated['ids'])
-                ->update(['item_subcategory_id' => null]);
 
             $imagePaths = $categories->pluck('image')->filter()->unique()->values()->all();
             foreach ($categories->sortBy(fn (ItemCategory $category): int => $category->parent_id === null ? 1 : 0) as $category) {
@@ -423,10 +411,7 @@ class ItemCategoryController extends Controller
             $itemCategory->update(['status' => $status]);
 
             if ($status === 'inactive') {
-                Product::query()
-                    ->where('item_category_id', $itemCategory->id)
-                    ->orWhere('item_subcategory_id', $itemCategory->id)
-                    ->update(['status' => 'inactive']);
+                $this->deactivateProductsInCategory($itemCategory);
             }
         });
 
@@ -505,5 +490,18 @@ class ItemCategoryController extends Controller
         }
 
         return $parentCategory;
+    }
+
+    private function deactivateProductsInCategory(ItemCategory $itemCategory): void
+    {
+        Product::query()
+            ->where(function ($query) use ($itemCategory): void {
+                $query->where('item_category_id', $itemCategory->id)
+                    ->orWhereHas(
+                        'itemSubcategories',
+                        fn ($subcategories) => $subcategories->where('item_categories.id', $itemCategory->id),
+                    );
+            })
+            ->update(['status' => 'inactive']);
     }
 }

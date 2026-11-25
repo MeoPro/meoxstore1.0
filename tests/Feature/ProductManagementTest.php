@@ -534,31 +534,58 @@ it('rejects a product whose item category is not mapped to its game', function (
     expect(Product::query()->count())->toBe(0);
 });
 
-it('stores an optional item subcategory beneath the selected main category', function () {
+it('stores multiple item subcategories beneath the selected main category', function () {
     $this->actingAs(User::factory()->create());
     $gameCategory = GameCategory::factory()->create();
     $mainCategory = ItemCategory::factory()->create(['name' => 'Joki']);
-    $subcategory = ItemCategory::factory()->create([
+    $material = ItemCategory::factory()->create([
         'name' => 'Material',
+        'parent_id' => $mainCategory->id,
+    ]);
+    $accessories = ItemCategory::factory()->create([
+        'name' => 'Aksesoris',
         'parent_id' => $mainCategory->id,
     ]);
     $gameCategory->itemCategories()->attach($mainCategory);
     $input = productInput($gameCategory, $mainCategory, [variantInput()]);
-    $input['item_subcategory_id'] = $subcategory->id;
+    $input['item_subcategory_ids'] = [$material->id, $accessories->id];
 
     $this->post(route('admin.products.store'), $input)
         ->assertRedirectToRoute('admin.products.index');
 
     $product = Product::query()->where('name', 'Blox Fruit Account')->firstOrFail();
     expect($product->item_category_id)->toBe($mainCategory->id)
-        ->and($product->item_subcategory_id)->toBe($subcategory->id);
+        ->and($product->itemSubcategories->modelKeys())->toBe([$accessories->id, $material->id]);
 
     $this->get(route('admin.products.edit', $product))
         ->assertSee('Material')
-        ->assertSee('id="item_subcategory_id"', false);
-    $this->get(route('admin.products.index', ['item_subcategory_id' => $subcategory->id]))
+        ->assertSee('Aksesoris')
+        ->assertSee('id="item_subcategory_ids"', false)
+        ->assertSee('name="item_subcategory_ids[]" multiple', false);
+    $this->get(route('admin.products.index', ['item_subcategory_id' => $material->id]))
         ->assertSee('Blox Fruit Account')
-        ->assertSee('Joki / Material');
+        ->assertSee('Aksesoris, Material');
+});
+
+it('replaces a product item subcategory selection when it is edited', function () {
+    $this->actingAs(User::factory()->create());
+    $gameCategory = GameCategory::factory()->create();
+    $mainCategory = ItemCategory::factory()->create(['name' => 'Joki']);
+    $material = ItemCategory::factory()->create(['name' => 'Material', 'parent_id' => $mainCategory->id]);
+    $accessories = ItemCategory::factory()->create(['name' => 'Aksesoris', 'parent_id' => $mainCategory->id]);
+    $gameCategory->itemCategories()->attach($mainCategory);
+    $product = Product::factory()->create([
+        'game_category_id' => $gameCategory->id,
+        'item_category_id' => $mainCategory->id,
+    ]);
+    $product->itemSubcategories()->attach($material);
+    $input = productInput($gameCategory, $mainCategory, [variantInput()]);
+    $input['item_subcategory_ids'] = [$accessories->id];
+
+    $this->put(route('admin.products.update', $product), $input)
+        ->assertRedirect(route('admin.products.edit', $product));
+
+    expect($product->fresh()->itemSubcategories->modelKeys())->toBe([$accessories->id]);
 });
 
 it('rejects a product subcategory that belongs to a different main category', function () {
@@ -572,10 +599,10 @@ it('rejects a product subcategory that belongs to a different main category', fu
     ]);
     $gameCategory->itemCategories()->attach($mainCategory);
     $input = productInput($gameCategory, $mainCategory, [variantInput()]);
-    $input['item_subcategory_id'] = $subcategory->id;
+    $input['item_subcategory_ids'] = [$subcategory->id];
 
     $this->post(route('admin.products.store'), $input)
-        ->assertInvalid(['item_subcategory_id']);
+        ->assertInvalid(['item_subcategory_ids.0']);
 
     expect(Product::query()->where('name', 'Blox Fruit Account')->exists())->toBeFalse();
 });
@@ -584,20 +611,20 @@ it('filters storefront products by the selected subcategory and shows its breadc
     $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);
     $mainCategory = ItemCategory::factory()->create(['name' => 'Joki']);
     $material = ItemCategory::factory()->create(['name' => 'Material', 'parent_id' => $mainCategory->id]);
+    $accessories = ItemCategory::factory()->create(['name' => 'Aksesoris', 'parent_id' => $mainCategory->id]);
     $melee = ItemCategory::factory()->create(['name' => 'Melee', 'parent_id' => $mainCategory->id]);
     $gameCategory->itemCategories()->attach($mainCategory);
     $materialProduct = Product::factory()->create([
         'game_category_id' => $gameCategory->id,
         'item_category_id' => $mainCategory->id,
-        'item_subcategory_id' => $material->id,
         'name' => 'Material product',
     ]);
+    $materialProduct->itemSubcategories()->attach([$material->id, $accessories->id]);
     Product::factory()->create([
         'game_category_id' => $gameCategory->id,
         'item_category_id' => $mainCategory->id,
-        'item_subcategory_id' => $melee->id,
         'name' => 'Melee product',
-    ]);
+    ])->itemSubcategories()->attach($melee);
 
     $this->get(route('shop', [
         'game' => $gameCategory->id,
@@ -609,7 +636,8 @@ it('filters storefront products by the selected subcategory and shows its breadc
         ->assertSee('Material');
 
     $this->get(route('product-details.show', $materialProduct))
-        ->assertSee('Material');
+        ->assertSee('Material')
+        ->assertSee('Aksesoris');
 });
 
 it('prevents deleting a main item category while it has subcategories', function () {
@@ -632,13 +660,13 @@ it('clears a deleted subcategory from its products without deactivating them', f
     ]);
     $product = Product::factory()->create([
         'item_category_id' => $mainCategory->id,
-        'item_subcategory_id' => $subcategory->id,
     ]);
+    $product->itemSubcategories()->attach($subcategory);
 
     $this->delete(route('admin.item-categories.destroy', $subcategory))
         ->assertRedirectToRoute('admin.item-categories.index');
 
-    expect($product->fresh()->item_subcategory_id)->toBeNull()
+    expect($product->fresh()->itemSubcategories->modelKeys())->toBe([])
         ->and($product->fresh()->status)->toBe('active');
 });
 
@@ -653,8 +681,8 @@ it('deactivates products when a subcategory is deactivated from its edit form', 
     $gameCategory->itemCategories()->attach($mainCategory);
     $product = Product::factory()->create([
         'item_category_id' => $mainCategory->id,
-        'item_subcategory_id' => $subcategory->id,
     ]);
+    $product->itemSubcategories()->attach($subcategory);
 
     $this->put(route('admin.item-categories.update', $subcategory), [
         'name' => 'Material',

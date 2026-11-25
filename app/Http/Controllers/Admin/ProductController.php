@@ -29,7 +29,7 @@ class ProductController extends Controller
             ->with([
                 'gameCategory:id,name',
                 'itemCategory:id,name,bobux_type,uses_robux',
-                'itemSubcategory:id,name,parent_id',
+                'itemSubcategories:id,name,parent_id',
             ])
             ->with(['variants:id,product_id,name,price,sort_order']);
 
@@ -47,7 +47,10 @@ class ProductController extends Controller
         }
 
         if ($request->filled('item_subcategory_id')) {
-            $query->where('item_subcategory_id', $request->query('item_subcategory_id'));
+            $query->whereHas(
+                'itemSubcategories',
+                fn ($subcategories) => $subcategories->where('item_categories.id', $request->query('item_subcategory_id')),
+            );
         }
 
         if (in_array($request->query('status'), ['draft', 'active', 'inactive'], true)) {
@@ -86,10 +89,12 @@ class ProductController extends Controller
     {
         $selectedGameCategoryId = filter_var($request->old('game_category_id'), FILTER_VALIDATE_INT);
         $selectedItemCategoryId = filter_var($request->old('item_category_id'), FILTER_VALIDATE_INT);
-        $selectedSubcategoryId = filter_var($request->old('item_subcategory_id'), FILTER_VALIDATE_INT);
+        $selectedSubcategoryIds = array_values(array_filter(
+            array_map('intval', (array) $request->old('item_subcategory_ids', [])),
+            fn (int $id): bool => $id > 0,
+        ));
         $selectedGameCategoryId = $selectedGameCategoryId === false ? null : $selectedGameCategoryId;
         $selectedItemCategoryId = $selectedItemCategoryId === false ? null : $selectedItemCategoryId;
-        $selectedSubcategoryId = $selectedSubcategoryId === false ? null : $selectedSubcategoryId;
         $itemCategories = collect();
         $selectedGameCategory = GameCategory::query()->find($selectedGameCategoryId);
 
@@ -97,7 +102,7 @@ class ProductController extends Controller
             $itemCategories = $this->itemCategoriesForGame(
                 $selectedGameCategory,
                 $selectedItemCategoryId,
-                $selectedSubcategoryId,
+                $selectedSubcategoryIds,
             );
         }
 
@@ -123,7 +128,6 @@ class ProductController extends Controller
                 $attributes = Arr::only($validated, [
                     'game_category_id',
                     'item_category_id',
-                    'item_subcategory_id',
                     'name',
                     'description',
                     'badges',
@@ -136,6 +140,7 @@ class ProductController extends Controller
                 $attributes['status'] = 'active';
 
                 $product = Product::create($attributes);
+                $product->itemSubcategories()->sync($validated['item_subcategory_ids']);
 
                 foreach ($validated['variants'] as $variant) {
                     $product->variants()->create(Arr::except($variant, ['id']));
@@ -164,7 +169,7 @@ class ProductController extends Controller
         $product->load([
             'gameCategory:id,name',
             'itemCategory:id,name,bobux_type,uses_robux',
-            'itemSubcategory:id,name,parent_id',
+            'itemSubcategories:id,name,parent_id',
             'variants',
         ]);
 
@@ -215,12 +220,12 @@ class ProductController extends Controller
      */
     public function edit(Product $product): View
     {
-        $product->load('variants');
+        $product->load(['variants', 'itemSubcategories:id,name,parent_id']);
         $itemCategories = $product->gameCategory
             ? $this->itemCategoriesForGame(
                 $product->gameCategory,
                 $product->item_category_id,
-                $product->item_subcategory_id,
+                $product->itemSubcategories->modelKeys(),
             )
             : collect();
 
@@ -251,7 +256,6 @@ class ProductController extends Controller
                 $attributes = Arr::only($validated, [
                     'game_category_id',
                     'item_category_id',
-                    'item_subcategory_id',
                     'name',
                     'description',
                     'badges',
@@ -266,6 +270,7 @@ class ProductController extends Controller
                 }
 
                 $product->update($attributes);
+                $product->itemSubcategories()->sync($validated['item_subcategory_ids']);
                 $keptVariantIds = [];
 
                 foreach ($validated['variants'] as $variantData) {
@@ -401,9 +406,11 @@ class ProductController extends Controller
                 Rule::exists('game_category_item_category', 'item_category_id')
                     ->where('game_category_id', $request->input('game_category_id')),
             ],
-            'item_subcategory_id' => [
-                'nullable',
+            'item_subcategory_ids' => ['sometimes', 'array'],
+            'item_subcategory_ids.*' => [
+                'required',
                 'integer',
+                'distinct',
                 Rule::exists('item_categories', 'id')
                     ->where('parent_id', $request->input('item_category_id')),
             ],
@@ -465,17 +472,23 @@ class ProductController extends Controller
             ]);
         }
 
-        if (isset($validated['item_subcategory_id'])) {
-            $selectedSubcategory = ItemCategory::query()->findOrFail($validated['item_subcategory_id']);
-            if ($selectedSubcategory->status !== 'active'
-                && (int) ($product?->item_subcategory_id ?? 0) !== (int) $selectedSubcategory->id) {
-                throw ValidationException::withMessages([
-                    'item_subcategory_id' => 'Choose an active subcategory.',
-                ]);
-            }
+        $selectedSubcategoryIds = $validated['item_subcategory_ids'] ?? [];
+        $currentSubcategoryIds = $product?->itemSubcategories()
+            ->pluck('item_categories.id')
+            ->all() ?? [];
+        $hasUnavailableSubcategory = ItemCategory::query()
+            ->whereKey($selectedSubcategoryIds)
+            ->where('status', 'inactive')
+            ->whereNotIn('id', $currentSubcategoryIds)
+            ->exists();
+
+        if ($hasUnavailableSubcategory) {
+            throw ValidationException::withMessages([
+                'item_subcategory_ids' => 'Choose active subcategories.',
+            ]);
         }
 
-        $validated['item_subcategory_id'] ??= null;
+        $validated['item_subcategory_ids'] = $selectedSubcategoryIds;
         $validated['badges'] = array_values($validated['badges'] ?? []);
         $validated['is_featured'] = $request->boolean('is_featured');
         $validated['purchase_fields'] = array_values($validated['purchase_fields'] ?? []);
@@ -489,7 +502,7 @@ class ProductController extends Controller
     private function itemCategoriesForGame(
         GameCategory $gameCategory,
         ?int $selectedItemCategoryId = null,
-        ?int $selectedSubcategoryId = null,
+        array $selectedSubcategoryIds = [],
     ): Collection {
         return $gameCategory->itemCategories()
             ->whereNull('item_categories.parent_id')
@@ -500,12 +513,12 @@ class ProductController extends Controller
                     $query->orWhere('item_categories.id', $selectedItemCategoryId);
                 }
             })
-            ->with(['children' => function ($query) use ($selectedSubcategoryId): void {
-                $query->where(function ($childQuery) use ($selectedSubcategoryId): void {
+            ->with(['children' => function ($query) use ($selectedSubcategoryIds): void {
+                $query->where(function ($childQuery) use ($selectedSubcategoryIds): void {
                     $childQuery->where('status', 'active');
 
-                    if ($selectedSubcategoryId !== null) {
-                        $childQuery->orWhere('id', $selectedSubcategoryId);
+                    if ($selectedSubcategoryIds !== []) {
+                        $childQuery->orWhereIn('id', $selectedSubcategoryIds);
                     }
                 })->orderBy('name');
             }])

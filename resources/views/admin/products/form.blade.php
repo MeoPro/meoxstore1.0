@@ -17,7 +17,10 @@
         $nextPurchaseFieldIndex = count($purchaseFieldRows);
         $selectedGameCategoryId = (string) old('game_category_id', $product->game_category_id ?? '');
         $selectedItemCategoryId = (string) old('item_category_id', $product->item_category_id ?? '');
-        $selectedSubcategoryId = (string) old('item_subcategory_id', $product->item_subcategory_id ?? '');
+        $selectedSubcategoryIds = old('item_subcategory_ids', $product->itemSubcategories->modelKeys());
+        $selectedSubcategoryIds = is_array($selectedSubcategoryIds)
+            ? array_map('strval', $selectedSubcategoryIds)
+            : [];
         $selectedItemCategory = $itemCategories->firstWhere('id', (int) $selectedItemCategoryId);
         $bobuxType = $selectedItemCategory?->bobux_type
             ?? ($selectedItemCategory?->uses_robux ? 'gift_ingame' : null);
@@ -119,14 +122,22 @@
                     @error('item_category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-12 col-md-6">
-                    <label class="form-label" for="item_subcategory_id">Item subcategory <span class="text-muted">(optional)</span></label>
-                    <select class="form-select @error('item_subcategory_id') is-invalid @enderror" id="item_subcategory_id" name="item_subcategory_id" @disabled($selectedItemCategory === null || $selectedItemCategory->children->isEmpty())>
-                        <option value="">No subcategory</option>
+                    <label class="form-label" for="item_subcategory_ids">Item subcategories <span class="text-muted">(optional)</span></label>
+                    <select class="form-select @error('item_subcategory_ids') is-invalid @enderror" id="item_subcategory_ids" name="item_subcategory_ids[]" multiple size="4" @disabled($selectedItemCategory === null || $selectedItemCategory->children->isEmpty())>
+                        @if ($selectedItemCategory === null || $selectedItemCategory->children->isEmpty())
+                            <option value="">No subcategories available</option>
+                        @endif
                         @foreach ($selectedItemCategory?->children ?? collect() as $subcategory)
-                            <option value="{{ $subcategory->id }}" @selected($selectedSubcategoryId === (string) $subcategory->id)>{{ $subcategory->name }}</option>
+                            <option value="{{ $subcategory->id }}" @selected(in_array((string) $subcategory->id, $selectedSubcategoryIds, true))>{{ $subcategory->name }}</option>
                         @endforeach
                     </select>
-                    @error('item_subcategory_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div class="form-text">Choose more than one with Ctrl-click.</div>
+                    @error('item_subcategory_ids')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                    @foreach ($errors->get('item_subcategory_ids.*') as $subcategoryErrors)
+                        @foreach ($subcategoryErrors as $message)
+                            <div class="text-danger small mt-2">{{ $message }}</div>
+                        @endforeach
+                    @endforeach
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="description">Description <span class="text-muted">(optional)</span></label>
@@ -402,7 +413,7 @@
             const csrfToken = document.querySelector('input[name="_token"]').value;
             const gameCategorySelect = document.getElementById('game_category_id');
             const itemCategorySelect = document.getElementById('item_category_id');
-            const itemSubcategorySelect = document.getElementById('item_subcategory_id');
+            const itemSubcategorySelect = document.getElementById('item_subcategory_ids');
             const itemCategoryEditor = document.querySelector('[data-category-type="item"]');
             const addItemCategoryButton = itemCategoryEditor.querySelector('[data-create-category]');
             const updateBobuxPricing = () => {
@@ -427,20 +438,23 @@
             };
             const originalGameCategoryId = @json($selectedGameCategoryId);
             const originalItemCategoryId = @json($selectedItemCategoryId);
-            const originalSubcategoryId = @json($selectedSubcategoryId);
+            const originalSubcategoryIds = @json($selectedSubcategoryIds);
             let itemCategoryRequest = 0;
 
             const populateSubcategories = () => {
                 const parentOption = itemCategorySelect.selectedOptions[0];
                 const subcategories = JSON.parse(parentOption?.dataset.subcategories || '[]');
-                const keepSelection = itemCategorySelect.value === originalItemCategoryId
+                const keepSelection = new Set(itemCategorySelect.value === originalItemCategoryId
                     && gameCategorySelect.value === originalGameCategoryId
-                    ? originalSubcategoryId
-                    : itemSubcategorySelect.value;
+                    ? originalSubcategoryIds
+                    : Array.from(itemSubcategorySelect.selectedOptions, (option) => option.value));
 
-                itemSubcategorySelect.replaceChildren(new Option('No subcategory', ''));
+                itemSubcategorySelect.replaceChildren();
+                if (subcategories.length === 0) {
+                    itemSubcategorySelect.add(new Option('No subcategories available', ''));
+                }
                 subcategories.forEach((subcategory) => {
-                    const selected = subcategory.id.toString() === keepSelection;
+                    const selected = keepSelection.has(subcategory.id.toString());
                     itemSubcategorySelect.add(new Option(subcategory.name, subcategory.id, selected, selected));
                 });
                 itemSubcategorySelect.disabled = subcategories.length === 0;
@@ -468,8 +482,10 @@
                 if (gameCategoryId === originalGameCategoryId && originalItemCategoryId) {
                     query.set('selected_item_category_id', originalItemCategoryId);
                 }
-                if (gameCategoryId === originalGameCategoryId && originalSubcategoryId) {
-                    query.set('selected_subcategory_id', originalSubcategoryId);
+                if (gameCategoryId === originalGameCategoryId) {
+                    originalSubcategoryIds.forEach((subcategoryId) => {
+                        query.append('selected_subcategory_ids[]', subcategoryId);
+                    });
                 }
 
                 try {
@@ -503,7 +519,7 @@
                 } catch {
                     if (requestId === itemCategoryRequest) {
                         itemCategorySelect.replaceChildren(new Option('Could not load item categories', ''));
-                        itemSubcategorySelect.replaceChildren(new Option('No subcategory', ''));
+                        itemSubcategorySelect.replaceChildren(new Option('No subcategories available', ''));
                     }
                 }
             };

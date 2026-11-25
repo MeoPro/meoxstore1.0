@@ -245,7 +245,17 @@ class GameCategoryController extends Controller
     public function itemCategories(Request $request, GameCategory $gameCategory): JsonResponse
     {
         $selectedItemCategoryId = filter_var($request->query('selected_item_category_id'), FILTER_VALIDATE_INT);
-        $selectedSubcategoryId = filter_var($request->query('selected_subcategory_id'), FILTER_VALIDATE_INT);
+        $selectedSubcategoryIds = $request->query('selected_subcategory_ids', []);
+        $selectedSubcategoryIds = is_array($selectedSubcategoryIds)
+            ? array_values(array_filter(
+                array_map(fn ($id) => filter_var($id, FILTER_VALIDATE_INT), $selectedSubcategoryIds),
+                fn ($id): bool => $id !== false && $id > 0,
+            ))
+            : [];
+        $legacySelectedSubcategoryId = filter_var($request->query('selected_subcategory_id'), FILTER_VALIDATE_INT);
+        if ($legacySelectedSubcategoryId !== false && $legacySelectedSubcategoryId > 0) {
+            $selectedSubcategoryIds[] = $legacySelectedSubcategoryId;
+        }
 
         $itemCategories = $gameCategory->itemCategories()
             ->where(function ($query) use ($selectedItemCategoryId): void {
@@ -256,12 +266,12 @@ class GameCategoryController extends Controller
                 }
             })
             ->whereNull('item_categories.parent_id')
-            ->with(['children' => function ($query) use ($selectedSubcategoryId): void {
-                $query->where(function ($childQuery) use ($selectedSubcategoryId): void {
+            ->with(['children' => function ($query) use ($selectedSubcategoryIds): void {
+                $query->where(function ($childQuery) use ($selectedSubcategoryIds): void {
                     $childQuery->where('status', 'active');
 
-                    if ($selectedSubcategoryId !== false) {
-                        $childQuery->orWhere('id', $selectedSubcategoryId);
+                    if ($selectedSubcategoryIds !== []) {
+                        $childQuery->orWhereIn('id', $selectedSubcategoryIds);
                     }
                 })->orderBy('name');
             }])

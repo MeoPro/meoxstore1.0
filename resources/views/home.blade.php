@@ -267,7 +267,7 @@
                             @endif
                         </div>
                         <div class="down-content">
-                            <span class="category">{{ $product->gameCategory?->name ?? $product->itemCategory?->localizedName() }}@if ($product->gameCategory && $product->itemCategory) / {{ $product->itemCategory->localizedName() }}@endif @if ($product->itemSubcategory)/ {{ $product->itemSubcategory->localizedName() }}@endif</span>
+                            <span class="category">{{ $product->gameCategory?->name ?? $product->itemCategory?->localizedName() }}@if ($product->gameCategory && $product->itemCategory) / {{ $product->itemCategory->localizedName() }}@endif @if ($product->itemSubcategories->isNotEmpty())/ {{ $product->itemSubcategories->map(fn ($subcategory) => $subcategory->localizedName())->join(', ') }}@endif</span>
                             <h4>{{ $product->name }}</h4>
                             <div class="shop-product-price">
                                 @if ($product->hasDiscount())

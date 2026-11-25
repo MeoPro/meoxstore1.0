@@ -53,9 +53,14 @@ class ItemCategory extends Model
         return $this->hasMany(self::class, 'parent_id');
     }
 
-    public function subcategoryProducts(): HasMany
+    public function subcategoryProducts(): BelongsToMany
     {
-        return $this->hasMany(Product::class, 'item_subcategory_id');
+        return $this->belongsToMany(
+            Product::class,
+            'item_subcategory_product',
+            'item_category_id',
+            'product_id',
+        );
     }
 
     public function usesBobux(): bool

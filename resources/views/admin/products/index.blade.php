@@ -113,8 +113,8 @@
                         <td>{{ $product->gameCategory?->name ?? '—' }}</td>
                         <td>
                             {{ $product->itemCategory?->name ?? '—' }}
-                            @if ($product->itemSubcategory)
-                                <span class="text-muted">/ {{ $product->itemSubcategory->name }}</span>
+                            @if ($product->itemSubcategories->isNotEmpty())
+                                <span class="text-muted">/ {{ $product->itemSubcategories->pluck('name')->join(', ') }}</span>
                             @endif
                         </td>
                         <td>

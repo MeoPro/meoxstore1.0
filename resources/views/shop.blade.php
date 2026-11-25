@@ -455,10 +455,13 @@ https://templatemo.com/tm-589-lugx-gaming
               $minimumUsdPriceBeforeDiscount = $priceVariants->min(
                 fn ($variant) => $product->priceBeforeDiscountInUsd((float) $variant->price, $currencyRates),
               );
+              $subcategoryClasses = $product->itemSubcategories
+                ->map(fn ($subcategory) => 'subcategory-'.$subcategory->id)
+                ->implode(' ');
             @endphp
             @php($fallbackImage = asset('images/trending-0'.(($loop->index % 4) + 1).'.jpg'))
             @php($stockCount = $product->variants->sum('stock'))
-            <div class="col-6 col-md-6 col-lg-3 trending-items game-{{ $product->game_category_id }} item-{{ $product->item_category_id }} subcategory-{{ $product->item_subcategory_id }}">
+            <div class="col-6 col-md-6 col-lg-3 trending-items game-{{ $product->game_category_id }} item-{{ $product->item_category_id }} {{ $subcategoryClasses }}">
               <div class="item shop-product-card">
                 <div class="thumb">
                   <a href="{{ route('product-details.show', ['product' => $product, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}" data-shop-product-link>
@@ -479,7 +482,7 @@ https://templatemo.com/tm-589-lugx-gaming
                   @endif
                 </div>
                 <div class="down-content">
-                  <span class="category">{{ $product->gameCategory->name }} / {{ $product->itemCategory?->localizedName() }}@if ($product->itemSubcategory) / {{ $product->itemSubcategory->localizedName() }}@endif</span>
+                  <span class="category">{{ $product->gameCategory->name }} / {{ $product->itemCategory?->localizedName() }}@if ($product->itemSubcategories->isNotEmpty()) / {{ $product->itemSubcategories->map(fn ($subcategory) => $subcategory->localizedName())->join(', ') }}@endif</span>
                   <h4>{{ $product->name }}</h4>
                   <div class="shop-product-price">
                     @if ($product->hasDiscount())

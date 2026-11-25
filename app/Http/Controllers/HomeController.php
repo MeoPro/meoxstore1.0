@@ -31,7 +31,7 @@ class HomeController extends Controller
             ->with([
                 'gameCategory:id,name',
                 'itemCategory:id,name,bobux_type,uses_robux',
-                'itemSubcategory:id,parent_id,name',
+                'itemSubcategories:id,parent_id,name',
                 'variants' => fn ($variants) => $variants
                     ->where('status', 'active')
                     ->select(['id', 'product_id', 'price', 'stock'])
