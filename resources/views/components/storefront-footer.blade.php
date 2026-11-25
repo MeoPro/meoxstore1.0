@@ -100,17 +100,6 @@
                     {{ __('store.footer_template_credit') }}
                 </a>
             @endif
-            @php($footerWhatsappPhone = preg_replace('/\D+/', '', (string) config('store.admin_phone', '')))
-            @if ($footerWhatsappPhone !== '')
-                <a
-                    class="storefront-footer-whatsapp-link"
-                    href="https://wa.me/{{ $footerWhatsappPhone }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="{{ __('store.whatsapp_chat_label') }}">
-                    <img src="{{ asset('images/wa.png') }}" alt="" aria-hidden="true">
-                </a>
-            @endif
         </div>
     </div>
 </footer>
