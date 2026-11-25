@@ -561,7 +561,7 @@ body.storefront-page {
 .storefront-footer-grid {
     display: grid;
     gap: 32px;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .8fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.75fr) minmax(0, .8fr);
 }
 
 .storefront-footer-grid > * {
@@ -724,7 +724,7 @@ body.storefront-page {
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    height: 28px;
+    height: 56px;
     max-width: 100%;
     object-fit: contain;
     width: auto;
@@ -761,6 +761,10 @@ body.storefront-page {
 
     .storefront-footer-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .storefront-footer-payments {
+        grid-column: 1 / -1;
     }
 
     .storefront-footer-contact {
