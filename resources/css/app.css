@@ -694,7 +694,8 @@ body.storefront-page {
 .storefront-footer .storefront-footer-payment-list {
     display: grid;
     gap: 6px 4px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, 60px);
+    justify-content: start;
 }
 
 .storefront-footer-payment-list > li {
