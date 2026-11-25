@@ -344,6 +344,7 @@ return [
     'order_chat_buyer' => 'Pembeli',
     'order_chat_edit' => 'Edit',
     'order_chat_delete' => 'Padam',
+    'order_chat_options' => 'Pilihan mesej',
     'order_chat_save' => 'Simpan perubahan',
     'order_chat_send' => 'Hantar mesej',
     'order_chat_message_sent' => 'Mesej berjaya dihantar.',

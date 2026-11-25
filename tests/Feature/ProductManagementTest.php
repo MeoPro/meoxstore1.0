@@ -645,6 +645,17 @@ it('sets an explicit product status from the listing', function () {
     expect($product->fresh()->status)->toBe('inactive');
 });
 
+it('keeps an out-of-stock product inactive when activating it from the listing', function () {
+    $this->actingAs(User::factory()->create());
+    $product = Product::factory()->create(['status' => 'inactive']);
+    $product->variants()->firstOrFail()->update(['stock' => 0, 'maximum_quantity' => 0]);
+
+    $this->patch(route('admin.products.status', $product), ['status' => 'active'])
+        ->assertRedirect();
+
+    expect($product->fresh()->status)->toBe('inactive');
+});
+
 it('updates variant prices from the product listing endpoint', function () {
     $this->actingAs(User::factory()->create());
     $product = Product::factory()->create();
@@ -884,7 +895,7 @@ it('rejects a maximum quantity below the minimum quantity', function () {
     expect(Product::query()->count())->toBe(0);
 });
 
-it('requires maximum quantity to match stock and allows zero-stock variants', function () {
+it('requires maximum quantity to match stock and deactivates zero-stock products', function () {
     $this->actingAs(User::factory()->create());
     $gameCategory = GameCategory::factory()->create();
     $itemCategory = ItemCategory::factory()->create();
@@ -902,6 +913,7 @@ it('requires maximum quantity to match stock and allows zero-stock variants', fu
         'stock' => 0,
         'maximum_quantity' => 0,
     ]);
+    expect(Product::query()->where('name', 'Blox Fruit Account')->value('status'))->toBe('inactive');
 });
 
 it('seeds the requested categories, products, and variants', function () {
@@ -1061,6 +1073,15 @@ it('filters the product listing without omitting related category names', functi
         ->assertDontSee('Other Product');
 });
 
+it('omits variant counts and creation dates from the product listing', function () {
+    $this->actingAs(User::factory()->create());
+    Product::factory()->create();
+
+    $this->get(route('admin.products.index'))
+        ->assertDontSee('<th>Variants</th>', false)
+        ->assertDontSee('<th>Created</th>', false);
+});
+
 it('filters products with no variants in stock', function () {
     $this->actingAs(User::factory()->create());
     $outOfStockProduct = Product::factory()->create(['name' => 'Out of stock product']);
@@ -1081,6 +1102,50 @@ it('filters products with no variants in stock', function () {
         ->assertDontSee('Available product')
         ->assertDontSee('Partially available product')
         ->assertSee('value="out_of_stock" selected', false);
+});
+
+it('deactivates a product when its last in-stock variant is set to zero', function () {
+    $this->actingAs(User::factory()->create());
+    $gameCategory = GameCategory::factory()->create();
+    $itemCategory = ItemCategory::factory()->create();
+    $product = Product::factory()->create([
+        'game_category_id' => $gameCategory->id,
+        'item_category_id' => $itemCategory->id,
+        'status' => 'active',
+    ]);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 4, 'maximum_quantity' => 4]);
+
+    $this->put(route('admin.products.update', $product), productInput($gameCategory, $itemCategory, [
+        variantInput(['id' => (string) $variant->id, 'stock' => '0']),
+    ]))->assertRedirect(route('admin.products.edit', $product));
+
+    expect($product->fresh()->status)->toBe('inactive');
+});
+
+it('keeps a product active when another variant remains in stock', function () {
+    $this->actingAs(User::factory()->create());
+    $gameCategory = GameCategory::factory()->create();
+    $itemCategory = ItemCategory::factory()->create();
+    $product = Product::factory()->create([
+        'game_category_id' => $gameCategory->id,
+        'item_category_id' => $itemCategory->id,
+        'status' => 'active',
+    ]);
+    $firstVariant = $product->variants()->firstOrFail();
+    $firstVariant->update(['stock' => 4, 'maximum_quantity' => 4]);
+    $secondVariant = ProductVariant::factory()->for($product)->create([
+        'name' => 'Second variant',
+        'stock' => 2,
+        'maximum_quantity' => 2,
+    ]);
+
+    $this->put(route('admin.products.update', $product), productInput($gameCategory, $itemCategory, [
+        variantInput(['id' => (string) $firstVariant->id, 'stock' => '0']),
+        variantInput(['id' => (string) $secondVariant->id, 'name' => 'Second variant', 'stock' => '2']),
+    ]))->assertRedirect(route('admin.products.edit', $product));
+
+    expect($product->fresh()->status)->toBe('active');
 });
 
 it('renders multi-select and delete controls for products and categories', function () {

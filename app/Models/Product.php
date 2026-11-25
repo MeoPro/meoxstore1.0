@@ -65,6 +65,17 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function deactivateIfOutOfStock(): void
+    {
+        if ($this->variants()->where('stock', '>', 0)->exists()) {
+            return;
+        }
+
+        if ($this->status !== 'inactive') {
+            $this->update(['status' => 'inactive']);
+        }
+    }
+
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);

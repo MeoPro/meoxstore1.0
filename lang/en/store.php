@@ -344,6 +344,7 @@ return [
     'order_chat_buyer' => 'Buyer',
     'order_chat_edit' => 'Edit',
     'order_chat_delete' => 'Delete',
+    'order_chat_options' => 'Message options',
     'order_chat_save' => 'Save changes',
     'order_chat_send' => 'Send message',
     'order_chat_message_sent' => 'Message sent.',

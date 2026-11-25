@@ -26,8 +26,7 @@ class ProductController extends Controller
     {
         $query = Product::query()
             ->with(['gameCategory:id,name', 'itemCategory:id,name,bobux_type,uses_robux'])
-            ->with(['variants:id,product_id,name,price,sort_order'])
-            ->withCount('variants');
+            ->with(['variants:id,product_id,name,price,sort_order']);
 
         $search = trim((string) $request->query('search', ''));
         if ($search !== '') {
@@ -125,6 +124,8 @@ class ProductController extends Controller
                     $product->variants()->create(Arr::except($variant, ['id']));
                 }
 
+                $product->deactivateIfOutOfStock();
+
                 return $product;
             });
         } catch (Throwable $exception) {
@@ -160,6 +161,7 @@ class ProductController extends Controller
         $product->update([
             'status' => $validated['status'] ?? ($product->status === 'active' ? 'inactive' : 'active'),
         ]);
+        $product->deactivateIfOutOfStock();
 
         return back()->with('success', 'Product status updated.');
     }
@@ -260,6 +262,7 @@ class ProductController extends Controller
                 }
 
                 $product->variants()->whereNotIn('id', $keptVariantIds)->delete();
+                $product->deactivateIfOutOfStock();
             });
         } catch (Throwable $exception) {
             if ($imagePath !== null) {

@@ -108,6 +108,30 @@ it('blocks the selected Bobux type while leaving regular purchases available', f
         ->and(Order::query()->sole()->total)->toBe('10000.00');
 });
 
+it('deactivates a product when checkout consumes its remaining stock', function () {
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 1, 'maximum_quantity' => 1]);
+    $paymentSetting = PaymentSetting::query()->create([
+        'type' => 'bank_transfer',
+        'name' => 'BCA',
+        'is_active' => true,
+    ]);
+    Mail::fake();
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+    $this->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ])->assertRedirect();
+
+    expect($variant->fresh()->stock)->toBe(0)
+        ->and($product->fresh()->status)->toBe('inactive');
+});
+
 it('blocks only the Bobux delivery type whose transaction switch is off', function (
     string $disabledType,
     string $switch,

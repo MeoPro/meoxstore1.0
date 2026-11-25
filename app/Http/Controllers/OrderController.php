@@ -61,6 +61,7 @@ class OrderController extends Controller
             }
 
             $variant->decrement('stock', $quantity);
+            $product->deactivateIfOutOfStock();
             $unitPrice = $product->priceInIdr((float) $variant->price, ProductCurrencyRate::current());
             $order = Order::query()->create([
                 'user_id' => $request->user()->id,

@@ -185,6 +185,26 @@ it('reserves stock for a customer order and counts sales only after completion',
         ->assertSee('2 terjual');
 });
 
+it('deactivates a product when a customer reserves its final stock', function () {
+    $buyer = User::factory()->create();
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 1, 'maximum_quantity' => 1]);
+    Mail::fake();
+
+    $this->actingAs($buyer)
+        ->post(route('orders.store'), [
+            'product_id' => $product->id,
+            'variant_id' => $variant->id,
+            'quantity' => 1,
+        ])
+        ->assertRedirect();
+
+    expect($variant->fresh()->stock)->toBe(0)
+        ->and($product->fresh()->status)->toBe('inactive');
+    $this->assertDatabaseCount('orders', 1);
+});
+
 it('stores admin delivery information encrypted and emails it to the buyer when the order is completed', function () {
     $buyer = User::factory()->create();
     $admin = User::factory()->create(['is_admin' => true]);

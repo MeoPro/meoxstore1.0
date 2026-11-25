@@ -82,7 +82,7 @@
     <div class="panel overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead><tr><th><input class="form-check-input" id="select-all-products" type="checkbox" aria-label="Select all products on this page"></th><th>Product</th><th>Game</th><th>Item</th><th>Variants</th><th>Price</th><th>Status</th><th>Featured</th><th>Created</th><th class="text-end">Actions</th></tr></thead>
+                <thead><tr><th><input class="form-check-input" id="select-all-products" type="checkbox" aria-label="Select all products on this page"></th><th>Product</th><th>Game</th><th>Item</th><th>Price</th><th>Status</th><th>Featured</th><th class="text-end">Actions</th></tr></thead>
                 <tbody>
                 @forelse ($products as $product)
                     <tr>
@@ -99,7 +99,6 @@
                         </td>
                         <td>{{ $product->gameCategory?->name ?? '—' }}</td>
                         <td>{{ $product->itemCategory?->name ?? '—' }}</td>
-                        <td>{{ $product->variants_count }}</td>
                         <td>
                             @if ($product->variants->isNotEmpty())
                                 <details class="price-editor">
@@ -156,7 +155,6 @@
                             </form>
                         </td>
                         <td>{{ $product->is_featured ? 'Yes' : 'No' }}</td>
-                        <td>{{ $product->created_at->format('M j, Y') }}</td>
                         <td>
                             <div class="d-flex justify-content-end gap-2">
                                 <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.products.show', $product) }}">View</a>
@@ -170,7 +168,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td class="py-5 text-center text-muted" colspan="10">No products match these filters.</td></tr>
+                    <tr><td class="py-5 text-center text-muted" colspan="8">No products match these filters.</td></tr>
                 @endforelse
                 </tbody>
             </table>

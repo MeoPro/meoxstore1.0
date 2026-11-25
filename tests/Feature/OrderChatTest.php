@@ -31,6 +31,9 @@ it('allows buyers to manage their own messages after submitting payment proof', 
         ->assertSee(__('store.order_chat_title'))
         ->assertSee(__('store.order_chat_active'))
         ->assertSee('I need help with my order.')
+        ->assertSee('order-chat-row is-own', false)
+        ->assertSee('class="order-chat-menu-toggle"', false)
+        ->assertSee($message->created_at->format('H:i'))
         ->assertSee('name="body"', false);
 
     $this->actingAs($buyer)
@@ -67,7 +70,9 @@ it('lets admins reply and moderate buyer messages but only edit their own', func
         ->get(route('admin.orders.show', $order))
         ->assertSee(__('store.order_chat_title'))
         ->assertSee('Original buyer question.')
-        ->assertSee(__('store.order_chat_reply'));
+        ->assertSee(__('store.order_chat_reply'))
+        ->assertSee(__('store.order_chat_options'))
+        ->assertSee('class="order-chat-menu-toggle"', false);
 
     $this->actingAs($admin)
         ->post(route('admin.orders.messages.store', $order), ['body' => 'Admin reply.'])

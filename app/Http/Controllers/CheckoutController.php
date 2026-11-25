@@ -323,6 +323,7 @@ class CheckoutController extends Controller
             foreach ($checkout['items'] as $variantId => $quantity) {
                 $variant = $variants->get($variantId);
                 $variant->decrement('stock', $quantity);
+                $variant->product->deactivateIfOutOfStock();
 
                 $encryptedDetails = $checkout['source'] === 'direct'
                     ? ($checkout['details'][$variantId] ?? null)
