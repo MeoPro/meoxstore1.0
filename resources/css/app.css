@@ -691,8 +691,9 @@ body.storefront-page {
     margin-top: 16px;
 }
 
-.storefront-footer-payment-list {
-    gap: 10px 8px;
+.storefront-footer .storefront-footer-payment-list {
+    display: grid;
+    gap: 6px 4px;
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -724,7 +725,7 @@ body.storefront-page {
     border: 0;
     border-radius: 0;
     box-shadow: none;
-    height: 56px;
+    height: 72px;
     max-width: 100%;
     object-fit: contain;
     width: auto;
@@ -812,10 +813,6 @@ body.storefront-page {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .storefront-footer-payment-list {
-        gap: 8px 4px;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
 }
 
 body.blog-storefront-page {
