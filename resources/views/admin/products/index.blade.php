@@ -49,6 +49,13 @@
                     <option value="0" @selected(($filters['featured'] ?? '') === '0')>Not featured</option>
                 </select>
             </div>
+            <div class="col-6 col-xl-2">
+                <label class="form-label small mb-1" for="stock">Stock</label>
+                <select class="form-select" id="stock" name="stock">
+                    <option value="">All stock</option>
+                    <option value="out_of_stock" @selected(($filters['stock'] ?? '') === 'out_of_stock')>Out of stock</option>
+                </select>
+            </div>
             <div class="col-auto"><button class="btn btn-outline-secondary" type="submit">Filter</button></div>
             @if (count(array_filter($filters, fn ($value) => $value !== null && $value !== '')))
                 <div class="col-auto"><a class="btn btn-light border" href="{{ route('admin.products.index') }}">Clear</a></div>

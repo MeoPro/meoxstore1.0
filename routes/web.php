@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\GoogleBusinessProfileController;
 use App\Http\Controllers\Admin\ItemCategoryController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
+use App\Http\Controllers\Admin\PerformanceController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductCurrencyRateController;
 use App\Http\Controllers\Admin\ProductReviewController as AdminProductReviewController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\GameCatalogController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderMessageController;
 use App\Http\Controllers\OrderTrackingController;
 use App\Http\Controllers\ProductDetailsController;
 use App\Http\Controllers\ProductReviewController;
@@ -70,9 +72,21 @@ Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.sho
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::post('/orders/{order}/payment-proof', [OrderController::class, 'submitPaymentProof'])->name('orders.payment-proof');
+Route::post('/orders/{order}/messages', [OrderMessageController::class, 'store'])
+    ->middleware('throttle:30,1')
+    ->name('orders.messages.store');
+Route::patch('/orders/{order}/messages/{message}', [OrderMessageController::class, 'update'])
+    ->scopeBindings()
+    ->middleware('throttle:30,1')
+    ->name('orders.messages.update');
+Route::delete('/orders/{order}/messages/{message}', [OrderMessageController::class, 'destroy'])
+    ->scopeBindings()
+    ->middleware('throttle:30,1')
+    ->name('orders.messages.destroy');
 Route::get('/order-tracking', [OrderTrackingController::class, 'index'])->name('orders.lookup');
 Route::post('/order-tracking', [OrderTrackingController::class, 'lookup'])->middleware('throttle:5,1')->name('orders.lookup.submit');
 Route::post('/orders/{order}/complete', [OrderTrackingController::class, 'complete'])->name('orders.complete');
+Route::post('/orders/{order}/reviews', [OrderTrackingController::class, 'storeReviews'])->name('orders.reviews.batch');
 Route::post('/orders/{order}/products/{product}/reviews', [OrderTrackingController::class, 'storeReview'])->name('orders.reviews.store');
 
 Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -90,6 +104,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+    Route::get('performance', PerformanceController::class)->name('performance.index');
     Route::resource('blog-posts', BlogPostController::class)->except(['show']);
     Route::resource('blog-categories', BlogCategoryController::class)->except(['show']);
     Route::resource('blog-sidebar-blocks', BlogSidebarBlockController::class)->except(['show']);
@@ -97,6 +112,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('orders/queue', [AdminOrderController::class, 'queue'])->name('orders.queue');
     Route::post('orders/bulk-status', [AdminOrderController::class, 'bulkUpdateStatus'])->name('orders.bulk-status');
+    Route::post('orders/{order}/messages', [OrderMessageController::class, 'store'])
+        ->middleware('throttle:30,1')
+        ->name('orders.messages.store');
+    Route::patch('orders/{order}/messages/{message}', [OrderMessageController::class, 'update'])
+        ->scopeBindings()
+        ->middleware('throttle:30,1')
+        ->name('orders.messages.update');
+    Route::delete('orders/{order}/messages/{message}', [OrderMessageController::class, 'destroy'])
+        ->scopeBindings()
+        ->middleware('throttle:30,1')
+        ->name('orders.messages.destroy');
     Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
     Route::patch('orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.status');
     Route::patch('orders/{order}/delivery-details', [AdminOrderController::class, 'updateDeliveryDetails'])

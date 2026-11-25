@@ -65,6 +65,13 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(OrderMessage::class)
+            ->orderBy('created_at')
+            ->orderBy('id');
+    }
+
     public function reviews(): HasMany
     {
         return $this->hasMany(ProductReview::class);

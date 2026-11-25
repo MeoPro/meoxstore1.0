@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\AuthorizeOrderAccess;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductReview;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 class OrderTrackingController extends Controller
 {
+    public function __construct(private AuthorizeOrderAccess $authorizeOrderAccess) {}
+
     public function index(): View
     {
         return view('orders.lookup');
@@ -56,7 +60,7 @@ class OrderTrackingController extends Controller
 
     public function complete(Request $request, Order $order): RedirectResponse
     {
-        $this->authorizeOrderAccess($request, $order);
+        $this->authorizeOrderAccess->handle($request, $order);
 
         DB::transaction(function () use ($order): void {
             $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
@@ -73,14 +77,65 @@ class OrderTrackingController extends Controller
 
     public function storeReview(Request $request, Order $order, Product $product): RedirectResponse
     {
-        $this->authorizeOrderAccess($request, $order);
+        $this->authorizeOrderAccess->handle($request, $order);
 
         $validated = $request->validate([
             'rating' => ['required', 'integer', 'between:1,5'],
             'comment' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($request, $order, $product, $validated): void {
+        $this->storeOrderReviews($order, [[
+            'product_id' => (int) $product->id,
+            'rating' => (int) $validated['rating'],
+            'comment' => $validated['comment'] ?? null,
+        ]], $request->user()?->id, 'rating');
+
+        return redirect()->route('orders.show', $order)->with('success', __('store.review_submitted'));
+    }
+
+    public function storeReviews(Request $request, Order $order): JsonResponse|RedirectResponse
+    {
+        $this->authorizeOrderAccess->handle($request, $order);
+
+        $maximumReviewCount = $order->items()->distinct()->count('product_id');
+        $validated = $request->validate([
+            'reviews' => ['required', 'array', 'min:1', 'max:'.$maximumReviewCount],
+            'reviews.*' => ['required', 'array:product_id,rating,comment'],
+            'reviews.*.product_id' => ['required', 'integer', 'distinct'],
+            'reviews.*.rating' => ['required', 'integer', 'between:1,5'],
+            'reviews.*.comment' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $reviews = array_map(
+            fn (array $review): array => [
+                'product_id' => (int) $review['product_id'],
+                'rating' => (int) $review['rating'],
+                'comment' => $review['comment'] ?? null,
+            ],
+            $validated['reviews'],
+        );
+
+        $this->storeOrderReviews($order, $reviews, $request->user()?->id, 'reviews');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => __('store.reviews_submitted'),
+            ]);
+        }
+
+        return redirect()->route('orders.show', $order)->with('success', __('store.reviews_submitted'));
+    }
+
+    /**
+     * @param  array<int, array{product_id: int, rating: int, comment: ?string}>  $reviews
+     */
+    private function storeOrderReviews(
+        Order $order,
+        array $reviews,
+        ?int $userId,
+        string $duplicateErrorField,
+    ): void {
+        DB::transaction(function () use ($order, $reviews, $userId, $duplicateErrorField): void {
             $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
 
             abort_unless(
@@ -88,39 +143,35 @@ class OrderTrackingController extends Controller
                 422,
                 __('store.review_after_customer_completion'),
             );
-            abort_unless($lockedOrder->items()->where('product_id', $product->id)->exists(), 404);
 
-            if (ProductReview::query()->where('order_id', $lockedOrder->id)->where('product_id', $product->id)->exists()) {
+            $productIds = array_column($reviews, 'product_id');
+            $purchasedProductIds = $lockedOrder->items()
+                ->whereIn('product_id', $productIds)
+                ->distinct()
+                ->pluck('product_id')
+                ->map(fn (int|string $productId): int => (int) $productId);
+
+            abort_unless($purchasedProductIds->count() === count($reviews), 404);
+
+            if (ProductReview::query()
+                ->where('order_id', $lockedOrder->id)
+                ->whereIn('product_id', $productIds)
+                ->exists()) {
                 throw ValidationException::withMessages([
-                    'rating' => __('store.review_already_submitted'),
+                    $duplicateErrorField => __('store.review_already_submitted'),
                 ]);
             }
 
-            ProductReview::query()->create([
-                'product_id' => $product->id,
-                'user_id' => $request->user()?->id,
-                'order_id' => $lockedOrder->id,
-                'rating' => $validated['rating'],
-                'comment' => $validated['comment'] ?? null,
-            ]);
+            foreach ($reviews as $review) {
+                ProductReview::query()->create([
+                    'product_id' => $review['product_id'],
+                    'user_id' => $userId,
+                    'order_id' => $lockedOrder->id,
+                    'rating' => $review['rating'],
+                    'comment' => $review['comment'],
+                ]);
+            }
         });
-
-        return redirect()->route('orders.show', $order)->with('success', __('store.review_submitted'));
-    }
-
-    private function authorizeOrderAccess(Request $request, Order $order): void
-    {
-        if (isset($request->session()->get('verified_orders', [])[$order->id])) {
-            return;
-        }
-
-        if ($order->user_id !== null) {
-            abort_unless($order->user_id === $request->user()?->id, 404);
-
-            return;
-        }
-
-        abort_unless(isset($request->session()->get('guest_orders', [])[$order->id]), 404);
     }
 
     private function normalizePhone(?string $phone): string

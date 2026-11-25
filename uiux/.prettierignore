@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+build
+.yarn/cache
+.yarn/state
+coverage
+*.log
+next-env.d.ts
+dist

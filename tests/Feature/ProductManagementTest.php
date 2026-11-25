@@ -1061,6 +1061,28 @@ it('filters the product listing without omitting related category names', functi
         ->assertDontSee('Other Product');
 });
 
+it('filters products with no variants in stock', function () {
+    $this->actingAs(User::factory()->create());
+    $outOfStockProduct = Product::factory()->create(['name' => 'Out of stock product']);
+    $outOfStockProduct->variants()->firstOrFail()->update(['stock' => 0]);
+
+    $availableProduct = Product::factory()->create(['name' => 'Available product']);
+    $availableProduct->variants()->firstOrFail()->update(['stock' => 5]);
+
+    $partiallyAvailableProduct = Product::factory()->create(['name' => 'Partially available product']);
+    $partiallyAvailableProduct->variants()->firstOrFail()->update(['stock' => 0]);
+    ProductVariant::factory()->for($partiallyAvailableProduct)->create([
+        'stock' => 2,
+        'maximum_quantity' => 2,
+    ]);
+
+    $this->get(route('admin.products.index', ['stock' => 'out_of_stock']))
+        ->assertSee('Out of stock product')
+        ->assertDontSee('Available product')
+        ->assertDontSee('Partially available product')
+        ->assertSee('value="out_of_stock" selected', false);
+});
+
 it('renders multi-select and delete controls for products and categories', function () {
     $this->actingAs(User::factory()->create());
 

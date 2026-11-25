@@ -302,11 +302,47 @@ it('shows the most purchased active items on the homepage using completed order 
         ->assertSee('shop-product-stats')
         ->assertDontSee('Pending Only Item')
         ->assertDontSee('Inactive Item')
-        ->assertSee(__('store.trending_items_title'));
+        ->assertSee(__('store.trending_items_title'))
+        ->assertSee(route('shop', ['sort' => 'best_selling']), false);
 
     expect($response->getContent())->toMatch(
         '/class="home-store-status[^"]*" role="status">.*?<\/div>\s*<div class="home-store-stats"/s',
     );
+});
+
+it('shows five best-selling products and links to the best-selling catalog', function () {
+    $buyer = User::factory()->create();
+    foreach (range(1, 6) as $rank) {
+        $product = Product::factory()->create(['name' => 'Best seller '.$rank]);
+        $variant = $product->variants()->firstOrFail();
+        $variant->update(['stock' => 5]);
+
+        $order = Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => 'completed',
+            'total' => '10000.00',
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_variant_id' => $variant->id,
+            'product_name' => $product->name,
+            'variant_name' => $variant->name,
+            'quantity' => 7 - $rank,
+            'unit_price' => '10000.00',
+        ]);
+    }
+
+    $this->get(route('home'))
+        ->assertViewHas('trendingItems', fn ($items): bool => $items->pluck('name')->all() === [
+            'Best seller 1',
+            'Best seller 2',
+            'Best seller 3',
+            'Best seller 4',
+            'Best seller 5',
+        ])
+        ->assertSee('Best seller 5')
+        ->assertDontSee('Best seller 6')
+        ->assertSee(route('shop', ['sort' => 'best_selling']), false);
 });
 
 it('shows the count of paid and processing orders in the homepage statistics', function () {

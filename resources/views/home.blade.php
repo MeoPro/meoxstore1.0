@@ -230,7 +230,7 @@
             </div>
             <div class="col-lg-6">
             <div class="main-button">
-                <a href="{{ route('shop') }}">{{ __('store.view_all_products') }}</a>
+                <a href="{{ route('shop', ['sort' => 'best_selling']) }}">{{ __('store.view_all_products') }}</a>
             </div>
             </div>
             @forelse ($trendingItems as $product)

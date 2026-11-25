@@ -546,8 +546,9 @@ it('lets a guest find an order by order number and phone, complete it, and revie
     $this->get(route('orders.show', $order))
         ->assertSee(__('store.review_order_intro'))
         ->assertSee('<details class="order-details-disclosure order-review-description">', false)
-        ->assertSee(route('orders.reviews.store', [$order, $product]), false)
-        ->assertSee('type="radio" name="rating"', false)
+        ->assertSee(route('orders.reviews.batch', $order), false)
+        ->assertSee('name="reviews[0][rating]"', false)
+        ->assertDontSee(route('orders.reviews.store', [$order, $product]), false)
         ->assertDontSee('name="comment" rows="3" maxlength="2000" required', false);
 
     $this->post(route('orders.reviews.store', [$order, $product]), [
@@ -596,15 +597,18 @@ it('accepts different ratings for multiple products in the same completed order'
     $this->actingAs($buyer)
         ->get(route('orders.show', $order))
         ->assertOk()
-        ->assertSee(route('orders.reviews.store', [$order, $products[0]]), false)
-        ->assertSee(route('orders.reviews.store', [$order, $products[1]]), false);
+        ->assertSee(route('orders.reviews.batch', $order), false)
+        ->assertSee('name="reviews[0][rating]"', false)
+        ->assertSee('name="reviews[1][rating]"', false);
 
-    foreach ($products->values() as $index => $product) {
-        $this->post(route('orders.reviews.store', [$order, $product]), [
-            'rating' => $index === 0 ? 2 : 4,
-            'comment' => 'Review '.($index + 1),
-        ])->assertRedirect(route('orders.show', $order));
-    }
+    $this->postJson(route('orders.reviews.batch', $order), [
+        'reviews' => [
+            ['product_id' => $products[0]->id, 'rating' => 2, 'comment' => 'Review 1'],
+            ['product_id' => $products[1]->id, 'rating' => 4, 'comment' => 'Review 2'],
+        ],
+    ])
+        ->assertOk()
+        ->assertJson(['message' => __('store.reviews_submitted')]);
 
     expect(ProductReview::query()->where('order_id', $order->id)->count())->toBe(2);
     $this->assertDatabaseHas('product_reviews', [
@@ -619,6 +623,107 @@ it('accepts different ratings for multiple products in the same completed order'
         'rating' => 4,
         'comment' => 'Review 2',
     ]);
+});
+
+it('does not save any reviews when a batch includes a product outside the order', function () {
+    $buyer = User::factory()->create();
+    $purchasedProduct = Product::factory()->create(['status' => 'active']);
+    $secondPurchasedProduct = Product::factory()->create(['status' => 'active']);
+    $unrelatedProduct = Product::factory()->create(['status' => 'active']);
+    $variant = $purchasedProduct->variants()->firstOrFail();
+    $secondVariant = $secondPurchasedProduct->variants()->firstOrFail();
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'completed',
+        'total' => '20000.00',
+        'completed_at' => now(),
+        'customer_completed_at' => now(),
+    ]);
+    foreach ([[$purchasedProduct, $variant], [$secondPurchasedProduct, $secondVariant]] as [$product, $productVariant]) {
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_variant_id' => $productVariant->id,
+            'product_name' => $product->name,
+            'variant_name' => $productVariant->name,
+            'quantity' => 1,
+            'unit_price' => '10000.00',
+        ]);
+    }
+
+    $this->actingAs($buyer)
+        ->postJson(route('orders.reviews.batch', $order), [
+            'reviews' => [
+                ['product_id' => $purchasedProduct->id, 'rating' => 5],
+                ['product_id' => $unrelatedProduct->id, 'rating' => 4],
+            ],
+        ])
+        ->assertNotFound();
+
+    expect(ProductReview::query()->where('order_id', $order->id)->count())->toBe(0);
+});
+
+it('rejects duplicate products in one review batch', function () {
+    $buyer = User::factory()->create();
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'completed',
+        'total' => '10000.00',
+        'completed_at' => now(),
+        'customer_completed_at' => now(),
+    ]);
+    $order->items()->create([
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'product_name' => $product->name,
+        'variant_name' => $variant->name,
+        'quantity' => 1,
+        'unit_price' => '10000.00',
+    ]);
+
+    $this->actingAs($buyer)
+        ->postJson(route('orders.reviews.batch', $order), [
+            'reviews' => [
+                ['product_id' => $product->id, 'rating' => 5],
+                ['product_id' => $product->id, 'rating' => 4],
+            ],
+        ])
+        ->assertInvalid(['reviews.1.product_id']);
+
+    expect(ProductReview::query()->where('order_id', $order->id)->count())->toBe(0);
+});
+
+it('rejects review batches without order access', function () {
+    $owner = User::factory()->create();
+    $otherBuyer = User::factory()->create();
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $order = Order::query()->create([
+        'user_id' => $owner->id,
+        'status' => 'completed',
+        'total' => '10000.00',
+        'completed_at' => now(),
+        'customer_completed_at' => now(),
+    ]);
+    $order->items()->create([
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'product_name' => $product->name,
+        'variant_name' => $variant->name,
+        'quantity' => 1,
+        'unit_price' => '10000.00',
+    ]);
+
+    $this->actingAs($otherBuyer)
+        ->postJson(route('orders.reviews.batch', $order), [
+            'reviews' => [
+                ['product_id' => $product->id, 'rating' => 5],
+            ],
+        ])
+        ->assertNotFound();
+
+    expect(ProductReview::query()->where('order_id', $order->id)->count())->toBe(0);
 });
 
 it('creates an automatic five-star review one day after customer completion and skips existing reviews', function () {

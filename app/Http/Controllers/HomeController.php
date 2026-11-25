@@ -42,7 +42,7 @@ class HomeController extends Controller
             ->withSum(['orderItems as sold_quantity' => $completedOrderItems], 'quantity')
             ->orderByDesc('sold_quantity')
             ->orderByDesc('id')
-            ->limit(4)
+            ->limit(5)
             ->get();
 
         $availableVariants = fn (Builder $query) => $query

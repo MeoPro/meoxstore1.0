@@ -1,0 +1,11 @@
+# Keep private and local-only files out of Vercel uploads
+CLAUDE.local.md
+*.local.md
+.claude
+.vscode
+.idea
+dist
+*.zip
+lh-*.json
+lighthouse-*.json
+.env*

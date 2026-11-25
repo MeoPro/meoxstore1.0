@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\AuthorizeOrderAccess;
 use App\Actions\QueueAdminPaymentSubmittedNotification;
 use App\Actions\QueueBuyerOrderUpdate;
 use App\Enums\BuyerOrderUpdateType;
@@ -24,6 +25,7 @@ class OrderController extends Controller
     public function __construct(
         private QueueBuyerOrderUpdate $queueBuyerOrderUpdate,
         private QueueAdminPaymentSubmittedNotification $queueAdminPaymentSubmittedNotification,
+        private AuthorizeOrderAccess $authorizeOrderAccess,
     ) {}
 
     public function store(Request $request): RedirectResponse
@@ -85,7 +87,7 @@ class OrderController extends Controller
 
     public function show(Request $request, Order $order): View
     {
-        $this->authorizeOrderAccess($request, $order);
+        $this->authorizeOrderAccess->handle($request, $order);
         $paymentDetails = $order->payment_details;
 
         if ($paymentDetails === null) {
@@ -109,7 +111,7 @@ class OrderController extends Controller
             ]);
         }
 
-        $order->load('items.product');
+        $order->load(['items.product', 'messages']);
         $products = $order->items->pluck('product')->filter()->unique('id')->values();
 
         return view('orders.show', [
@@ -125,7 +127,7 @@ class OrderController extends Controller
 
     public function submitPaymentProof(Request $request, Order $order): RedirectResponse
     {
-        $this->authorizeOrderAccess($request, $order);
+        $this->authorizeOrderAccess->handle($request, $order);
 
         if (
             $order->payment_details === null
@@ -181,20 +183,5 @@ class OrderController extends Controller
         $this->queueAdminPaymentSubmittedNotification->handle($order);
 
         return redirect()->route('orders.show', $order)->with('success', __('store.payment_proof_submitted'));
-    }
-
-    private function authorizeOrderAccess(Request $request, Order $order): void
-    {
-        if (isset($request->session()->get('verified_orders', [])[$order->id])) {
-            return;
-        }
-
-        if ($order->user_id !== null) {
-            abort_unless($order->user_id === $request->user()?->id, 404);
-
-            return;
-        }
-
-        abort_unless(array_key_exists($order->id, $request->session()->get('guest_orders', [])), 404);
     }
 }

@@ -233,5 +233,12 @@
                 <button class="btn btn-outline-danger" type="submit" name="status" value="cancelled" onclick="return confirm('Cancel order and return its stock?')">Cancel order</button>
             </form>
         @endif
+        @if (in_array($order->status, ['payment_submitted', 'payment_confirmed', 'completed'], true) || $order->messages->isNotEmpty())
+            @include('components.order-conversation', [
+                'order' => $order,
+                'isAdmin' => true,
+                'canSendMessages' => in_array($order->status, ['payment_submitted', 'payment_confirmed'], true),
+            ])
+        @endif
     </div>
 @endsection

@@ -171,6 +171,13 @@
                 </section>
             @endif
         </section>
+        @if (in_array($order->status, ['payment_submitted', 'payment_confirmed', 'completed'], true) || $order->messages->isNotEmpty())
+            @include('components.order-conversation', [
+                'order' => $order,
+                'isAdmin' => false,
+                'canSendMessages' => in_array($order->status, ['payment_submitted', 'payment_confirmed'], true),
+            ])
+        @endif
         @if (in_array($order->status, ['payment_confirmed', 'completed'], true))
             <section class="order-card">
                 <h2>{{ __('store.delivery_details') }}</h2>
@@ -223,34 +230,51 @@
                     <p>{{ __('store.review_order_intro') }}</p>
                 </details>
                 @foreach ($reviewableProducts as $product)
-                    <div class="order-review">
-                        <h3 class="h6">{{ $product->name }}</h3>
-                        @if ($reviewedProducts->has($product->id))
-                            @php($review = $reviewedProducts->get($product->id))
+                    @if ($reviewedProducts->has($product->id))
+                        @php($review = $reviewedProducts->get($product->id))
+                        <div class="order-review">
+                            <h3 class="h6">{{ $product->name }}</h3>
                             <div class="text-warning" aria-label="{{ __('store.rating_out_of_five', ['rating' => $review->rating]) }}">{{ str_repeat('★', $review->rating) }}{{ str_repeat('☆', 5 - $review->rating) }}</div>
                             @if (filled($review->comment))
                                 <p class="mb-0">{{ $review->comment }}</p>
                             @endif
-                        @else
-                            <form method="POST" action="{{ route('orders.reviews.store', [$order, $product]) }}">
-                                @csrf
+                        </div>
+                    @endif
+                @endforeach
+                @php($productsAwaitingReview = $reviewableProducts->reject(fn ($product) => $reviewedProducts->has($product->id))->values())
+                @if ($productsAwaitingReview->isNotEmpty())
+                    <div class="alert mt-3" data-order-review-status role="status" aria-live="polite" hidden></div>
+                    <form method="POST" action="{{ route('orders.reviews.batch', $order) }}" data-order-review-form data-error-text="{{ __('store.review_submission_failed') }}" data-submitting-text="{{ __('store.review_submitting') }}">
+                        @csrf
+                        @error('reviews')
+                            <div class="alert alert-danger mt-3" role="alert">{{ $message }}</div>
+                        @enderror
+                        @foreach ($productsAwaitingReview as $reviewIndex => $product)
+                            <div class="order-review">
+                                <h3 class="h6">{{ $product->name }}</h3>
+                                <input type="hidden" name="reviews[{{ $reviewIndex }}][product_id]" value="{{ $product->id }}">
                                 <fieldset class="border-0 m-0 p-0">
                                     <legend class="form-label small">{{ __('store.give_stars') }}</legend>
                                     <div class="order-rating" role="radiogroup" aria-label="{{ __('store.give_stars') }}">
                                         @foreach (range(5, 1) as $rating)
-                                            <input id="rating-{{ $product->id }}-{{ $rating }}" type="radio" name="rating" value="{{ $rating }}" aria-label="{{ __('store.stars', ['count' => $rating]) }}" required @checked(old('rating') == $rating)>
-                                            <label for="rating-{{ $product->id }}-{{ $rating }}" title="{{ __('store.stars', ['count' => $rating]) }}" aria-hidden="true">★</label>
+                                            <input id="order-rating-{{ $product->id }}-{{ $rating }}" type="radio" name="reviews[{{ $reviewIndex }}][rating]" value="{{ $rating }}" aria-label="{{ __('store.stars', ['count' => $rating]) }}" required @checked(old('reviews.'.$reviewIndex.'.rating') == $rating)>
+                                            <label for="order-rating-{{ $product->id }}-{{ $rating }}" title="{{ __('store.stars', ['count' => $rating]) }}" aria-hidden="true">★</label>
                                         @endforeach
                                     </div>
-                                    @error('rating')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                                    @error('reviews.'.$reviewIndex.'.rating')
+                                        <div class="text-danger small mb-2">{{ $message }}</div>
+                                    @enderror
                                 </fieldset>
-                                <label class="form-label small" for="comment-{{ $product->id }}">{{ __('store.review') }}</label>
-                                <textarea class="form-control mb-2" id="comment-{{ $product->id }}" name="comment" rows="3" maxlength="2000">{{ old('comment') }}</textarea>
-                                <button class="btn btn-primary order-action" type="submit">{{ __('store.send_review') }}</button>
-                            </form>
-                        @endif
-                    </div>
-                @endforeach
+                                <label class="form-label small" for="review-comment-{{ $product->id }}">{{ __('store.review') }}</label>
+                                <textarea class="form-control mb-2" id="review-comment-{{ $product->id }}" name="reviews[{{ $reviewIndex }}][comment]" rows="3" maxlength="2000">{{ old('reviews.'.$reviewIndex.'.comment') }}</textarea>
+                                @error('reviews.'.$reviewIndex.'.comment')
+                                    <div class="text-danger small mb-2">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        @endforeach
+                        <button class="btn btn-primary order-action mt-3" type="submit" data-review-submit>{{ __('store.send_all_reviews') }}</button>
+                    </form>
+                @endif
             </section>
         @endif
         </div>
@@ -354,6 +378,49 @@
                 input.remove();
             }
             this.innerHTML = '<i class="fa fa-check" aria-hidden="true"></i>';
+        });
+
+        const orderReviewForm = document.querySelector('[data-order-review-form]');
+        const orderReviewStatus = document.querySelector('[data-order-review-status]');
+
+        orderReviewForm?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const submitButton = orderReviewForm.querySelector('[data-review-submit]');
+            submitButton.disabled = true;
+            orderReviewStatus.hidden = false;
+            orderReviewStatus.className = 'alert alert-info mt-3';
+            orderReviewStatus.textContent = orderReviewForm.dataset.submittingText;
+
+            try {
+                const response = await fetch(orderReviewForm.action, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: new FormData(orderReviewForm),
+                    credentials: 'same-origin',
+                });
+                const result = await response.json();
+
+                if (!response.ok) {
+                    const validationMessage = Object.values(result.errors || {}).flat()[0];
+                    orderReviewStatus.className = 'alert alert-danger mt-3';
+                    orderReviewStatus.textContent = validationMessage || result.message || orderReviewForm.dataset.errorText;
+
+                    return;
+                }
+
+                orderReviewStatus.className = 'alert alert-success mt-3';
+                orderReviewStatus.textContent = result.message;
+                orderReviewForm.hidden = true;
+            } catch {
+                orderReviewStatus.className = 'alert alert-danger mt-3';
+                orderReviewStatus.textContent = orderReviewForm.dataset.errorText;
+            } finally {
+                submitButton.disabled = false;
+            }
         });
     </script>
 </body>

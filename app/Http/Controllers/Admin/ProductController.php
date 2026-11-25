@@ -50,6 +50,10 @@ class ProductController extends Controller
             $query->where('is_featured', $request->query('featured') === '1');
         }
 
+        if ($request->query('stock') === 'out_of_stock') {
+            $query->whereDoesntHave('variants', fn ($variants) => $variants->where('stock', '>', 0));
+        }
+
         $itemCategoriesQuery = ItemCategory::query()->orderBy('name');
         if ($request->filled('game_category_id')) {
             $itemCategoriesQuery->whereHas(
@@ -63,7 +67,7 @@ class ProductController extends Controller
             'gameCategories' => GameCategory::query()->orderBy('name')->get(['id', 'name']),
             'itemCategories' => $itemCategoriesQuery->get(['id', 'name', 'bobux_type', 'uses_robux']),
             'currencyRates' => ProductCurrencyRate::current(),
-            'filters' => $request->only(['search', 'game_category_id', 'item_category_id', 'status', 'featured']),
+            'filters' => $request->only(['search', 'game_category_id', 'item_category_id', 'status', 'featured', 'stock']),
         ]);
     }
 
