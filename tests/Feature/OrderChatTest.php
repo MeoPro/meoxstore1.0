@@ -34,6 +34,9 @@ it('allows buyers to manage their own messages after submitting payment proof', 
         ->assertSee('order-chat-row is-own', false)
         ->assertSee('class="order-chat-menu-toggle"', false)
         ->assertSee($message->created_at->format('H:i'))
+        ->assertSee('data-order-chat-compose', false)
+        ->assertSee('data-order-chat-send', false)
+        ->assertSee('data-sending-label="'.__('store.order_chat_sending').'"', false)
         ->assertSee('name="body"', false);
 
     $this->actingAs($buyer)

@@ -347,6 +347,7 @@ return [
     'order_chat_options' => 'Opsi pesan',
     'order_chat_save' => 'Simpan perubahan',
     'order_chat_send' => 'Kirim pesan',
+    'order_chat_sending' => 'Mengirim...',
     'order_chat_message_sent' => 'Pesan berhasil dikirim.',
     'order_chat_message_updated' => 'Pesan berhasil diperbarui.',
     'order_chat_message_deleted' => 'Pesan berhasil dihapus.',

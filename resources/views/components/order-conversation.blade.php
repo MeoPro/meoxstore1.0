@@ -88,16 +88,35 @@
     @endif
 
     @if ($canSendMessages)
-        <form method="POST" action="{{ route($messageRoutePrefix.'.store', $order) }}" class="order-chat-compose">
+        <form method="POST" action="{{ route($messageRoutePrefix.'.store', $order) }}" class="order-chat-compose" data-order-chat-compose data-sending-label="{{ __('store.order_chat_sending') }}">
             @csrf
             <label class="visually-hidden" for="order-chat-message">
                 {{ $isAdmin ? __('store.order_chat_reply') : __('store.order_chat_message_label') }}
             </label>
             <textarea class="form-control" id="order-chat-message" name="body" rows="2" maxlength="2000" placeholder="{{ $isAdmin ? __('store.order_chat_reply') : __('store.order_chat_message_label') }}" required>{{ old('body') }}</textarea>
-            <button class="btn btn-primary order-action" type="submit">{{ __('store.order_chat_send') }}</button>
+            <button class="btn btn-primary order-action" type="submit" data-order-chat-send>{{ __('store.order_chat_send') }}</button>
         </form>
     @endif
 </section>
+
+<script>
+    document.querySelectorAll('[data-order-chat-compose]').forEach((form) => {
+        let isSubmitting = false;
+
+        form.addEventListener('submit', (event) => {
+            if (isSubmitting) {
+                event.preventDefault();
+                return;
+            }
+
+            isSubmitting = true;
+            const button = form.querySelector('[data-order-chat-send]');
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            button.textContent = form.dataset.sendingLabel;
+        });
+    });
+</script>
 
 <style>
     .order-chat { color: #233247; }
@@ -177,6 +196,7 @@
     .order-chat-compose { align-items: flex-end; display: flex; gap: 10px; margin-top: 16px; }
     .order-chat-compose .form-control { border-color: #dfe5ec; border-radius: 12px; min-height: 44px; resize: vertical; }
     .order-chat-compose .order-action { flex: 0 0 auto; min-height: 44px; }
+    .order-chat-compose .order-action:disabled { cursor: wait; opacity: .7; }
     @media (max-width: 575.98px) {
         .order-chat-bubble { max-width: 92%; }
         .order-chat-compose { align-items: stretch; flex-direction: column; }

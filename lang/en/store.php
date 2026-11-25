@@ -347,6 +347,7 @@ return [
     'order_chat_options' => 'Message options',
     'order_chat_save' => 'Save changes',
     'order_chat_send' => 'Send message',
+    'order_chat_sending' => 'Sending...',
     'order_chat_message_sent' => 'Message sent.',
     'order_chat_message_updated' => 'Message updated.',
     'order_chat_message_deleted' => 'Message deleted.',
