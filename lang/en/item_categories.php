@@ -5,7 +5,7 @@ return [
     'akun' => 'Account',
     'fruit' => 'Fruit',
     'item' => 'Item',
-    'joki' => 'Leveling Service',
+    'joki' => 'Boost Service',
     'permanent' => 'Permanent',
     'skin' => 'Skin',
 ];

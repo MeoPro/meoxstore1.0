@@ -5,7 +5,7 @@ return [
     'akun' => 'Akaun',
     'fruit' => 'Buah',
     'item' => 'Item',
-    'joki' => 'Servis naik level',
+    'joki' => 'Joki',
     'permanent' => 'Kekal',
     'skin' => 'Skin',
 ];

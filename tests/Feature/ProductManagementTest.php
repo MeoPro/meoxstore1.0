@@ -441,7 +441,7 @@ it('renders the add product form with a default variant row', function () {
         ->assertSee('data-maximum-quantity readonly', false);
 });
 
-it('creates a product without a status field and defaults it to active', function () {
+it('creates a product as active and redirects to the product list', function () {
     $this->actingAs(User::factory()->create());
     $gameCategory = GameCategory::factory()->create();
     $itemCategory = ItemCategory::factory()->create();
@@ -449,9 +449,14 @@ it('creates a product without a status field and defaults it to active', functio
     unset($input['status']);
 
     $this->post(route('admin.products.store'), $input)
-        ->assertRedirect();
+        ->assertRedirect(route('admin.products.index'));
 
     expect(Product::query()->where('name', 'Blox Fruit Account')->value('status'))->toBe('active');
+});
+
+it('translates the joki item category for Malay and English', function () {
+    expect(__('item_categories.joki', [], 'ms'))->toBe('Joki')
+        ->and(__('item_categories.joki', [], 'en'))->toBe('Boost Service');
 });
 
 it('removes sku storage from product variants', function () {
@@ -980,7 +985,7 @@ it('updates variants and removes omitted variants', function () {
 
     $this->put(route('admin.products.update', $product), productInput($gameCategory, $itemCategory, [
         variantInput(['id' => (string) $variant->id, 'name' => 'Updated Default']),
-    ]))->assertRedirect();
+    ]))->assertRedirect(route('admin.products.edit', $product));
 
     expect($product->variants()->count())->toBe(1);
     expect($variant->fresh()->name)->toBe('Updated Default');

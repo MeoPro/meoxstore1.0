@@ -131,7 +131,7 @@ class ProductController extends Controller
             throw $exception;
         }
 
-        return redirect()->route('admin.products.edit', $product)->with('success', 'Product created.');
+        return redirect()->route('admin.products.index')->with('success', 'Product created.');
     }
 
     /**
