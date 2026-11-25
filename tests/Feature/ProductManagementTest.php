@@ -230,6 +230,54 @@ it('creates a subcategory beneath a main item category and returns it in the pro
         ->assertJsonPath('0.subcategories.0.name', 'Material');
 });
 
+it('filters item subcategories by their main category and keeps them editable', function () {
+    $this->actingAs(User::factory()->create());
+    $mainCategory = ItemCategory::factory()->create(['name' => 'Joki']);
+    $otherMainCategory = ItemCategory::factory()->create(['name' => 'Item']);
+    $subcategory = ItemCategory::factory()->create([
+        'name' => 'Material',
+        'parent_id' => $mainCategory->id,
+    ]);
+    ItemCategory::factory()->create([
+        'name' => 'Melee',
+        'parent_id' => $otherMainCategory->id,
+    ]);
+
+    $this->get(route('admin.item-categories.index', ['parent_id' => $mainCategory->id]))
+        ->assertOk()
+        ->assertSee('Material')
+        ->assertDontSee('Melee')
+        ->assertSee(route('admin.item-categories.edit', $subcategory), false);
+});
+
+it('allows renaming an item subcategory from its edit form', function () {
+    $this->actingAs(User::factory()->create());
+    $gameCategory = GameCategory::factory()->create();
+    $mainCategory = ItemCategory::factory()->create(['name' => 'Joki']);
+    $gameCategory->itemCategories()->attach($mainCategory);
+    $subcategory = ItemCategory::factory()->create([
+        'name' => 'Material',
+        'parent_id' => $mainCategory->id,
+    ]);
+
+    $this->get(route('admin.item-categories.edit', $subcategory))
+        ->assertOk()
+        ->assertSee('value="Material"', false);
+
+    $this->put(route('admin.item-categories.update', $subcategory), [
+        'name' => 'Material Baru',
+        'game_category_id' => $gameCategory->id,
+        'parent_id' => $mainCategory->id,
+        'status' => 'active',
+    ])->assertRedirectToRoute('admin.item-categories.index');
+
+    $this->assertDatabaseHas('item_categories', [
+        'id' => $subcategory->id,
+        'name' => 'Material Baru',
+        'parent_id' => $mainCategory->id,
+    ]);
+});
+
 it('rejects a subcategory as the parent of another item category', function () {
     $this->actingAs(User::factory()->create());
     $gameCategory = GameCategory::factory()->create();

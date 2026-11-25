@@ -25,9 +25,14 @@ class ItemCategoryController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
+        $parentCategoryId = filter_var($request->query('parent_id'), FILTER_VALIDATE_INT);
+        $parentCategoryId = $parentCategoryId === false || $parentCategoryId < 1
+            ? null
+            : $parentCategoryId;
 
         $categories = ItemCategory::query()
             ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+            ->when($parentCategoryId !== null, fn ($query) => $query->where('parent_id', $parentCategoryId))
             ->with('parent:id,name')
             ->orderBy('parent_id')
             ->orderBy('name')
@@ -39,6 +44,11 @@ class ItemCategoryController extends Controller
             'categoryType' => 'item',
             'title' => 'Item Categories',
             'routePrefix' => 'admin.item-categories',
+            'parentCategories' => ItemCategory::query()
+                ->whereNull('parent_id')
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'selectedParentCategoryId' => $parentCategoryId,
         ]);
     }
 
@@ -434,11 +444,11 @@ class ItemCategoryController extends Controller
                 $query->where('status', 'active');
 
                 if ($selectedId !== null) {
-                    $query->orWhereKey($selectedId);
+                    $query->orWhere('id', $selectedId);
                 }
 
                 if ($category?->parent_id !== null) {
-                    $query->orWhereKey($category->parent_id);
+                    $query->orWhere('id', $category->parent_id);
                 }
             })
             ->with('gameCategories:id,name')

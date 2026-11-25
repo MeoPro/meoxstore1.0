@@ -12,12 +12,23 @@
 
     <form class="panel mb-3 p-3" method="GET" action="{{ route($routePrefix.'.index') }}">
         <div class="row g-2">
-            <div class="col-sm-8 col-lg-5">
+            <div class="col-sm-6 col-lg-4">
                 <label class="visually-hidden" for="category-search">Search categories</label>
                 <input class="form-control" id="category-search" name="search" value="{{ request('search') }}" placeholder="Search categories">
             </div>
-            <div class="col-auto"><button class="btn btn-outline-secondary h-100" type="submit">Search</button></div>
-            @if (request()->filled('search'))
+            @if ($categoryType === 'item')
+                <div class="col-sm-6 col-lg-4">
+                    <label class="visually-hidden" for="parent-category-filter">Filter by main item category</label>
+                    <select class="form-select" id="parent-category-filter" name="parent_id">
+                        <option value="">All item categories</option>
+                        @foreach ($parentCategories as $parentCategory)
+                            <option value="{{ $parentCategory->id }}" @selected((string) $selectedParentCategoryId === (string) $parentCategory->id)>{{ $parentCategory->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+            <div class="col-auto"><button class="btn btn-outline-secondary h-100" type="submit">Filter</button></div>
+            @if (request()->filled('search') || request()->filled('parent_id'))
                 <div class="col-auto"><a class="btn btn-light h-100" href="{{ route($routePrefix.'.index') }}">Clear</a></div>
             @endif
         </div>
