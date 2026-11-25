@@ -43,6 +43,7 @@ class ProductDetailsController extends Controller
         $product->load([
             'gameCategory:id,name',
             'itemCategory:id,name,bobux_type,uses_robux',
+            'itemSubcategory:id,parent_id,name',
             'reviews' => fn ($query) => $query->where('is_hidden', false)->with('user:id,name')->latest()->limit(20),
             'variants' => fn ($query) => $query
                 ->where('status', 'active')
@@ -136,6 +137,7 @@ class ProductDetailsController extends Controller
                 fn (JoinClause $join) => $join->on('category_sales.category_id', '=', 'item_categories.id'),
             )
             ->where('item_categories.status', 'active')
+            ->whereNull('item_categories.parent_id')
             ->where('item_categories.id', '!=', $product->item_category_id)
             ->whereHas('products', fn ($query) => $query
                 ->where('status', 'active')

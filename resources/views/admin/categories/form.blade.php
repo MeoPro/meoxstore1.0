@@ -3,6 +3,7 @@
 @section('title', $title)
 
 @section('content')
+    @php($selectedParentCategoryId = old('parent_id', $category->parent_id ?? ''))
     <div class="page-heading">
         <div><h1>{{ $title }}</h1></div>
         <a class="btn btn-light border" href="{{ route($routePrefix.'.index') }}">Back to list</a>
@@ -31,7 +32,20 @@
                     <div class="form-text">This category can be linked to multiple games.</div>
                     @error('game_category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
-                <div class="col-12">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="parent_id">Parent item category <span class="text-muted">(optional)</span></label>
+                    <select class="form-select @error('parent_id') is-invalid @enderror" id="parent_id" name="parent_id">
+                        <option value="">Main category</option>
+                        @foreach ($parentCategories as $parentCategory)
+                            <option value="{{ $parentCategory->id }}" @selected((string) $selectedParentCategoryId === (string) $parentCategory->id)>
+                                {{ $parentCategory->name }} ({{ $parentCategory->gameCategories->pluck('name')->join(', ') }})
+                            </option>
+                        @endforeach
+                    </select>
+                    <div class="form-text" data-subcategory-note hidden>Subcategories inherit the game association and pricing of their main category.</div>
+                    @error('parent_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-12" data-main-category-pricing>
                     <label class="form-label" for="bobux_type">Bobux pricing type</label>
                     <select class="form-select @error('bobux_type') is-invalid @enderror" id="bobux_type" name="bobux_type">
                         <option value="" @selected(old('bobux_type', $category->bobux_type ?? '') === '')>Regular product (IDR price)</option>
@@ -66,4 +80,21 @@
             </div>
         </div>
     </form>
+    @if ($categoryType === 'item')
+        <script>
+            (() => {
+                const parentSelect = document.getElementById('parent_id');
+                const pricingSettings = document.querySelector('[data-main-category-pricing]');
+                const subcategoryNote = document.querySelector('[data-subcategory-note]');
+                const syncParentCategoryFields = () => {
+                    const isSubcategory = parentSelect.value !== '';
+                    pricingSettings.hidden = isSubcategory;
+                    subcategoryNote.hidden = !isSubcategory;
+                };
+
+                parentSelect.addEventListener('change', syncParentCategoryFields);
+                syncParentCategoryFields();
+            })();
+        </script>
+    @endif
 @endsection

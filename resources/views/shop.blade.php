@@ -218,6 +218,9 @@ https://templatemo.com/tm-589-lugx-gaming
                   @if ($selectedItemCategory)
                     <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
                   @endif
+                  @if ($selectedItemSubcategory)
+                    <input type="hidden" name="item_subcategory" value="{{ $selectedItemSubcategory->id }}">
+                  @endif
                   @if ($minimumPriceFilter !== null)
                     <input type="hidden" name="min_price" value="{{ $minimumPriceFilter }}">
                   @endif
@@ -234,6 +237,7 @@ https://templatemo.com/tm-589-lugx-gaming
                       <a class="btn btn-outline-secondary" href="{{ route('shop', [
                           'game' => $selectedGameCategory?->id,
                           'item_category' => $selectedItemCategory?->id,
+                          'item_subcategory' => $selectedItemSubcategory?->id,
                           'min_price' => $minimumPriceFilter,
                           'max_price' => $maximumPriceFilter,
                           'sort' => $selectedSort,
@@ -266,6 +270,9 @@ https://templatemo.com/tm-589-lugx-gaming
                   @if ($selectedItemCategory)
                     <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
                   @endif
+                  @if ($selectedItemSubcategory)
+                    <input type="hidden" name="item_subcategory" value="{{ $selectedItemSubcategory->id }}">
+                  @endif
                   @if ($searchTerm !== '')
                     <input type="hidden" name="search" value="{{ $searchTerm }}">
                   @endif
@@ -286,6 +293,7 @@ https://templatemo.com/tm-589-lugx-gaming
                         <a class="btn btn-outline-secondary" href="{{ route('shop', [
                             'game' => $selectedGameCategory?->id,
                             'item_category' => $selectedItemCategory?->id,
+                            'item_subcategory' => $selectedItemSubcategory?->id,
                             'search' => $searchTerm !== '' ? $searchTerm : null,
                             'sort' => $selectedSort,
                             'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
@@ -311,6 +319,9 @@ https://templatemo.com/tm-589-lugx-gaming
             @endif
             @if ($selectedItemCategory)
               <input type="hidden" name="item_category" value="{{ $selectedItemCategory->id }}">
+            @endif
+            @if ($selectedItemSubcategory)
+              <input type="hidden" name="item_subcategory" value="{{ $selectedItemSubcategory->id }}">
             @endif
             @if ($searchTerm !== '')
               <input type="hidden" name="search" value="{{ $searchTerm }}">
@@ -340,6 +351,7 @@ https://templatemo.com/tm-589-lugx-gaming
             </details>
             </form>
           </div>
+          <div data-shop-item-filters>
           <div class="shop-category-filter-row">
             <span class="shop-category-filter-label">{{ __('store.item') }}</span>
             <ul class="trending-filter" aria-label="{{ __('store.filter_item_category') }}">
@@ -376,6 +388,47 @@ https://templatemo.com/tm-589-lugx-gaming
               @endforeach
             </ul>
           </div>
+          @if ($selectedItemCategory && $itemSubcategories->isNotEmpty())
+            <div class="shop-category-filter-row">
+              <span class="shop-category-filter-label">{{ __('store.subcategory') }}</span>
+              <ul class="trending-filter" aria-label="{{ __('store.filter_item_subcategory') }}">
+                <li>
+                  <a
+                    data-shop-subcategory-filter-link
+                    @class(['is_active' => $selectedItemSubcategory === null])
+                    href="{{ route('shop', [
+                        'game' => $selectedGameCategory?->id,
+                        'item_category' => $selectedItemCategory->id,
+                        'search' => $searchTerm !== '' ? $searchTerm : null,
+                        'min_price' => $minimumPriceFilter,
+                        'max_price' => $maximumPriceFilter,
+                        'sort' => $selectedSort,
+                        'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
+                    ]) }}"
+                  >{{ __('store.all_subcategories') }}</a>
+                </li>
+                @foreach ($itemSubcategories as $itemSubcategory)
+                  <li>
+                    <a
+                      data-shop-subcategory-filter-link
+                      @class(['is_active' => $selectedItemSubcategory?->localizedName() === $itemSubcategory->localizedName()])
+                      href="{{ route('shop', [
+                          'game' => $selectedGameCategory?->id,
+                          'item_category' => $selectedItemCategory->id,
+                          'item_subcategory' => $itemSubcategory->id,
+                          'search' => $searchTerm !== '' ? $searchTerm : null,
+                          'min_price' => $minimumPriceFilter,
+                          'max_price' => $maximumPriceFilter,
+                          'sort' => $selectedSort,
+                          'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency,
+                      ]) }}"
+                    >{{ $itemSubcategory->localizedName() }}</a>
+                  </li>
+                @endforeach
+              </ul>
+            </div>
+          @endif
+          </div>
         </div>
       </div>
       <div class="shop-product-results" data-shop-product-results aria-busy="false">
@@ -405,7 +458,7 @@ https://templatemo.com/tm-589-lugx-gaming
             @endphp
             @php($fallbackImage = asset('images/trending-0'.(($loop->index % 4) + 1).'.jpg'))
             @php($stockCount = $product->variants->sum('stock'))
-            <div class="col-6 col-md-6 col-lg-3 trending-items game-{{ $product->game_category_id }} item-{{ $product->item_category_id }}">
+            <div class="col-6 col-md-6 col-lg-3 trending-items game-{{ $product->game_category_id }} item-{{ $product->item_category_id }} subcategory-{{ $product->item_subcategory_id }}">
               <div class="item shop-product-card">
                 <div class="thumb">
                   <a href="{{ route('product-details.show', ['product' => $product, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}" data-shop-product-link>
@@ -426,7 +479,7 @@ https://templatemo.com/tm-589-lugx-gaming
                   @endif
                 </div>
                 <div class="down-content">
-                  <span class="category">{{ $product->gameCategory->name }}</span>
+                  <span class="category">{{ $product->gameCategory->name }} / {{ $product->itemCategory?->localizedName() }}@if ($product->itemSubcategory) / {{ $product->itemSubcategory->localizedName() }}@endif</span>
                   <h4>{{ $product->name }}</h4>
                   <div class="shop-product-price">
                     @if ($product->hasDiscount())

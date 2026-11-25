@@ -245,6 +245,7 @@ class GameCategoryController extends Controller
     public function itemCategories(Request $request, GameCategory $gameCategory): JsonResponse
     {
         $selectedItemCategoryId = filter_var($request->query('selected_item_category_id'), FILTER_VALIDATE_INT);
+        $selectedSubcategoryId = filter_var($request->query('selected_subcategory_id'), FILTER_VALIDATE_INT);
 
         $itemCategories = $gameCategory->itemCategories()
             ->where(function ($query) use ($selectedItemCategoryId): void {
@@ -254,8 +255,30 @@ class GameCategoryController extends Controller
                     $query->orWhere('item_categories.id', $selectedItemCategoryId);
                 }
             })
+            ->whereNull('item_categories.parent_id')
+            ->with(['children' => function ($query) use ($selectedSubcategoryId): void {
+                $query->where(function ($childQuery) use ($selectedSubcategoryId): void {
+                    $childQuery->where('status', 'active');
+
+                    if ($selectedSubcategoryId !== false) {
+                        $childQuery->orWhere('id', $selectedSubcategoryId);
+                    }
+                })->orderBy('name');
+            }])
             ->orderBy('item_categories.name')
-            ->get(['item_categories.id', 'item_categories.name', 'item_categories.bobux_type', 'item_categories.uses_robux']);
+            ->get(['item_categories.id', 'item_categories.name', 'item_categories.bobux_type', 'item_categories.uses_robux'])
+            ->map(fn (ItemCategory $category): array => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'bobux_type' => $category->bobux_type,
+                'uses_robux' => $category->uses_robux,
+                'subcategories' => $category->children
+                    ->map(fn (ItemCategory $subcategory): array => [
+                        'id' => $subcategory->id,
+                        'name' => $subcategory->name,
+                    ])
+                    ->values(),
+            ]);
 
         return response()->json($itemCategories);
     }

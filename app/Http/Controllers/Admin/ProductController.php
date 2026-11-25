@@ -8,6 +8,7 @@ use App\Models\ItemCategory;
 use App\Models\Product;
 use App\Models\ProductCurrencyRate;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -25,7 +26,11 @@ class ProductController extends Controller
     public function index(Request $request): View
     {
         $query = Product::query()
-            ->with(['gameCategory:id,name', 'itemCategory:id,name,bobux_type,uses_robux'])
+            ->with([
+                'gameCategory:id,name',
+                'itemCategory:id,name,bobux_type,uses_robux',
+                'itemSubcategory:id,name,parent_id',
+            ])
             ->with(['variants:id,product_id,name,price,sort_order']);
 
         $search = trim((string) $request->query('search', ''));
@@ -41,6 +46,10 @@ class ProductController extends Controller
             $query->where('item_category_id', $request->query('item_category_id'));
         }
 
+        if ($request->filled('item_subcategory_id')) {
+            $query->where('item_subcategory_id', $request->query('item_subcategory_id'));
+        }
+
         if (in_array($request->query('status'), ['draft', 'active', 'inactive'], true)) {
             $query->where('status', $request->query('status'));
         }
@@ -53,7 +62,7 @@ class ProductController extends Controller
             $query->whereDoesntHave('variants', fn ($variants) => $variants->where('stock', '>', 0));
         }
 
-        $itemCategoriesQuery = ItemCategory::query()->orderBy('name');
+        $itemCategoriesQuery = ItemCategory::query()->whereNull('parent_id')->orderBy('name');
         if ($request->filled('game_category_id')) {
             $itemCategoriesQuery->whereHas(
                 'gameCategories',
@@ -64,9 +73,9 @@ class ProductController extends Controller
         return view('admin.products.index', [
             'products' => $query->orderByDesc('created_at')->orderByDesc('id')->paginate(15)->withQueryString(),
             'gameCategories' => GameCategory::query()->orderBy('name')->get(['id', 'name']),
-            'itemCategories' => $itemCategoriesQuery->get(['id', 'name', 'bobux_type', 'uses_robux']),
+            'itemCategories' => $itemCategoriesQuery->with('children:id,parent_id,name')->get(['id', 'name', 'bobux_type', 'uses_robux']),
             'currencyRates' => ProductCurrencyRate::current(),
-            'filters' => $request->only(['search', 'game_category_id', 'item_category_id', 'status', 'featured', 'stock']),
+            'filters' => $request->only(['search', 'game_category_id', 'item_category_id', 'item_subcategory_id', 'status', 'featured', 'stock']),
         ]);
     }
 
@@ -75,14 +84,21 @@ class ProductController extends Controller
      */
     public function create(Request $request): View
     {
+        $selectedGameCategoryId = filter_var($request->old('game_category_id'), FILTER_VALIDATE_INT);
+        $selectedItemCategoryId = filter_var($request->old('item_category_id'), FILTER_VALIDATE_INT);
+        $selectedSubcategoryId = filter_var($request->old('item_subcategory_id'), FILTER_VALIDATE_INT);
+        $selectedGameCategoryId = $selectedGameCategoryId === false ? null : $selectedGameCategoryId;
+        $selectedItemCategoryId = $selectedItemCategoryId === false ? null : $selectedItemCategoryId;
+        $selectedSubcategoryId = $selectedSubcategoryId === false ? null : $selectedSubcategoryId;
         $itemCategories = collect();
-        $selectedGameCategory = GameCategory::query()->find($request->old('game_category_id'));
+        $selectedGameCategory = GameCategory::query()->find($selectedGameCategoryId);
 
         if ($selectedGameCategory !== null) {
-            $itemCategories = $selectedGameCategory->itemCategories()
-                ->where('item_categories.status', 'active')
-                ->orderBy('item_categories.name')
-                ->get(['item_categories.id', 'item_categories.name', 'item_categories.bobux_type', 'item_categories.uses_robux']);
+            $itemCategories = $this->itemCategoriesForGame(
+                $selectedGameCategory,
+                $selectedItemCategoryId,
+                $selectedSubcategoryId,
+            );
         }
 
         return view('admin.products.form', [
@@ -107,6 +123,7 @@ class ProductController extends Controller
                 $attributes = Arr::only($validated, [
                     'game_category_id',
                     'item_category_id',
+                    'item_subcategory_id',
                     'name',
                     'description',
                     'badges',
@@ -144,7 +161,12 @@ class ProductController extends Controller
      */
     public function show(Product $product): View
     {
-        $product->load(['gameCategory:id,name', 'itemCategory:id,name,bobux_type,uses_robux', 'variants']);
+        $product->load([
+            'gameCategory:id,name',
+            'itemCategory:id,name,bobux_type,uses_robux',
+            'itemSubcategory:id,name,parent_id',
+            'variants',
+        ]);
 
         return view('admin.products.show', [
             'product' => $product,
@@ -195,13 +217,11 @@ class ProductController extends Controller
     {
         $product->load('variants');
         $itemCategories = $product->gameCategory
-            ? $product->gameCategory->itemCategories()
-                ->where(function ($query) use ($product): void {
-                    $query->where('item_categories.status', 'active')
-                        ->orWhere('item_categories.id', $product->item_category_id);
-                })
-                ->orderBy('item_categories.name')
-                ->get(['item_categories.id', 'item_categories.name', 'item_categories.bobux_type', 'item_categories.uses_robux'])
+            ? $this->itemCategoriesForGame(
+                $product->gameCategory,
+                $product->item_category_id,
+                $product->item_subcategory_id,
+            )
             : collect();
 
         return view('admin.products.form', [
@@ -231,6 +251,7 @@ class ProductController extends Controller
                 $attributes = Arr::only($validated, [
                     'game_category_id',
                     'item_category_id',
+                    'item_subcategory_id',
                     'name',
                     'description',
                     'badges',
@@ -380,6 +401,12 @@ class ProductController extends Controller
                 Rule::exists('game_category_item_category', 'item_category_id')
                     ->where('game_category_id', $request->input('game_category_id')),
             ],
+            'item_subcategory_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('item_categories', 'id')
+                    ->where('parent_id', $request->input('item_category_id')),
+            ],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'badges' => ['nullable', 'array', 'max:'.count(Product::BADGE_OPTIONS)],
@@ -431,10 +458,63 @@ class ProductController extends Controller
         }
 
         $validated = $request->validate($rules);
+        $selectedItemCategory = ItemCategory::query()->findOrFail($validated['item_category_id']);
+        if ($selectedItemCategory->parent_id !== null) {
+            throw ValidationException::withMessages([
+                'item_category_id' => 'Choose a main item category.',
+            ]);
+        }
+
+        if (isset($validated['item_subcategory_id'])) {
+            $selectedSubcategory = ItemCategory::query()->findOrFail($validated['item_subcategory_id']);
+            if ($selectedSubcategory->status !== 'active'
+                && (int) ($product?->item_subcategory_id ?? 0) !== (int) $selectedSubcategory->id) {
+                throw ValidationException::withMessages([
+                    'item_subcategory_id' => 'Choose an active subcategory.',
+                ]);
+            }
+        }
+
+        $validated['item_subcategory_id'] ??= null;
         $validated['badges'] = array_values($validated['badges'] ?? []);
         $validated['is_featured'] = $request->boolean('is_featured');
         $validated['purchase_fields'] = array_values($validated['purchase_fields'] ?? []);
 
         return $validated;
+    }
+
+    /**
+     * @return Collection<int, ItemCategory>
+     */
+    private function itemCategoriesForGame(
+        GameCategory $gameCategory,
+        ?int $selectedItemCategoryId = null,
+        ?int $selectedSubcategoryId = null,
+    ): Collection {
+        return $gameCategory->itemCategories()
+            ->whereNull('item_categories.parent_id')
+            ->where(function ($query) use ($selectedItemCategoryId): void {
+                $query->where('item_categories.status', 'active');
+
+                if ($selectedItemCategoryId !== null) {
+                    $query->orWhere('item_categories.id', $selectedItemCategoryId);
+                }
+            })
+            ->with(['children' => function ($query) use ($selectedSubcategoryId): void {
+                $query->where(function ($childQuery) use ($selectedSubcategoryId): void {
+                    $childQuery->where('status', 'active');
+
+                    if ($selectedSubcategoryId !== null) {
+                        $childQuery->orWhere('id', $selectedSubcategoryId);
+                    }
+                })->orderBy('name');
+            }])
+            ->orderBy('item_categories.name')
+            ->get([
+                'item_categories.id',
+                'item_categories.name',
+                'item_categories.bobux_type',
+                'item_categories.uses_robux',
+            ]);
     }
 }

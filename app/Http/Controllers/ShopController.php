@@ -53,6 +53,7 @@ class ShopController extends Controller
             : null;
 
         $availableItemCategories = ItemCategory::query()
+            ->whereNull('parent_id')
             ->where('status', 'active')
             ->whereHas('products', function (Builder $query) use ($availableVariants, $selectedGameCategoryId): void {
                 $query->where('status', 'active')
@@ -71,11 +72,34 @@ class ShopController extends Controller
         $itemCategories = $availableItemCategories
             ->unique(fn (ItemCategory $itemCategory): string => $itemCategory->localizedName())
             ->values();
+        $availableItemSubcategories = $selectedItemCategoryIds === []
+            ? collect()
+            : ItemCategory::query()
+                ->whereIn('parent_id', $selectedItemCategoryIds)
+                ->where('status', 'active')
+                ->whereHas('subcategoryProducts', function (Builder $query) use ($availableVariants, $selectedGameCategoryId): void {
+                    $query->where('status', 'active')
+                        ->when($selectedGameCategoryId > 0, fn (Builder $productQuery) => $productQuery->where('game_category_id', $selectedGameCategoryId))
+                        ->whereHas('variants', $availableVariants);
+                })
+                ->orderBy('name')
+                ->get(['id', 'parent_id', 'name']);
+        $selectedItemSubcategory = $availableItemSubcategories->firstWhere('id', $request->integer('item_subcategory'));
+        $itemSubcategories = $availableItemSubcategories
+            ->unique(fn (ItemCategory $itemCategory): string => $itemCategory->localizedName())
+            ->values();
+        $selectedItemSubcategoryIds = $selectedItemSubcategory === null
+            ? []
+            : $availableItemSubcategories
+                ->filter(fn (ItemCategory $itemCategory): bool => $itemCategory->localizedName() === $selectedItemSubcategory->localizedName())
+                ->pluck('id')
+                ->all();
 
         $productQuery = Product::query()
             ->where('status', 'active')
             ->when($selectedGameCategoryId > 0, fn (Builder $query) => $query->where('game_category_id', $selectedGameCategoryId))
             ->when($selectedItemCategory !== null, fn (Builder $query) => $query->whereIn('item_category_id', $selectedItemCategoryIds))
+            ->when($selectedItemSubcategory !== null, fn (Builder $query) => $query->whereIn('item_subcategory_id', $selectedItemSubcategoryIds))
             ->when($searchTerm !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$searchTerm.'%'))
             ->whereHas('variants', $availableVariants);
 
@@ -98,7 +122,8 @@ class ShopController extends Controller
         $productQuery = $productQuery
             ->with([
                 'gameCategory:id,name',
-                'itemCategory:id,bobux_type,uses_robux',
+                'itemCategory:id,name,bobux_type,uses_robux',
+                'itemSubcategory:id,parent_id,name',
                 'variants' => fn ($query) => $activeVariants($query)
                     ->select(['id', 'product_id', 'name', 'price', 'stock', 'minimum_quantity', 'maximum_quantity', 'sort_order'])
                     ->orderBy('sort_order')
@@ -134,6 +159,8 @@ class ShopController extends Controller
             'products' => $products,
             'itemCategories' => $itemCategories,
             'selectedItemCategory' => $selectedItemCategory,
+            'itemSubcategories' => $itemSubcategories,
+            'selectedItemSubcategory' => $selectedItemSubcategory,
             'currencyRates' => $currencyRates,
             'selectedCurrency' => $selectedCurrency,
             'selectedGameCategory' => $selectedGameCategory,

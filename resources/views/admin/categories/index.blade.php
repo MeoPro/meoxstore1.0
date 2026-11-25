@@ -42,7 +42,7 @@
     <div class="panel overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead><tr><th><input class="form-check-input" id="select-all-categories" type="checkbox" aria-label="Select all categories on this page"></th><th>Image</th><th>Name</th><th>Status</th><th>Created</th><th class="text-end">Actions</th></tr></thead>
+                <thead><tr><th><input class="form-check-input" id="select-all-categories" type="checkbox" aria-label="Select all categories on this page"></th><th>Image</th><th>Name</th><th>Parent</th><th>Status</th><th>Created</th><th class="text-end">Actions</th></tr></thead>
                 <tbody>
                 @forelse ($categories as $category)
                     <tr>
@@ -55,6 +55,7 @@
                             @endif
                         </td>
                         <td class="fw-semibold">{{ $category->name }}</td>
+                        <td>{{ $categoryType === 'item' ? ($category->parent?->name ?? 'Main category') : '—' }}</td>
                         <td><span class="badge rounded-pill badge-status {{ $category->status === 'active' ? 'text-bg-success' : 'text-bg-secondary' }}">{{ ucfirst($category->status) }}</span></td>
                         <td>{{ $category->created_at->format('M j, Y') }}</td>
                         <td>
@@ -67,7 +68,7 @@
                                         {{ $category->status === 'active' ? 'Deactivate' : 'Activate' }}
                                     </button>
                                 </form>
-                                <form method="POST" action="{{ route($routePrefix.'.destroy', $category) }}" onsubmit="return confirm('Permanently delete this category? Categories used by products cannot be deleted.')">
+                                <form method="POST" action="{{ route($routePrefix.'.destroy', $category) }}" onsubmit="return confirm('Permanently delete this category? Main-category products will be deactivated, and subcategories must be deleted first.')">
                                     @csrf
                                     @method('DELETE')
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
@@ -76,7 +77,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td class="py-5 text-center text-muted" colspan="6">No categories found.</td></tr>
+                    <tr><td class="py-5 text-center text-muted" colspan="7">No categories found.</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -112,7 +113,7 @@
                 }
 
                 if (document.getElementById('bulk-category-action').value === 'delete' &&
-                    !window.confirm('Permanently delete the selected categories? Categories linked to products will be kept.')) {
+                    !window.confirm('Permanently delete the selected categories? Main-category products will be deactivated; deleting a parent also requires selecting all its subcategories.')) {
                     event.preventDefault();
                 }
             });

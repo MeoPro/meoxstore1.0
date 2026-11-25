@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\ItemCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -18,6 +19,7 @@ class ItemCategory extends Model
 
     protected $fillable = [
         'name',
+        'parent_id',
         'bobux_type',
         'uses_robux',
         'image',
@@ -39,6 +41,21 @@ class ItemCategory extends Model
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function subcategoryProducts(): HasMany
+    {
+        return $this->hasMany(Product::class, 'item_subcategory_id');
     }
 
     public function usesBobux(): bool

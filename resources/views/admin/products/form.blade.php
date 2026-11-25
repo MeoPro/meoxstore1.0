@@ -17,6 +17,7 @@
         $nextPurchaseFieldIndex = count($purchaseFieldRows);
         $selectedGameCategoryId = (string) old('game_category_id', $product->game_category_id ?? '');
         $selectedItemCategoryId = (string) old('item_category_id', $product->item_category_id ?? '');
+        $selectedSubcategoryId = (string) old('item_subcategory_id', $product->item_subcategory_id ?? '');
         $selectedItemCategory = $itemCategories->firstWhere('id', (int) $selectedItemCategoryId);
         $bobuxType = $selectedItemCategory?->bobux_type
             ?? ($selectedItemCategory?->uses_robux ? 'gift_ingame' : null);
@@ -97,7 +98,7 @@
                     <select class="form-select @error('item_category_id') is-invalid @enderror" id="item_category_id" name="item_category_id" @disabled($itemCategories->isEmpty()) required>
                         <option value="">{{ $selectedGameCategoryId === '' ? 'Choose a game first' : ($itemCategories->isEmpty() ? 'No item categories for this game' : 'Choose an item type') }}</option>
                         @foreach ($itemCategories as $category)
-                            <option value="{{ $category->id }}" data-bobux-type="{{ $category->bobux_type ?? ($category->uses_robux ? 'gift_ingame' : '') }}" @selected($selectedItemCategoryId === (string) $category->id)>{{ $category->name }}</option>
+                            <option value="{{ $category->id }}" data-bobux-type="{{ $category->bobux_type ?? ($category->uses_robux ? 'gift_ingame' : '') }}" data-subcategories="{{ $category->children->map(fn ($subcategory) => ['id' => $subcategory->id, 'name' => $subcategory->name])->values()->toJson() }}" @selected($selectedItemCategoryId === (string) $category->id)>{{ $category->name }}</option>
                         @endforeach
                     </select>
                     <details class="category-inline-create" data-inline-category data-category-type="item" data-endpoint="{{ route('admin.item-categories.store') }}" data-select="item_category_id" data-game-select="game_category_id" data-endpoint-template="{{ route('admin.game-categories.item-categories', ['game_category' => '__GAME_CATEGORY_ID__']) }}">
@@ -116,6 +117,16 @@
                         <span class="category-inline-message small d-block mt-1" data-category-feedback role="status"></span>
                     </details>
                     @error('item_category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="item_subcategory_id">Item subcategory <span class="text-muted">(optional)</span></label>
+                    <select class="form-select @error('item_subcategory_id') is-invalid @enderror" id="item_subcategory_id" name="item_subcategory_id" @disabled($selectedItemCategory === null || $selectedItemCategory->children->isEmpty())>
+                        <option value="">No subcategory</option>
+                        @foreach ($selectedItemCategory?->children ?? collect() as $subcategory)
+                            <option value="{{ $subcategory->id }}" @selected($selectedSubcategoryId === (string) $subcategory->id)>{{ $subcategory->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('item_subcategory_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="description">Description <span class="text-muted">(optional)</span></label>
@@ -391,6 +402,7 @@
             const csrfToken = document.querySelector('input[name="_token"]').value;
             const gameCategorySelect = document.getElementById('game_category_id');
             const itemCategorySelect = document.getElementById('item_category_id');
+            const itemSubcategorySelect = document.getElementById('item_subcategory_id');
             const itemCategoryEditor = document.querySelector('[data-category-type="item"]');
             const addItemCategoryButton = itemCategoryEditor.querySelector('[data-create-category]');
             const updateBobuxPricing = () => {
@@ -415,13 +427,31 @@
             };
             const originalGameCategoryId = @json($selectedGameCategoryId);
             const originalItemCategoryId = @json($selectedItemCategoryId);
+            const originalSubcategoryId = @json($selectedSubcategoryId);
             let itemCategoryRequest = 0;
+
+            const populateSubcategories = () => {
+                const parentOption = itemCategorySelect.selectedOptions[0];
+                const subcategories = JSON.parse(parentOption?.dataset.subcategories || '[]');
+                const keepSelection = itemCategorySelect.value === originalItemCategoryId
+                    && gameCategorySelect.value === originalGameCategoryId
+                    ? originalSubcategoryId
+                    : itemSubcategorySelect.value;
+
+                itemSubcategorySelect.replaceChildren(new Option('No subcategory', ''));
+                subcategories.forEach((subcategory) => {
+                    const selected = subcategory.id.toString() === keepSelection;
+                    itemSubcategorySelect.add(new Option(subcategory.name, subcategory.id, selected, selected));
+                });
+                itemSubcategorySelect.disabled = subcategories.length === 0;
+            };
 
             const loadItemCategories = async () => {
                 const gameCategoryId = gameCategorySelect.value;
                 const requestId = ++itemCategoryRequest;
                 addItemCategoryButton.disabled = true;
                 itemCategorySelect.disabled = true;
+                itemSubcategorySelect.disabled = true;
                 itemCategorySelect.replaceChildren(new Option(
                     gameCategoryId ? 'Loading item categories...' : 'Choose a game first',
                     '',
@@ -437,6 +467,9 @@
 
                 if (gameCategoryId === originalGameCategoryId && originalItemCategoryId) {
                     query.set('selected_item_category_id', originalItemCategoryId);
+                }
+                if (gameCategoryId === originalGameCategoryId && originalSubcategoryId) {
+                    query.set('selected_subcategory_id', originalSubcategoryId);
                 }
 
                 try {
@@ -459,21 +492,29 @@
                             && gameCategoryId === originalGameCategoryId;
                         const option = new Option(category.name, category.id, selected, selected);
                         option.dataset.bobuxType = category.bobux_type || (category.uses_robux ? 'gift_ingame' : '');
+                        option.dataset.subcategories = JSON.stringify(category.subcategories ?? []);
                         itemCategorySelect.add(option);
                     });
 
                     itemCategorySelect.disabled = false;
                     addItemCategoryButton.disabled = false;
+                    populateSubcategories();
                     updateBobuxPricing();
                 } catch {
                     if (requestId === itemCategoryRequest) {
                         itemCategorySelect.replaceChildren(new Option('Could not load item categories', ''));
+                        itemSubcategorySelect.replaceChildren(new Option('No subcategory', ''));
                     }
                 }
             };
 
             gameCategorySelect.addEventListener('change', loadItemCategories);
-            itemCategorySelect.addEventListener('change', updateBobuxPricing);
+            itemCategorySelect.addEventListener('change', () => {
+                populateSubcategories();
+                updateBobuxPricing();
+            });
+            populateSubcategories();
+            updateBobuxPricing();
 
             document.querySelectorAll('[data-inline-category]').forEach((categoryEditor) => {
                 const nameInput = categoryEditor.querySelector('[data-category-name]');
@@ -529,6 +570,7 @@
 
                         const option = new Option(result.name, result.id, true, true);
                         option.dataset.bobuxType = result.bobux_type || '';
+                        option.dataset.subcategories = '[]';
                         categorySelect.add(option);
                         categorySelect.value = result.id;
                         if (categoryEditor.dataset.categoryType === 'item') {

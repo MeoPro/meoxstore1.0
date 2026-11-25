@@ -7,6 +7,7 @@ use App\Models\GameCategory;
 use App\Models\ItemCategory;
 use App\Models\Product;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,8 @@ class ItemCategoryController extends Controller
 
         $categories = ItemCategory::query()
             ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+            ->with('parent:id,name')
+            ->orderBy('parent_id')
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();
@@ -42,7 +45,7 @@ class ItemCategoryController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('admin.categories.form', [
             'category' => new ItemCategory,
@@ -50,7 +53,10 @@ class ItemCategoryController extends Controller
             'title' => 'Add Item Category',
             'routePrefix' => 'admin.item-categories',
             'gameCategories' => GameCategory::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
-            'selectedGameCategoryId' => null,
+            'parentCategories' => $this->parentCategories(
+                selectedId: filter_var($request->old('parent_id'), FILTER_VALIDATE_INT) ?: null,
+            ),
+            'selectedGameCategoryId' => $request->old('game_category_id'),
         ]);
     }
 
@@ -89,6 +95,12 @@ class ItemCategoryController extends Controller
                 ], 422);
             }
 
+            if ($category->parent_id !== null) {
+                return response()->json([
+                    'errors' => ['name' => ['This name is already used by a subcategory.']],
+                ], 422);
+            }
+
             GameCategory::query()
                 ->findOrFail($validated['game_category_id'])
                 ->itemCategories()
@@ -109,11 +121,13 @@ class ItemCategoryController extends Controller
                 'integer',
                 Rule::exists('game_categories', 'id')->where('status', 'active'),
             ],
+            'parent_id' => ['nullable', 'integer', 'exists:item_categories,id'],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
             'bobux_type' => ['sometimes', 'nullable', Rule::in(ItemCategory::BOBUX_TYPES)],
             'uses_robux' => ['sometimes', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
+        $parentCategory = $this->validatedParentCategory($validated);
         $bobuxType = array_key_exists('bobux_type', $validated)
             ? $validated['bobux_type']
             : ($request->boolean('uses_robux') ? 'gift_ingame' : null);
@@ -121,12 +135,14 @@ class ItemCategoryController extends Controller
         $imagePath = $request->file('image')?->store('categories', 'public');
 
         try {
-            $category = DB::transaction(function () use ($validated, $imagePath, $bobuxType): ItemCategory {
+            $category = DB::transaction(function () use ($validated, $imagePath, $bobuxType, $parentCategory): ItemCategory {
                 $category = ItemCategory::query()->firstOrCreate(
                     ['name' => $validated['name']],
                     [
-                        'bobux_type' => $bobuxType,
-                        'uses_robux' => in_array($bobuxType, ['gift_ingame', 'gamepass_5_days'], true),
+                        'parent_id' => $parentCategory?->id,
+                        'bobux_type' => $parentCategory === null ? $bobuxType : null,
+                        'uses_robux' => $parentCategory === null
+                            && in_array($bobuxType, ['gift_ingame', 'gamepass_5_days'], true),
                         'status' => $validated['status'] ?? 'active',
                         'image' => $imagePath,
                     ],
@@ -138,10 +154,18 @@ class ItemCategoryController extends Controller
                     ]);
                 }
 
-                GameCategory::query()
-                    ->findOrFail($validated['game_category_id'])
-                    ->itemCategories()
-                    ->syncWithoutDetaching($category->id);
+                if ($category->parent_id !== $parentCategory?->id) {
+                    throw ValidationException::withMessages([
+                        'name' => ['This item category already exists at a different level.'],
+                    ]);
+                }
+
+                if ($parentCategory === null) {
+                    GameCategory::query()
+                        ->findOrFail($validated['game_category_id'])
+                        ->itemCategories()
+                        ->syncWithoutDetaching($category->id);
+                }
 
                 return $category;
             });
@@ -159,7 +183,9 @@ class ItemCategoryController extends Controller
 
         $message = $category->wasRecentlyCreated
             ? 'Item category created.'
-            : 'Existing item category linked to the selected game; its existing settings were kept.';
+            : ($parentCategory === null
+                ? 'Existing item category linked to the selected game; its existing settings were kept.'
+                : 'The subcategory already belongs to the selected main category.');
 
         return redirect()->route('admin.item-categories.index')->with('success', $message);
     }
@@ -183,7 +209,11 @@ class ItemCategoryController extends Controller
             'title' => 'Edit Item Category',
             'routePrefix' => 'admin.item-categories',
             'gameCategories' => GameCategory::query()->where('status', 'active')->orderBy('name')->get(['id', 'name']),
-            'selectedGameCategoryId' => $itemCategory->gameCategories()
+            'parentCategories' => $this->parentCategories(
+                $itemCategory,
+                $itemCategory->parent_id,
+            ),
+            'selectedGameCategoryId' => ($itemCategory->parent?->gameCategories() ?? $itemCategory->gameCategories())
                 ->orderBy('game_categories.name')
                 ->value('game_categories.id'),
         ]);
@@ -201,11 +231,13 @@ class ItemCategoryController extends Controller
                 'integer',
                 Rule::exists('game_categories', 'id')->where('status', 'active'),
             ],
+            'parent_id' => ['nullable', 'integer', 'exists:item_categories,id'],
             'status' => ['sometimes', Rule::in(['active', 'inactive'])],
             'bobux_type' => ['sometimes', 'nullable', Rule::in(ItemCategory::BOBUX_TYPES)],
             'uses_robux' => ['sometimes', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
+        $parentCategory = $this->validatedParentCategory($validated, $itemCategory);
         $bobuxType = array_key_exists('bobux_type', $validated)
             ? $validated['bobux_type']
             : ($request->has('uses_robux')
@@ -216,19 +248,33 @@ class ItemCategoryController extends Controller
         $previousImage = $itemCategory->image;
 
         try {
-            DB::transaction(function () use ($validated, $imagePath, $previousImage, $itemCategory, $bobuxType): void {
+            DB::transaction(function () use ($validated, $imagePath, $previousImage, $itemCategory, $bobuxType, $parentCategory): void {
+                $status = $validated['status'] ?? $itemCategory->status;
                 $itemCategory->update([
                     'name' => $validated['name'],
-                    'bobux_type' => $bobuxType,
-                    'uses_robux' => in_array($bobuxType, ['gift_ingame', 'gamepass_5_days'], true),
-                    'status' => $validated['status'] ?? $itemCategory->status,
+                    'parent_id' => $parentCategory?->id,
+                    'bobux_type' => $parentCategory === null ? $bobuxType : null,
+                    'uses_robux' => $parentCategory === null
+                        && in_array($bobuxType, ['gift_ingame', 'gamepass_5_days'], true),
+                    'status' => $status,
                     'image' => $imagePath ?? $previousImage,
                 ]);
 
-                GameCategory::query()
-                    ->findOrFail($validated['game_category_id'])
-                    ->itemCategories()
-                    ->syncWithoutDetaching($itemCategory->id);
+                if ($status === 'inactive') {
+                    Product::query()
+                        ->where('item_category_id', $itemCategory->id)
+                        ->orWhere('item_subcategory_id', $itemCategory->id)
+                        ->update(['status' => 'inactive']);
+                }
+
+                if ($parentCategory === null) {
+                    GameCategory::query()
+                        ->findOrFail($validated['game_category_id'])
+                        ->itemCategories()
+                        ->syncWithoutDetaching($itemCategory->id);
+                } else {
+                    $itemCategory->gameCategories()->detach();
+                }
             });
         } catch (Throwable $exception) {
             if ($imagePath !== null) {
@@ -250,12 +296,28 @@ class ItemCategoryController extends Controller
      */
     public function destroy(ItemCategory $itemCategory): RedirectResponse
     {
+        $wasSubcategory = $itemCategory->parent_id !== null;
+        if ($itemCategory->children()->exists()) {
+            throw ValidationException::withMessages([
+                'category' => "Delete this category's subcategories before deleting the category.",
+            ]);
+        }
+
         $imagePath = DB::transaction(function () use ($itemCategory): ?string {
             $lockedCategory = ItemCategory::query()->lockForUpdate()->findOrFail($itemCategory->id);
-            $lockedCategory->products()->update([
-                'item_category_id' => null,
-                'status' => 'inactive',
-            ]);
+            if ($lockedCategory->parent_id === null) {
+                $lockedCategory->products()->update([
+                    'item_category_id' => null,
+                    'item_subcategory_id' => null,
+                    'status' => 'inactive',
+                ]);
+            } else {
+                $lockedCategory->subcategoryProducts()->update(['item_subcategory_id' => null]);
+                $lockedCategory->products()->update([
+                    'item_category_id' => null,
+                    'status' => 'inactive',
+                ]);
+            }
 
             $imagePath = $lockedCategory->image;
             $lockedCategory->delete();
@@ -267,7 +329,11 @@ class ItemCategoryController extends Controller
             Storage::disk('public')->delete($imagePath);
         }
 
-        return redirect()->route('admin.item-categories.index')->with('success', 'Item category permanently deleted and its products deactivated.');
+        $message = $wasSubcategory
+            ? 'Item subcategory permanently deleted and removed from its products.'
+            : 'Item category permanently deleted and its products deactivated.';
+
+        return redirect()->route('admin.item-categories.index')->with('success', $message);
     }
 
     public function bulk(Request $request): RedirectResponse
@@ -293,18 +359,36 @@ class ItemCategoryController extends Controller
 
             if ($validated['action'] === 'archive') {
                 ItemCategory::query()->whereKey($validated['ids'])->update(['status' => 'inactive']);
-                Product::query()->whereIn('item_category_id', $validated['ids'])->update(['status' => 'inactive']);
+                Product::query()
+                    ->whereIn('item_category_id', $validated['ids'])
+                    ->orWhereIn('item_subcategory_id', $validated['ids'])
+                    ->update(['status' => 'inactive']);
 
                 return [];
             }
 
+            $unselectedChildrenExist = ItemCategory::query()
+                ->whereIn('parent_id', $validated['ids'])
+                ->whereNotIn('id', $validated['ids'])
+                ->exists();
+            if ($unselectedChildrenExist) {
+                throw ValidationException::withMessages([
+                    'ids' => 'Select the subcategories before permanently deleting their parent categories.',
+                ]);
+            }
+
             Product::query()->whereIn('item_category_id', $validated['ids'])->update([
                 'item_category_id' => null,
+                'item_subcategory_id' => null,
                 'status' => 'inactive',
             ]);
+            Product::query()
+                ->whereIn('item_subcategory_id', $validated['ids'])
+                ->whereNotIn('item_category_id', $validated['ids'])
+                ->update(['item_subcategory_id' => null]);
 
             $imagePaths = $categories->pluck('image')->filter()->unique()->values()->all();
-            foreach ($categories as $category) {
+            foreach ($categories->sortBy(fn (ItemCategory $category): int => $category->parent_id === null ? 1 : 0) as $category) {
                 $category->delete();
             }
 
@@ -317,7 +401,7 @@ class ItemCategoryController extends Controller
 
         $message = $validated['action'] === 'archive'
             ? 'Selected item categories archived and their products deactivated.'
-            : 'Selected item categories permanently deleted and their products deactivated.';
+            : 'Selected item categories permanently deleted and related products updated.';
 
         return back()->with('success', $message);
     }
@@ -329,10 +413,87 @@ class ItemCategoryController extends Controller
             $itemCategory->update(['status' => $status]);
 
             if ($status === 'inactive') {
-                $itemCategory->products()->update(['status' => 'inactive']);
+                Product::query()
+                    ->where('item_category_id', $itemCategory->id)
+                    ->orWhere('item_subcategory_id', $itemCategory->id)
+                    ->update(['status' => 'inactive']);
             }
         });
 
         return back()->with('success', 'Item category status updated.');
+    }
+
+    /**
+     * @return Collection<int, ItemCategory>
+     */
+    private function parentCategories(?ItemCategory $category = null, ?int $selectedId = null): Collection
+    {
+        return ItemCategory::query()
+            ->whereNull('parent_id')
+            ->where(function ($query) use ($category, $selectedId): void {
+                $query->where('status', 'active');
+
+                if ($selectedId !== null) {
+                    $query->orWhereKey($selectedId);
+                }
+
+                if ($category?->parent_id !== null) {
+                    $query->orWhereKey($category->parent_id);
+                }
+            })
+            ->with('gameCategories:id,name')
+            ->orderBy('name')
+            ->get(['id', 'name', 'status']);
+    }
+
+    private function validatedParentCategory(array $validated, ?ItemCategory $category = null): ?ItemCategory
+    {
+        $parentId = $validated['parent_id'] ?? null;
+        if ($parentId === null) {
+            if ($category !== null
+                && $category->parent_id !== null
+                && ($category->products()->exists() || $category->subcategoryProducts()->exists() || $category->children()->exists())) {
+                throw ValidationException::withMessages([
+                    'parent_id' => 'This category cannot become a main category while products or subcategories use it.',
+                ]);
+            }
+
+            return null;
+        }
+
+        if ($category !== null && (int) $category->id === (int) $parentId) {
+            throw ValidationException::withMessages([
+                'parent_id' => 'A category cannot be its own subcategory.',
+            ]);
+        }
+
+        $parentCategory = ItemCategory::query()
+            ->whereNull('parent_id')
+            ->with('gameCategories:id,name')
+            ->find($parentId);
+
+        if ($parentCategory === null
+            || ! $parentCategory->gameCategories->contains('id', (int) $validated['game_category_id'])) {
+            throw ValidationException::withMessages([
+                'parent_id' => 'Choose a main category linked to the selected game.',
+            ]);
+        }
+
+        if ($parentCategory->status !== 'active'
+            && (int) ($category?->parent_id ?? 0) !== (int) $parentCategory->id) {
+            throw ValidationException::withMessages([
+                'parent_id' => 'Choose an active main category.',
+            ]);
+        }
+
+        if ($category !== null
+            && (int) ($category->parent_id ?? 0) !== (int) $parentCategory->id
+            && ($category->products()->exists() || $category->subcategoryProducts()->exists() || $category->children()->exists())) {
+            throw ValidationException::withMessages([
+                'parent_id' => 'This category cannot change level while products or subcategories use it.',
+            ]);
+        }
+
+        return $parentCategory;
     }
 }

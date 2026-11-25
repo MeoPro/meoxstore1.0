@@ -33,6 +33,19 @@
                 </select>
             </div>
             <div class="col-6 col-xl-2">
+                <label class="form-label small mb-1" for="item-subcategory">Item subcategory</label>
+                <select class="form-select" id="item-subcategory" name="item_subcategory_id">
+                    <option value="">All subcategories</option>
+                    @foreach ($itemCategories as $category)
+                        @foreach ($category->children as $subcategory)
+                            <option value="{{ $subcategory->id }}" @selected(($filters['item_subcategory_id'] ?? '') == $subcategory->id)>
+                                {{ $category->name }} / {{ $subcategory->name }}
+                            </option>
+                        @endforeach
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-xl-2">
                 <label class="form-label small mb-1" for="status">Status</label>
                 <select class="form-select" id="status" name="status">
                     <option value="">All statuses</option>
@@ -98,7 +111,12 @@
                             </div>
                         </td>
                         <td>{{ $product->gameCategory?->name ?? '—' }}</td>
-                        <td>{{ $product->itemCategory?->name ?? '—' }}</td>
+                        <td>
+                            {{ $product->itemCategory?->name ?? '—' }}
+                            @if ($product->itemSubcategory)
+                                <span class="text-muted">/ {{ $product->itemSubcategory->name }}</span>
+                            @endif
+                        </td>
                         <td>
                             @if ($product->variants->isNotEmpty())
                                 <details class="price-editor">
@@ -183,7 +201,11 @@
             document.querySelector('[data-game-filter]')?.addEventListener('change', (event) => {
                 const filterForm = event.currentTarget.form;
                 filterForm.querySelector('[name="item_category_id"]').value = '';
+                filterForm.querySelector('[name="item_subcategory_id"]').value = '';
                 filterForm.requestSubmit();
+            });
+            document.getElementById('item-category')?.addEventListener('change', (event) => {
+                event.currentTarget.form.querySelector('[name="item_subcategory_id"]').value = '';
             });
 
             const form = document.getElementById('bulk-product-form');

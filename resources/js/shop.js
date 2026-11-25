@@ -1,10 +1,13 @@
 const shopResultsSelector = '[data-shop-product-results]';
 const itemCategoryLinkSelector = '[data-shop-item-filter-link]';
+const itemSubcategoryLinkSelector = '[data-shop-subcategory-filter-link]';
+const itemFilterLinkSelector = `${itemCategoryLinkSelector}, ${itemSubcategoryLinkSelector}`;
 let activeShopRequest = null;
 let shopRequestSequence = 0;
 
 const syncItemCategory = function(url) {
 	const selectedItemCategory = url.searchParams.get('item_category');
+	const selectedSubcategory = url.searchParams.get('item_subcategory');
 
 	document.querySelectorAll(itemCategoryLinkSelector).forEach(function(link) {
 		const linkUrl = new URL(link.href, window.location.href);
@@ -17,25 +20,41 @@ const syncItemCategory = function(url) {
 		}
 	});
 
+	document.querySelectorAll(itemSubcategoryLinkSelector).forEach(function(link) {
+		const linkUrl = new URL(link.href, window.location.href);
+		const isSelected = linkUrl.searchParams.get('item_subcategory') === selectedSubcategory;
+		link.classList.toggle('is_active', isSelected);
+		if (isSelected) {
+			link.setAttribute('aria-current', 'page');
+		} else {
+			link.removeAttribute('aria-current');
+		}
+	});
+
 	document.querySelectorAll('.shop-search-form, [data-shop-category-sync]').forEach(function(form) {
-		const categoryInput = form.querySelector('input[name="item_category"]');
-		if (selectedItemCategory === null) {
-			categoryInput?.remove();
+		[
+			['item_category', selectedItemCategory],
+			['item_subcategory', selectedSubcategory],
+		].forEach(function([name, value]) {
+			const input = form.querySelector(`input[name="${name}"]`);
+			if (value === null) {
+				input?.remove();
 
-			return;
-		}
+				return;
+			}
 
-		if (categoryInput) {
-			categoryInput.value = selectedItemCategory;
+			if (input) {
+				input.value = value;
 
-			return;
-		}
+				return;
+			}
 
-		const input = document.createElement('input');
-		input.type = 'hidden';
-		input.name = 'item_category';
-		input.value = selectedItemCategory;
-		form.append(input);
+			const newInput = document.createElement('input');
+			newInput.type = 'hidden';
+			newInput.name = name;
+			newInput.value = value;
+			form.append(newInput);
+		});
 	});
 };
 
@@ -69,6 +88,7 @@ const loadShopResults = async function(url, pushHistory) {
 
 		const responseDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
 		const nextResults = responseDocument.querySelector(shopResultsSelector);
+		const nextItemFilters = responseDocument.querySelector('[data-shop-item-filters]');
 		if (!nextResults) {
 			throw new Error('The shop response did not contain product results.');
 		}
@@ -77,6 +97,10 @@ const loadShopResults = async function(url, pushHistory) {
 		}
 
 		currentResults.replaceWith(nextResults);
+		const currentItemFilters = document.querySelector('[data-shop-item-filters]');
+		if (currentItemFilters && nextItemFilters) {
+			currentItemFilters.replaceWith(nextItemFilters);
+		}
 		syncItemCategory(url);
 		if (pushHistory) {
 			window.history.pushState(null, '', url.toString());
@@ -101,7 +125,7 @@ document.addEventListener('click', function(event) {
 		return;
 	}
 
-	const link = event.target.closest(itemCategoryLinkSelector);
+	const link = event.target.closest(itemFilterLinkSelector);
 	if (!link) {
 		return;
 	}

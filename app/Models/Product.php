@@ -19,6 +19,7 @@ class Product extends Model
     protected $fillable = [
         'game_category_id',
         'item_category_id',
+        'item_subcategory_id',
         'name',
         'description',
         'badges',
@@ -58,6 +59,11 @@ class Product extends Model
     public function itemCategory(): BelongsTo
     {
         return $this->belongsTo(ItemCategory::class);
+    }
+
+    public function itemSubcategory(): BelongsTo
+    {
+        return $this->belongsTo(ItemCategory::class, 'item_subcategory_id');
     }
 
     public function variants(): HasMany

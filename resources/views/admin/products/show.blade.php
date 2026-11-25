@@ -19,7 +19,7 @@
             <div class="col-12 col-md-9">
                 <div class="row g-3">
                     <div class="col-sm-6"><div class="small text-muted">Game category</div><div class="fw-semibold">{{ $product->gameCategory?->name ?? '—' }}</div></div>
-                    <div class="col-sm-6"><div class="small text-muted">Item category</div><div class="fw-semibold">{{ $product->itemCategory?->name ?? '—' }}</div></div>
+                    <div class="col-sm-6"><div class="small text-muted">Item category</div><div class="fw-semibold">{{ $product->itemCategory?->name ?? '—' }}@if ($product->itemSubcategory) / {{ $product->itemSubcategory->name }}@endif</div></div>
                     <div class="col-sm-6"><div class="small text-muted">Status</div><div class="fw-semibold">{{ ucfirst($product->status) }}</div></div>
                     <div class="col-sm-6"><div class="small text-muted">Featured</div><div class="fw-semibold">{{ $product->is_featured ? 'Yes' : 'No' }}</div></div>
                     <div class="col-12"><div class="small text-muted">Description</div><div>{{ $product->description ?: 'No description.' }}</div></div>
