@@ -121,12 +121,8 @@
     .product-recommendation-card,
     .category-recommendation-card { background: #fff; border: 1px solid #e6eaf2; box-shadow: none; }
     .product-recommendation-card,
-    .category-recommendation-card { position: relative; transition: transform .2s ease, box-shadow .2s ease; }
+    .category-recommendation-card { position: relative; }
     .product-recommendation-card { border-radius: 18px; height: 100%; overflow: hidden; }
-    @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-      .product-recommendation-card:hover,
-      .category-recommendation-card:hover { box-shadow: none; transform: scale(1.035); z-index: 2; }
-    }
     .product-recommendation-card > a { color: inherit; display: block; text-decoration: none; }
     .product-recommendation-card img { aspect-ratio: 1 / 1; background: #f7f8fb; height: auto; object-fit: cover; width: 100%; }
     .product-recommendation-copy { padding: 16px; }
