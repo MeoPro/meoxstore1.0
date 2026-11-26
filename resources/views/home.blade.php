@@ -90,6 +90,11 @@
             .store-closed-warning { background: #fff7e8; border: 1px solid #f6d79c; border-radius: 10px; color: #7a4b00; font-size: 14px; line-height: 1.55; margin: 16px auto 0; max-width: 1080px; padding: 12px 16px; }
             .main-banner.home-main-banner { padding: 140px 0 165px; }
             .home-main-banner + .features { margin-top: -80px; }
+            .home-store-advantages .col-lg-3 > a { display: block; height: 100%; }
+            .home-store-advantages .item { height: 100%; }
+            .home-store-advantages .item h4 { align-items: center; display: flex; justify-content: center; line-height: 1.3; min-height: 2.6em; }
+            .home-store-advantages .item p { color: #7a7a7a; font-size: 13px; line-height: 1.6; margin: 0; min-height: 9.6em; }
+            .home-store-advantages .image i { color: #fff; font-size: 38px; line-height: 1; }
             @media (max-width: 1200px) {
                 .main-banner.home-main-banner { padding: 160px 0 165px; }
             }
@@ -172,26 +177,17 @@
         </div>
     </div>
 
-    <div class="features">
+    <div class="features home-store-advantages">
         <div class="container">
         <div class="row">
             <div class="col-lg-3 col-md-6">
             <a href="#">
                 <div class="item">
                 <div class="image">
-                    <img src="{{ asset('images/featured-01.png') }}" alt="" style="max-width: 44px;">
+                    <i class="fa-solid fa-shield-alt" aria-hidden="true"></i>
                 </div>
-                <h4>Free Storage</h4>
-                </div>
-            </a>
-            </div>
-            <div class="col-lg-3 col-md-6">
-            <a href="#">
-                <div class="item">
-                <div class="image">
-                    <img src="{{ asset('images/featured-02.png') }}" alt="" style="max-width: 44px;">
-                </div>
-                <h4>User More</h4>
+                <h4>{{ __('store.home_advantage_trusted') }}</h4>
+                <p>{{ __('store.home_advantage_trusted_description') }}</p>
                 </div>
             </a>
             </div>
@@ -199,9 +195,10 @@
             <a href="#">
                 <div class="item">
                 <div class="image">
-                    <img src="{{ asset('images/featured-03.png') }}" alt="" style="max-width: 44px;">
+                    <i class="fa-solid fa-bolt" aria-hidden="true"></i>
                 </div>
-                <h4>Reply Ready</h4>
+                <h4>{{ __('store.home_advantage_speed') }}</h4>
+                <p>{{ __('store.home_advantage_speed_description') }}</p>
                 </div>
             </a>
             </div>
@@ -209,9 +206,21 @@
             <a href="#">
                 <div class="item">
                 <div class="image">
-                    <img src="{{ asset('images/featured-04.png') }}" alt="" style="max-width: 44px;">
+                    <i class="fa-solid fa-tags" aria-hidden="true"></i>
                 </div>
-                <h4>Easy Layout</h4>
+                <h4>{{ __('store.home_advantage_affordable') }}</h4>
+                <p>{{ __('store.home_advantage_affordable_description') }}</p>
+                </div>
+            </a>
+            </div>
+            <div class="col-lg-3 col-md-6">
+            <a href="#">
+                <div class="item">
+                <div class="image">
+                    <i class="fa-solid fa-headset" aria-hidden="true"></i>
+                </div>
+                <h4>{{ __('store.home_advantage_24_7') }}</h4>
+                <p>{{ __('store.home_advantage_24_7_description') }}</p>
                 </div>
             </a>
             </div>

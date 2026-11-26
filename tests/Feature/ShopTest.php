@@ -345,6 +345,53 @@ it('shows five best-selling products and links to the best-selling catalog', fun
         ->assertSee(route('shop', ['sort' => 'best_selling']), false);
 });
 
+it('shows localized store advantages on the homepage', function () {
+    foreach ([
+        'id' => [
+            'Terpercaya',
+            'Transaksi aman dan terjamin untuk setiap pengguna, dengan proses belanja jelas dan dukungan tim yang responsif.',
+            'Cepat',
+            'Proses transaksi dan layanan cepat tanpa menunggu lama, agar Anda segera menikmati game pilihan dengan nyaman.',
+            'Harga Terjangkau',
+            'Harga kompetitif dengan banyak pilihan produk game untuk beragam kebutuhan, preferensi, dan anggaran setiap pengguna.',
+            'Layanan 24/7',
+            'Tim kami siap membantu pengguna kapan pun dibutuhkan, dengan layanan responsif selama 24 jam penuh setiap hari.',
+        ],
+        'en' => [
+            'Trusted',
+            'Enjoy secure, reliable transactions through a clear checkout process designed for every user.',
+            'Fast',
+            'Fast transactions and helpful service let you enjoy your chosen game products sooner, without a long wait.',
+            'Affordable Prices',
+            'Competitive prices and a wide selection of game products support different needs, preferences, and budgets.',
+            '24/7 Service',
+            'Our team is ready to help whenever you need us, with responsive support available 24 hours a day, every day.',
+        ],
+        'ms' => [
+            'Dipercayai',
+            'Transaksi selamat dan terjamin untuk setiap pengguna, dengan proses pembelian yang jelas, mudah dan meyakinkan.',
+            'Pantas',
+            'Proses transaksi dan perkhidmatan pantas membantu anda menikmati produk game pilihan tanpa perlu menunggu lama.',
+            'Harga Berpatutan',
+            'Harga kompetitif dengan pelbagai pilihan produk game untuk memenuhi keperluan, pilihan dan bajet setiap pengguna.',
+            'Perkhidmatan 24/7',
+            'Pasukan kami sedia membantu pengguna apabila diperlukan, dengan sokongan responsif 24 jam sehari, setiap hari.',
+        ],
+    ] as $locale => $advantagesAndDescriptions) {
+        $response = $this->withSession(['locale' => $locale])
+            ->get(route('home'))
+            ->assertOk();
+
+        foreach (['fa-shield-alt', 'fa-bolt', 'fa-tags', 'fa-headset'] as $icon) {
+            $response->assertSee($icon, false);
+        }
+
+        foreach ($advantagesAndDescriptions as $text) {
+            $response->assertSee($text);
+        }
+    }
+});
+
 it('shows the count of paid and processing orders in the homepage statistics', function () {
     foreach (['payment_submitted', 'payment_confirmed', 'payment_confirmed'] as $status) {
         Order::query()->create([
