@@ -193,8 +193,8 @@ class ApiQrisClient
         ) {
             $invalidFields[] = 'status (unsupported)';
         }
-        if ($amount !== null && $totalAmount !== null && $totalAmount < $amount) {
-            $invalidFields[] = 'total_amount (less than amount)';
+        if ($totalAmount !== null && $totalAmount < 1) {
+            $invalidFields[] = 'total_amount (not positive)';
         }
         if ($invalidFields !== []) {
             throw new UnexpectedValueException(

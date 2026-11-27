@@ -164,6 +164,52 @@ it('uses the requested order ID when APIQris omits it from a created invoice', f
     Http::assertSentCount(1);
 });
 
+it('accepts a lower total when APIQris subtracts the unique code', function () {
+    configureApiQrisForTests();
+    [, $variant, $paymentSetting] = createApiQrisCheckoutData();
+    Mail::fake([BuyerOrderUpdate::class]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'app.apiqris.com/v1/invoices' => function (Request $request) {
+            $invoice = apiQrisCheckoutInvoice($request->data()['order_id']);
+            $invoice['unique_code'] = -123;
+            $invoice['total_amount'] = $invoice['amount'] - 123;
+
+            return Http::response($invoice, 201);
+        },
+        'app.apiqris.com/v1/invoices/*/cancel' => function (Request $request) {
+            preg_match('~/invoices/([^/]+)/cancel$~', $request->url(), $matches);
+
+            return Http::response([
+                'id' => 'qr_test_123',
+                'order_id' => $matches[1],
+                'amount' => 12000,
+                'unique_code' => -123,
+                'total_amount' => 11877,
+                'status' => 'cancelled',
+            ]);
+        },
+    ]);
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+    $response = $this->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ]);
+    $order = Order::query()->sole();
+
+    $response->assertRedirect(route('orders.show', $order))
+        ->assertSessionHas('success', __('store.order_created'));
+    expect($order->payment_details['apiqris']['unique_code'])->toBe(-123)
+        ->and($order->payment_details['apiqris']['total_amount'])->toBe(11877)
+        ->and($order->status)->toBe('pending')
+        ->and($variant->fresh()->stock)->toBe(2);
+    Http::assertSentCount(1);
+});
+
 it('rejects an APIQris invoice that contains a different order ID', function () {
     configureApiQrisForTests();
     [, $variant, $paymentSetting] = createApiQrisCheckoutData();
