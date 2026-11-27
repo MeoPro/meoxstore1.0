@@ -630,7 +630,11 @@
         }
     </style>
 </head>
-<body>
+<body
+    data-webp-processing="{{ __('store.image_webp_processing') }}"
+    data-webp-complete="{{ __('store.image_webp_complete') }}"
+    data-webp-failed="{{ __('store.image_webp_failed') }}"
+>
 <div class="admin-shell d-flex" data-admin-shell>
     <aside class="admin-rail">
         <a class="admin-brand" href="{{ route('admin.performance.index') }}" aria-label="MeoXStore admin">
@@ -795,6 +799,130 @@
             if (!isMobile()) {
                 shell.classList.remove('sidebar-open');
             }
+        });
+    })();
+
+    (() => {
+        const isConvertibleImage = (file) => file.type === 'image/jpeg'
+            || file.type === 'image/png'
+            || /\.(jpe?g|png)$/i.test(file.name);
+
+        const isWebpImage = (file) => file.type === 'image/webp' || /\.webp$/i.test(file.name);
+
+        const convertToWebp = async (file) => {
+            if (isWebpImage(file) || !isConvertibleImage(file)) {
+                return file;
+            }
+
+            if (typeof createImageBitmap !== 'function') {
+                throw new Error('This browser does not support image decoding.');
+            }
+
+            const image = await createImageBitmap(file);
+
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                const context = canvas.getContext('2d');
+
+                if (!context) {
+                    throw new Error('The browser could not create an image canvas.');
+                }
+
+                context.drawImage(image, 0, 0);
+                const webpBlob = await new Promise((resolve, reject) => {
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            reject(new Error('The browser could not encode the image.'));
+
+                            return;
+                        }
+
+                        resolve(blob);
+                    }, 'image/webp', 0.84);
+                });
+
+                if (webpBlob.type !== 'image/webp') {
+                    throw new Error('The browser did not produce a WebP image.');
+                }
+
+                const filename = file.name.replace(/\.[^.]+$/, '') || file.name;
+
+                return new File([webpBlob], `${filename}.webp`, {
+                    type: 'image/webp',
+                    lastModified: file.lastModified,
+                });
+            } finally {
+                image.close();
+            }
+        };
+
+        document.querySelectorAll('form').forEach((form) => {
+            const imageInputs = Array.from(form.querySelectorAll(
+                'input[type="file"]:not([data-preserve-image-format])',
+            ));
+
+            if (imageInputs.length === 0) {
+                return;
+            }
+
+            let isConverting = false;
+
+            form.addEventListener('submit', async (event) => {
+                const inputsToConvert = imageInputs.filter((input) => Array.from(input.files || [])
+                    .some((file) => isConvertibleImage(file) && !isWebpImage(file)));
+
+                if (inputsToConvert.length === 0) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (isConverting) {
+                    return;
+                }
+
+                isConverting = true;
+                const status = form.querySelector('[data-image-webp-status]') || document.createElement('div');
+                status.className = 'alert alert-info mt-3';
+                status.setAttribute('role', 'status');
+                status.dataset.imageWebpStatus = '';
+                status.textContent = document.body.dataset.webpProcessing;
+                status.hidden = false;
+
+                if (!status.parentElement) {
+                    form.append(status);
+                }
+
+                try {
+                    const convertedInputs = await Promise.all(inputsToConvert.map(async (input) => ({
+                        input,
+                        files: await Promise.all(Array.from(input.files).map(convertToWebp)),
+                    })));
+
+                    convertedInputs.forEach(({ input, files }) => {
+                        const transfer = new DataTransfer();
+                        files.forEach((file) => transfer.items.add(file));
+                        input.files = transfer.files;
+                    });
+
+                    status.className = 'alert alert-success mt-3';
+                    status.textContent = document.body.dataset.webpComplete;
+                    isConverting = false;
+
+                    if (event.submitter) {
+                        form.requestSubmit(event.submitter);
+                    } else {
+                        form.requestSubmit();
+                    }
+                } catch (error) {
+                    isConverting = false;
+                    status.className = 'alert alert-danger mt-3';
+                    status.textContent = document.body.dataset.webpFailed;
+                    console.error('Unable to convert uploaded images to WebP.', error);
+                }
+            });
         });
     })();
 </script>

@@ -81,11 +81,11 @@
         .payment-detail-copy { align-items: center; background: #fff; border: 1px solid #d5dfeb; border-radius: 7px; color: #2877c9; display: inline-flex; font-size: 11px; gap: 5px; line-height: 1; padding: 6px 8px; }
         .payment-detail-copy:hover { background: #edf5ff; border-color: #a9c8ef; }
         .payment-copy-status { display: block; }
-        .payment-qr-preview { cursor: zoom-in; display: block; margin: 0 auto 12px; max-width: 100%; width: fit-content; }
-        .payment-qr-image { border-radius: 10px; height: auto; max-height: 360px; max-width: 100%; object-fit: contain; }
+        .payment-qr-preview { cursor: zoom-in; display: block; margin: 0 auto 12px; max-width: 100%; width: 340px; }
+        .payment-qr-image { border-radius: 10px; display: block; height: auto; max-height: 360px; max-width: 100%; object-fit: contain; width: 100%; }
         .payment-qr-dialog { border: 0; border-radius: 16px; box-shadow: 0 24px 80px rgba(0, 0, 0, .3); max-height: 90vh; max-width: 90vw; overflow: visible; padding: 24px; position: relative; }
         .payment-qr-dialog::backdrop { background: rgba(15, 23, 42, .76); }
-        .payment-qr-dialog img { display: block; height: auto; max-height: 82vh; max-width: 84vw; object-fit: contain; }
+        .payment-qr-dialog img { display: block; height: auto; max-height: 82vh; max-width: 84vw; object-fit: contain; width: min(80vw, 680px); }
         .payment-qr-dialog-close { align-items: center; background: #fff; border: 1px solid #d5dfeb; border-radius: 50%; color: #344054; display: inline-flex; height: 38px; justify-content: center; position: absolute; right: 8px; top: 8px; width: 38px; z-index: 1; }
         .order-delivery-details-list { display: grid; margin: 12px 0 0; }
         .order-delivery-detail-row { align-items: baseline; border-bottom: 1px solid #e8edf3; display: flex; gap: 8px; padding: 10px 0; }
@@ -320,25 +320,10 @@
                         <div class="payment-details-list">
                             <div class="payment-detail-row">
                                 <span class="payment-detail-label">{{ __('store.payment') }}</span>
-                                <span class="payment-detail-value">
-                                    {{ $paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? '—' }}
-                                    <button class="payment-detail-copy" type="button" data-copy-payment="{{ $paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? '—' }}" data-copied-label="{{ __('store.copied') }}" data-copy-failed-label="{{ __('store.copy_failed') }}" aria-label="{{ __('store.copy_payment_detail', ['label' => __('store.payment')]) }}">
-                                        <i class="fa fa-copy" aria-hidden="true"></i><span>{{ __('store.copy') }}</span>
-                                    </button>
-                                    <span class="payment-copy-status visually-hidden" data-payment-copy-status aria-live="polite"></span>
-                                </span>
+                                <span class="payment-detail-value">{{ $paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? '—' }}</span>
                             </div>
                             @if ($paymentDetails['account_name'] ?? null)
-                                <div class="payment-detail-row">
-                                    <span class="payment-detail-label">{{ __('store.account_name') }}</span>
-                                    <span class="payment-detail-value">
-                                        {{ $paymentDetails['account_name'] }}
-                                        <button class="payment-detail-copy" type="button" data-copy-payment="{{ $paymentDetails['account_name'] }}" data-copied-label="{{ __('store.copied') }}" data-copy-failed-label="{{ __('store.copy_failed') }}" aria-label="{{ __('store.copy_payment_detail', ['label' => __('store.account_name')]) }}">
-                                            <i class="fa fa-copy" aria-hidden="true"></i><span>{{ __('store.copy') }}</span>
-                                        </button>
-                                        <span class="payment-copy-status visually-hidden" data-payment-copy-status aria-live="polite"></span>
-                                    </span>
-                                </div>
+                                <div class="payment-detail-row"><span class="payment-detail-label">{{ __('store.account_name') }}</span><span class="payment-detail-value">{{ $paymentDetails['account_name'] }}</span></div>
                             @endif
                             @if ($paymentDetails['account_number'] ?? null)
                                 <div class="payment-detail-row">
@@ -385,7 +370,7 @@
                         <form method="POST" action="{{ route('orders.payment-proof', $order) }}" enctype="multipart/form-data">
                             @csrf
                             <label class="form-label" for="payment-proof">{{ __('store.payment_proof') }}</label>
-                            <input class="form-control @error('payment_proof') is-invalid @enderror" id="payment-proof" name="payment_proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required>
+                            <input class="form-control @error('payment_proof') is-invalid @enderror" id="payment-proof" name="payment_proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" data-preserve-image-format required>
                             @error('payment_proof')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             <div class="form-text">{{ __('store.payment_proof_help') }}</div>
                             <button class="btn btn-primary rounded-pill mt-3" type="submit">{{ __('store.upload_payment_proof') }}</button>
@@ -452,12 +437,15 @@
                         input.style.position = 'fixed';
                         input.style.opacity = '0';
                         document.body.append(input);
-                        input.select();
-                        const copied = document.execCommand('copy');
-                        input.remove();
+                        try {
+                            input.select();
+                            const copied = document.execCommand('copy');
 
-                        if (!copied) {
-                            throw new Error('The browser did not copy the payment detail.');
+                            if (!copied) {
+                                throw new Error('The browser did not copy the payment detail.');
+                            }
+                        } finally {
+                            input.remove();
                         }
                     }
 

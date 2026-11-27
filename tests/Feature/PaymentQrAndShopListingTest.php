@@ -103,6 +103,7 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
         ->assertSee(Storage::disk('public')->url($paymentSetting->qr_code_path), false)
         ->assertSee('Example owner')
         ->assertSee('QR-987654')
+        ->assertSee('data-preserve-image-format', false)
         ->assertSee('Scan this QR code to pay.')
         ->assertSee('<details class="order-details-disclosure order-item-description">', false)
         ->assertSee('<details class="order-details-disclosure payment-instructions-disclosure">', false)
@@ -135,11 +136,15 @@ it('keeps the selected payment type when a QR image is uploaded', function () {
     Storage::fake('public');
     $admin = User::factory()->create(['is_admin' => true]);
 
-    $this->actingAs($admin)
+    $paymentSettingsForm = $this->actingAs($admin)
         ->get(route('admin.payment-settings.create'))
         ->assertSee('name="type"', false)
         ->assertSee('value="e_wallet"', false)
-        ->assertSee('E-wallet');
+        ->assertSee('E-wallet')
+        ->assertSee('convertToWebp', false)
+        ->assertSee(__('store.image_webp_processing'))
+        ->assertSee('data-preserve-image-format', false);
+    expect(substr_count($paymentSettingsForm->getContent(), 'data-preserve-image-format'))->toBe(2);
 
     $this->actingAs($admin)
         ->post(route('admin.payment-settings.store'), [

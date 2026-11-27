@@ -53,6 +53,17 @@ it('redirects guests away from product management', function () {
     $this->get(route('admin.rates.index'))->assertRedirectToRoute('login');
 });
 
+it('loads WebP conversion for product image uploads', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.products.create'))
+        ->assertOk()
+        ->assertSee('name="image" type="file"', false)
+        ->assertSee('data-webp-processing=', false)
+        ->assertSee('input[type="file"]:not([data-preserve-image-format])', false);
+});
+
 it('lets admins toggle store availability and keeps checkout available while closed', function () {
     $this->patch(route('admin.store-status.update'), ['is_online' => false])
         ->assertRedirectToRoute('login');

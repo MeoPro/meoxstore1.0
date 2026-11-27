@@ -392,15 +392,19 @@ it('shows copy controls and an enlarged downloadable QR for unpaid orders', func
         ],
     ]);
 
-    $this->actingAs($buyer)
+    $response = $this->actingAs($buyer)
         ->get(route('orders.show', $order))
-        ->assertSee('data-copy-payment="BCA transfer"', false)
-        ->assertSee('data-copy-payment="Meoxstore"', false)
+        ->assertDontSee('data-copy-payment="BCA transfer"', false)
+        ->assertDontSee('data-copy-payment="Meoxstore"', false)
         ->assertSee('data-copy-payment="1234567890"', false)
         ->assertSee('data-payment-qr-open', false)
         ->assertSee('<dialog class="payment-qr-dialog"', false)
+        ->assertSee('class="payment-qr-image rounded border p-2"', false)
+        ->assertSee('max-height: 360px', false)
         ->assertSee('download="bca-qr.png"', false)
         ->assertSee(Storage::disk('public')->url('payment-methods/bca-qr.png'), false);
+
+    expect(substr_count($response->getContent(), 'data-copy-payment='))->toBe(1);
 });
 
 it('updates selected order statuses together and returns stock when cancelling them', function () {
