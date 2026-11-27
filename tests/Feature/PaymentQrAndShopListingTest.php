@@ -143,8 +143,8 @@ it('keeps the selected payment type when a QR image is uploaded', function () {
         ->assertSee('E-wallet')
         ->assertSee('convertToWebp', false)
         ->assertSee(__('store.image_webp_processing'))
-        ->assertSee('data-preserve-image-format', false);
-    expect(substr_count($paymentSettingsForm->getContent(), 'data-preserve-image-format'))->toBe(2);
+        ->assertSee('id="logo" name="logo" type="file" accept="image/png,image/jpeg,image/webp" data-preserve-image-format', false)
+        ->assertSee('id="qr_code" name="qr_code" type="file" accept="image/png,image/jpeg,image/webp" data-preserve-image-format', false);
 
     $this->actingAs($admin)
         ->post(route('admin.payment-settings.store'), [
