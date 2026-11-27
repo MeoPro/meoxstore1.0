@@ -47,6 +47,14 @@ return [
         'post_instagram' => env('TELEGRAM_POST_INSTAGRAM'),
     ],
 
+    'apiqris' => [
+        'base_url' => env('APIQRIS_BASE_URL', 'https://app.apiqris.com/v1'),
+        'api_key' => env('APIQRIS_API_KEY'),
+        'webhook_secret' => env('APIQRIS_WEBHOOK_SECRET'),
+        'callback_url' => env('APIQRIS_CALLBACK_URL'),
+        'expired_minutes' => (int) env('APIQRIS_EXPIRED_MINUTES', 30),
+    ],
+
     'google_translate' => [
         'api_key' => env('GOOGLE_TRANSLATE_API_KEY'),
         'project_id' => env('GOOGLE_CLOUD_PROJECT_ID'),

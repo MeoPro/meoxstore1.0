@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\CancelApiQrisOrder;
 use App\Actions\CancelOrder;
 use App\Actions\QueueBuyerOrderUpdate;
 use App\Actions\UpdateCouponOrderUsage;
@@ -46,6 +47,7 @@ class OrderController extends Controller
         $orders = Order::query()
             ->with('user:id,name,email')
             ->withCount('items')
+            ->when(! $queuedOnly, fn ($query) => $query->where('status', '!=', 'pending'))
             ->when(
                 $queuedOnly,
                 fn ($query) => $query->whereIn('status', Order::ADMIN_ACTION_STATUSES),
@@ -107,12 +109,27 @@ class OrderController extends Controller
             ->with('success', __('store.delivery_details_saved'));
     }
 
-    public function updateStatus(Request $request, Order $order): RedirectResponse
-    {
+    public function updateStatus(
+        Request $request,
+        Order $order,
+        CancelApiQrisOrder $cancelApiQrisOrder,
+    ): RedirectResponse {
         $validated = $request->validate([
             'status' => ['required', Rule::in(['payment_confirmed', 'completed', 'cancelled'])],
             'return_to' => ['sometimes', Rule::in(['index', 'show'])],
         ]);
+
+        if (
+            $validated['status'] === 'cancelled'
+            && (
+                ($order->payment_details['apiqris_required'] ?? false)
+                || filled(data_get($order->payment_details, 'apiqris.invoice_id'))
+            )
+        ) {
+            $cancelApiQrisOrder->handle($order);
+
+            return redirect()->route('admin.orders.show', $order)->with('success', 'Status pesanan diperbarui.');
+        }
 
         DB::transaction(function () use ($order, $validated): void {
             $lockedOrder = Order::query()->with('items')->lockForUpdate()->findOrFail($order->id);
@@ -149,6 +166,19 @@ class OrderController extends Controller
             'ids.*' => ['required', 'integer', 'distinct', Rule::exists('orders', 'id')],
             'status' => ['required', Rule::in(['payment_confirmed', 'completed', 'cancelled'])],
         ]);
+
+        if (
+            $validated['status'] === 'cancelled'
+            && Order::query()
+                ->whereKey($validated['ids'])
+                ->get()
+                ->contains(fn (Order $order): bool => ($order->payment_details['apiqris_required'] ?? false)
+                    || filled(data_get($order->payment_details, 'apiqris.invoice_id')))
+        ) {
+            throw ValidationException::withMessages([
+                'status' => __('store.apiqris_bulk_cancel_not_allowed'),
+            ]);
+        }
 
         $orderIds = DB::transaction(function () use ($validated): array {
             $orders = Order::query()

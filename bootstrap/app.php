@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo('/login');
-        $middleware->validateCsrfTokens(except: ['telegram/webhook']);
+        $middleware->validateCsrfTokens(except: ['telegram/webhook', 'webhook/qris']);
         $middleware->appendToGroup('web', SetStorefrontLocale::class);
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,

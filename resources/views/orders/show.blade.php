@@ -122,6 +122,9 @@
             @if ($errors->any())
                 <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
+            @if (session('warning'))
+                <div class="alert alert-warning" role="status">{{ session('warning') }}</div>
+            @endif
             <div class="order-card-heading">
                 <div>
                     <h2 class="mb-1">{{ __('store.status_'.$order->status) }}</h2>
@@ -152,9 +155,9 @@
                         <button class="copy-order-number" type="button" data-copy-order="{{ $order->publicNumber() }}" aria-label="{{ __('store.copy_order_number') }}"><i class="fa fa-copy" aria-hidden="true"></i></button>
                     </span>
                 </div>
-                <div class="order-meta-row"><span class="order-meta-label">{{ __('store.order_date') }}</span><span>{{ $order->created_at->format('d M Y, H:i') }}</span></div>
+                <div class="order-meta-row"><span class="order-meta-label">{{ __('store.order_date') }}</span><time datetime="{{ $order->created_at->utc()->toIso8601String() }}" data-local-time>{{ $order->created_at->utc()->format('d M Y, H:i') }} UTC</time></div>
                 @if ($order->customer_completed_at)
-                    <div class="order-meta-row"><span class="order-meta-label">{{ __('store.order_customer_completed_at') }}</span><span>{{ $order->customer_completed_at->format('d M Y, H:i') }}</span></div>
+                    <div class="order-meta-row"><span class="order-meta-label">{{ __('store.order_customer_completed_at') }}</span><time datetime="{{ $order->customer_completed_at->utc()->toIso8601String() }}" data-local-time>{{ $order->customer_completed_at->utc()->format('d M Y, H:i') }} UTC</time></div>
                 @endif
             </div>
             @if ($order->status === 'completed' && $order->customer_completed_at === null)
@@ -304,6 +307,7 @@
             @if ($order->status === 'pending')
                 <section class="order-card">
                     <h2 class="h5">{{ __('store.payment') }}</h2>
+                    @php($apiQrisInvoice = $paymentDetails['apiqris'] ?? null)
                     @if ($order->contact_email || $order->contact_phone)
                         <div class="mb-3">
                             <strong>{{ __('store.customer_contact') }}</strong>
@@ -338,8 +342,17 @@
                                 </div>
                             @endif
                         </div>
-                        @if ($paymentDetails['qr_code_path'] ?? null)
+                        @if (filled($apiQrisInvoice['qr_image_url'] ?? null))
+                            @php($paymentQrUrl = $apiQrisInvoice['qr_image_url'])
+                            @php($paymentQrFilename = 'apiqris-'.$order->publicNumber().'.png')
+                        @elseif ($paymentDetails['qr_code_path'] ?? null)
                             @php($paymentQrUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($paymentDetails['qr_code_path']))
+                            @php($paymentQrFilename = basename($paymentDetails['qr_code_path']))
+                        @else
+                            @php($paymentQrUrl = null)
+                            @php($paymentQrFilename = null)
+                        @endif
+                        @if ($paymentQrUrl)
                             <a class="payment-qr-preview" href="{{ $paymentQrUrl }}" data-payment-qr-open aria-haspopup="dialog" aria-controls="payment-qr-dialog" aria-label="{{ __('store.enlarge_payment_qr') }}">
                                 <img class="payment-qr-image rounded border p-2" src="{{ $paymentQrUrl }}" alt="{{ __('store.payment') }} QR code">
                             </a>
@@ -347,9 +360,18 @@
                                 <button class="payment-qr-dialog-close" type="button" data-payment-qr-close aria-label="{{ __('store.close') }}"><i class="fa fa-times" aria-hidden="true"></i></button>
                                 <img src="{{ $paymentQrUrl }}" alt="{{ __('store.payment') }} QR code">
                             </dialog>
-                            <a class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-2 mx-auto mb-3" href="{{ $paymentQrUrl }}" download="{{ basename($paymentDetails['qr_code_path']) }}" aria-label="{{ __('store.download_payment_qr') }}">
+                            <a class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-2 mx-auto mb-3" href="{{ $paymentQrUrl }}" download="{{ $paymentQrFilename }}" aria-label="{{ __('store.download_payment_qr') }}">
                                 <i class="fa fa-download" aria-hidden="true"></i><span>{{ __('store.download_qr') }}</span>
                             </a>
+                        @endif
+                        @if ($apiQrisInvoice)
+                            <p class="order-note mb-2">{{ __('store.apiqris_scan_instructions') }}</p>
+                            @if ($apiQrisInvoice['expires_at'] ?? null)
+                                @php($apiQrisExpiresAt = \Carbon\Carbon::parse($apiQrisInvoice['expires_at'])->utc())
+                                <p class="order-note mb-2">{{ __('store.apiqris_payment_deadline') }} <time datetime="{{ $apiQrisExpiresAt->toIso8601String() }}" data-local-time>{{ $apiQrisExpiresAt->format('d M Y, H:i') }} UTC</time></p>
+                            @endif
+                        @elseif (($paymentDetails['apiqris_required'] ?? false) && ! filled($apiQrisInvoice['qr_image_url'] ?? null))
+                            <div class="alert alert-warning" role="status">{{ __('store.apiqris_payment_initializing') }}</div>
                         @endif
                         @if ($paymentDetails['instructions'] ?? null)
                             <details class="order-details-disclosure payment-instructions-disclosure">
@@ -360,13 +382,17 @@
                         <div class="payment-details-list">
                             <div class="payment-detail-row">
                                 <span class="payment-detail-label">{{ __('store.total') }}</span>
-                                <strong class="payment-detail-value">{{ $paymentCurrencySymbol }} {{ number_format($order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                                <strong class="payment-detail-value">{{ $paymentCurrencySymbol }} {{ number_format($apiQrisInvoice['total_amount'] ?? $order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
                             </div>
                         </div>
                     @else
                         <div class="alert alert-warning">{{ __('store.payment_not_configured') }}</div>
                     @endif
-                    @if ($paymentDetails && (($paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? null) || ($paymentDetails['qr_code_path'] ?? null)))
+                    @if (
+                        $paymentDetails
+                        && (($paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? null) || ($paymentDetails['qr_code_path'] ?? null))
+                        && ! ($paymentDetails['apiqris_required'] ?? false)
+                    )
                         <form method="POST" action="{{ route('orders.payment-proof', $order) }}" enctype="multipart/form-data">
                             @csrf
                             <label class="form-label" for="payment-proof">{{ __('store.payment_proof') }}</label>

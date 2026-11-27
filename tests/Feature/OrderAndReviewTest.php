@@ -122,11 +122,7 @@ it('reserves stock for a customer order and counts sales only after completion',
     $this->actingAs($admin)
         ->get(route('admin.orders.index'))
         ->assertOk()
-        ->assertSee('#'.$order->id)
-        ->assertSee('data-order-url="'.route('admin.orders.show', $order).'"', false)
-        ->assertDontSee('Open</a>', false)
-        ->assertSee('name="return_to" value="index"', false)
-        ->assertDontSee('<input type="hidden" name="status" value="completed">', false);
+        ->assertDontSee('data-order-url="'.route('admin.orders.show', $order).'"', false);
     $this->get(route('admin.orders.show', $order))
         ->assertOk()
         ->assertSee('Kitsune');
@@ -163,7 +159,8 @@ it('reserves stock for a customer order and counts sales only after completion',
     Mail::fake();
     $this->get(route('admin.orders.index'))
         ->assertSee(__('store.accept_order'))
-        ->assertSee('value="payment_confirmed"', false);
+        ->assertSee('value="payment_confirmed"', false)
+        ->assertSee('data-order-url="'.route('admin.orders.show', $order).'"', false);
     $this->patch(route('admin.orders.status', $order), [
         'status' => 'payment_confirmed',
         'return_to' => 'index',

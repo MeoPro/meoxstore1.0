@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\AuthorizeOrderAccess;
+use App\Actions\CancelApiQrisOrder;
 use App\Actions\CancelOrder;
 use App\Actions\QueueAdminPaymentSubmittedNotification;
 use App\Actions\QueueBuyerOrderUpdate;
@@ -87,10 +88,25 @@ class OrderController extends Controller
             ->with('success', __('store.order_created'));
     }
 
-    public function cancel(Request $request, Order $order, CancelOrder $cancelOrder): RedirectResponse
-    {
+    public function cancel(
+        Request $request,
+        Order $order,
+        CancelOrder $cancelOrder,
+        CancelApiQrisOrder $cancelApiQrisOrder,
+    ): RedirectResponse {
         $userId = $request->user()->id;
         abort_unless($order->user_id === $userId, 404);
+
+        if (
+            ($order->payment_details['apiqris_required'] ?? false)
+            || filled(data_get($order->payment_details, 'apiqris.invoice_id'))
+        ) {
+            $cancelApiQrisOrder->handle($order);
+
+            return redirect()
+                ->route('profile.edit')
+                ->with('success', __('store.order_cancelled'));
+        }
 
         DB::transaction(function () use ($order, $userId, $cancelOrder): void {
             $lockedOrder = Order::query()
@@ -157,6 +173,12 @@ class OrderController extends Controller
     public function submitPaymentProof(Request $request, Order $order): RedirectResponse
     {
         $this->authorizeOrderAccess->handle($request, $order);
+
+        if (filled(data_get($order->payment_details, 'apiqris.invoice_id'))) {
+            throw ValidationException::withMessages([
+                'payment_proof' => __('store.apiqris_payment_auto_confirmed'),
+            ]);
+        }
 
         if (
             $order->payment_details === null

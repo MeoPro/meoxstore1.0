@@ -16,8 +16,12 @@
     };
 
     $customerName = $order->user?->name ?? 'Pelanggan Meoxstore';
+    $buyerTimezone = $order->payment_details['buyer_timezone'] ?? config('app.timezone');
+    $formattedOrderDate = $order->created_at?->copy()
+        ->setTimezone($buyerTimezone)
+        ->format('d M Y, H:i T (P)');
     $formattedTotal = $currencySymbol.' '.number_format(
-        $order->paymentAmount(),
+        $order->payment_details['apiqris']['total_amount'] ?? $order->paymentAmount(),
         $currencySymbol === 'Rp' ? 0 : 2,
         ',',
         '.',
@@ -44,7 +48,7 @@
                     </tr>
                     <tr>
                         <td style="padding-top:5px; color:#172033; font-size:14px; font-weight:bold; line-height:20px;">{{ $order->publicNumber() }}</td>
-                        <td align="right" style="padding-top:5px; color:#172033; font-size:13px; line-height:20px;">{{ $order->created_at?->format('d M Y, H:i') }}</td>
+                        <td align="right" style="padding-top:5px; color:#172033; font-size:13px; line-height:20px;">{{ $formattedOrderDate }}</td>
                     </tr>
                 </table>
             </td>
@@ -109,7 +113,14 @@
                     @if ($order->payment_details['account_number'] ?? null)
                         <p style="margin:0 0 9px; color:#334155; font-size:13px; line-height:20px;"><strong>Nomor rekening:</strong> {{ $order->payment_details['account_number'] }}</p>
                     @endif
-                    @if ($order->payment_details['instructions'] ?? null)
+                    @if (filled($order->payment_details['apiqris']['qr_image_url'] ?? null))
+                        <p style="margin:14px 0 0; font-size:13px; line-height:20px;">
+                            <a href="{{ $order->payment_details['apiqris']['qr_image_url'] }}" style="color:#2563eb; font-weight:bold; text-decoration:none;">Lihat QRIS dinamis</a>
+                        </p>
+                        <p style="margin:10px 0 0; color:#64748b; font-size:12px; line-height:19px;">
+                            Bayar tepat sebesar {{ $formattedTotal }} sebelum {{ \Carbon\Carbon::parse($order->payment_details['apiqris']['expires_at'])->setTimezone($buyerTimezone)->format('d M Y, H:i T (P)') }}. Pembayaran akan dikonfirmasi otomatis; tidak perlu mengunggah bukti.
+                        </p>
+                    @elseif ($order->payment_details['instructions'] ?? null)
                         <p style="margin:0; color:#64748b; font-size:13px; line-height:21px;">{!! nl2br(e($order->payment_details['instructions'])) !!}</p>
                     @endif
                     @if ($order->payment_details['qr_code_path'] ?? null)
@@ -117,7 +128,9 @@
                             <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($order->payment_details['qr_code_path']) }}" style="color:#2563eb; font-weight:bold; text-decoration:none;">Lihat kode QR pembayaran</a>
                         </p>
                     @endif
-                    <p style="margin:14px 0 0; color:#64748b; font-size:12px; line-height:19px;">Setelah transfer, buka detail pesanan untuk mengirim bukti pembayaran.</p>
+                    @unless (filled($order->payment_details['apiqris']['qr_image_url'] ?? null))
+                        <p style="margin:14px 0 0; color:#64748b; font-size:12px; line-height:19px;">Setelah transfer, buka detail pesanan untuk mengirim bukti pembayaran.</p>
+                    @endunless
                 </td>
             </tr>
         </table>

@@ -122,7 +122,7 @@
                         <a class="profile-order" href="{{ route('orders.show', $order) }}">
                             <span>
                                 <span class="profile-order-name">{{ __('store.order') }} {{ $order->publicNumber() }}</span>
-                                <span class="profile-order-meta d-block">{{ $order->created_at->format('d M Y, H:i') }} · {{ $order->items_count }} {{ __('store.product') }}</span>
+                                <span class="profile-order-meta d-block"><time datetime="{{ $order->created_at->utc()->toIso8601String() }}" data-local-time>{{ $order->created_at->utc()->format('d M Y, H:i') }} UTC</time> · {{ $order->items_count }} {{ __('store.product') }}</span>
                                 <span class="profile-order-meta d-block">{{ __('store.status_'.$order->status) }}</span>
                             </span>
                             <span class="profile-order-total">Rp {{ number_format((float) $order->total, 0, ',', '.') }} <i class="fa fa-angle-right ms-1" aria-hidden="true"></i></span>

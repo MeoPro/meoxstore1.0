@@ -139,12 +139,16 @@
                 <a class="btn btn-link px-0 mt-2 text-decoration-none" href="{{ route('cart.index') }}">← {{ __('store.back_to_cart') }}</a>
             </section>
             <section class="checkout-section">
+            @if ($apiQrisUnavailableForCurrency)
+                <div class="alert alert-info" role="status">{{ __('store.apiqris_idr_only') }}</div>
+            @endif
             @if ($total > 0 && $paymentSettings->isEmpty())
                 <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>
                 <div class="alert alert-warning mb-0">{{ __('store.payment_methods_unavailable') }}</div>
             @else
                 <form method="POST" action="{{ route('checkout.store') }}">
                     @csrf
+                    <input type="hidden" name="buyer_timezone" value="" data-buyer-timezone>
                     <div class="checkout-heading">
                         <h2 class="h5 mb-1">{{ __('store.customer_contact') }}</h2>
                         <p class="checkout-contact-note">{{ __('store.checkout_contact_note') }}</p>
@@ -165,7 +169,7 @@
                     @if ($total > 0)
                         <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>
                         @if ($totalCurrency === 'idr' && $paymentSettings->contains(fn ($paymentSetting) => $paymentSetting->type === 'qris'))
-                            <div class="alert alert-danger" role="alert">{{ __('store.checkout_idr_qris_warning') }}</div>
+                            <div class="alert alert-info" role="status">{{ __('store.checkout_idr_qris_warning') }}</div>
                         @endif
                         <div>
                             @foreach ($paymentSettings as $paymentSetting)

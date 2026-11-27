@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\ProductCurrencyRateController;
 use App\Http\Controllers\Admin\ProductReviewController as AdminProductReviewController;
 use App\Http\Controllers\Admin\SocialLinkController;
 use App\Http\Controllers\Admin\StoreStatusController;
+use App\Http\Controllers\ApiQrisWebhookController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BlogController;
@@ -67,6 +68,7 @@ Route::view('/about', 'about');
 Route::view('/contact', 'contact')->name('contact');
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 Route::post('/telegram/webhook', TelegramWebhookController::class)->name('telegram.webhook');
+Route::post('/webhook/qris', ApiQrisWebhookController::class)->middleware('throttle:120,1')->name('apiqris.webhook');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart/items', [CartController::class, 'store'])->name('cart.items.store');
@@ -81,7 +83,9 @@ Route::post('/checkout/coupon', [CheckoutController::class, 'applyCoupon'])
     ->middleware('throttle:10,1')
     ->name('checkout.coupon.store');
 Route::delete('/checkout/coupon', [CheckoutController::class, 'removeCoupon'])->name('checkout.coupon.destroy');
-Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+Route::post('/checkout', [CheckoutController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('checkout.store');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::post('/orders/{order}/payment-proof', [OrderController::class, 'submitPaymentProof'])->name('orders.payment-proof');
 Route::get('/orders/{order}/messages', [OrderMessageController::class, 'poll'])
@@ -114,7 +118,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::get('/settings', [ProfileController::class, 'settings'])->name('profile.settings');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::post('/orders', [OrderController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('orders.store');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::post('/products/{product}/reviews', [ProductReviewController::class, 'store'])->name('products.reviews.store');
 });
