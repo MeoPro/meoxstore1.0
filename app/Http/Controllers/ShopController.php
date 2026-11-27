@@ -104,7 +104,12 @@ class ShopController extends Controller
                     'itemSubcategories',
                     fn (Builder $subcategories) => $subcategories->whereIn('item_categories.id', $selectedItemSubcategoryIds),
                 ))
-            ->when($searchTerm !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$searchTerm.'%'))
+            ->when($searchTerm !== '', function (Builder $query) use ($searchTerm): void {
+                $query->where(function (Builder $searchQuery) use ($searchTerm): void {
+                    $searchQuery->where('name', 'like', '%'.$searchTerm.'%')
+                        ->orWhere('description', 'like', '%'.$searchTerm.'%');
+                });
+            })
             ->whereHas('variants', $availableVariants);
 
         if ($minimumPriceFilter !== null) {

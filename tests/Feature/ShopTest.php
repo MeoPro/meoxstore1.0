@@ -1003,6 +1003,28 @@ it('searches products only within the selected item category', function () {
         ->assertSee('value="Account"', false);
 });
 
+it('searches Telegram account item categories in the product description', function () {
+    $accountCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    $account = Product::factory()->create([
+        'item_category_id' => $accountCategory->id,
+        'name' => 'Blox Fruit Account - Player',
+        'description' => "FRUIT : Kitsune\nMELEE : Saber",
+        'is_account_listing' => true,
+        'status' => 'active',
+    ]);
+    Product::factory()->create([
+        'item_category_id' => $accountCategory->id,
+        'name' => 'Another Account',
+        'description' => 'Level 1000',
+        'status' => 'active',
+    ]);
+
+    $this->get(route('shop', ['search' => 'MELEE']))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee($account->name)
+        ->assertDontSee('Another Account');
+});
+
 it('shows one filter for duplicate localized item categories across games', function () {
     $originalLocale = app()->getLocale();
 
