@@ -511,6 +511,12 @@ class CheckoutController extends Controller
             return $order;
         });
 
+        if ($order->user_id === null) {
+            $guestOrders = $request->session()->get('guest_orders', []);
+            $guestOrders[$order->id] = true;
+            $request->session()->put('guest_orders', $guestOrders);
+        }
+
         $apiQrisPaymentConfirmed = false;
         if (($order->payment_details['type'] ?? null) === 'qris') {
             try {
@@ -601,11 +607,6 @@ class CheckoutController extends Controller
         }
 
         $request->session()->forget(['checkout', 'checkout_coupon_code']);
-        if ($order->user_id === null) {
-            $guestOrders = $request->session()->get('guest_orders', []);
-            $guestOrders[$order->id] = true;
-            $request->session()->put('guest_orders', $guestOrders);
-        }
 
         if (! $apiQrisPaymentConfirmed) {
             $this->queueBuyerOrderUpdate->handle(

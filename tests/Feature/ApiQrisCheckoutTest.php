@@ -183,6 +183,35 @@ it('restores reserved stock when APIQris rejects invoice creation', function () 
     Mail::assertNotQueued(BuyerOrderUpdate::class);
 });
 
+it('allows a guest to open the order page when APIQris cannot confirm invoice creation', function () {
+    configureApiQrisForTests();
+    [, $variant, $paymentSetting] = createApiQrisCheckoutData();
+    Http::preventStrayRequests();
+    Http::fake([
+        'app.apiqris.com/v1/invoices' => Http::failedConnection(),
+        'app.apiqris.com/v1/invoices/*/cancel' => Http::failedConnection(),
+    ]);
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+    $response = $this->from(route('checkout.show'))->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ]);
+    $order = Order::query()->sole();
+
+    $response->assertRedirect(route('orders.show', $order))
+        ->assertSessionHas('warning', __('store.apiqris_payment_initializing'));
+    $this->get(route('orders.show', $order))
+        ->assertOk()
+        ->assertSee(__('store.apiqris_payment_initializing'));
+
+    expect($order->fresh()->status)->toBe('pending')
+        ->and($variant->fresh()->stock)->toBe(2);
+});
+
 it('cancels the provider invoice before restoring stock for a buyer cancellation', function () {
     configureApiQrisForTests();
     [$product, $variant, $paymentSetting] = createApiQrisCheckoutData();
