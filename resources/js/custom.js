@@ -357,14 +357,56 @@ if (productGalleryMain) {
 	});
 }
 
+const updateQuantityStepper = function(quantityInput) {
+	const stepper = quantityInput.closest('[data-quantity-stepper]');
+	if (!stepper) {
+		return;
+	}
+
+	const decreaseButton = stepper.querySelector('[data-quantity-decrement]');
+	const increaseButton = stepper.querySelector('[data-quantity-increment]');
+	const currentQuantity = Number(quantityInput.value);
+	const minimum = Number(quantityInput.min);
+	const maximum = Number(quantityInput.max);
+
+	decreaseButton.disabled = !Number.isFinite(currentQuantity) || currentQuantity <= minimum;
+	increaseButton.disabled = !Number.isFinite(currentQuantity) || currentQuantity >= maximum;
+};
+
+document.querySelectorAll('[data-quantity-stepper]').forEach(function(stepper) {
+	const quantityInput = stepper.querySelector('[data-order-quantity]');
+	if (!quantityInput) {
+		return;
+	}
+
+	stepper.querySelectorAll('[data-quantity-step]').forEach(function(button) {
+		button.addEventListener('click', function() {
+			const minimum = Number(quantityInput.min);
+			const maximum = Number(quantityInput.max);
+			const currentQuantity = Number(quantityInput.value);
+			const direction = button.dataset.quantityStep === 'increase' ? 1 : -1;
+			const nextQuantity = Math.min(
+				maximum,
+				Math.max(minimum, (Number.isFinite(currentQuantity) ? currentQuantity : minimum) + direction),
+			);
+
+			quantityInput.value = String(nextQuantity);
+			quantityInput.dispatchEvent(new Event('input', { bubbles: true }));
+			quantityInput.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+	});
+});
+
 document.querySelectorAll('[data-stock-error-label]').forEach(function(quantityInput) {
 	const updateQuantityValidity = function() {
 		const exceedsStock = Number(quantityInput.value) > Number(quantityInput.dataset.stock);
 		quantityInput.setCustomValidity(exceedsStock ? quantityInput.dataset.stockErrorLabel : '');
+		updateQuantityStepper(quantityInput);
 	};
 
 	quantityInput.addEventListener('input', updateQuantityValidity);
 	quantityInput.addEventListener('change', updateQuantityValidity);
+	updateQuantityValidity();
 });
 
 if (productVariants.length && productPrice && productStock && productCurrencyToggle) {
@@ -397,6 +439,7 @@ if (productVariants.length && productPrice && productStock && productCurrencyTog
 			orderQuantity.value = selectedVariant.dataset.minimum;
 			orderQuantity.dataset.stock = selectedVariant.dataset.stock;
 			orderQuantity.setCustomValidity('');
+			updateQuantityStepper(orderQuantity);
 			document.querySelectorAll('[data-order-submit]').forEach(function(button) {
 				button.disabled = !isAvailable;
 			});

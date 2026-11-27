@@ -20,17 +20,11 @@ class OrderMessageController extends Controller
         $this->authorizeParticipant($request, $order, $isAdminRoute);
 
         return response()->json([
-            'html' => view('components.order-chat-messages', [
-                'order' => $order,
-                'messages' => $order->messages()->get(),
-                'isAdmin' => $isAdminRoute,
-                'canSendMessages' => in_array($order->status, ['payment_submitted', 'payment_confirmed'], true),
-                'messageRoutePrefix' => $isAdminRoute ? 'admin.orders.messages' : 'orders.messages',
-            ])->render(),
+            'html' => $this->renderMessages($order, $isAdminRoute),
         ]);
     }
 
-    public function store(Request $request, Order $order): RedirectResponse
+    public function store(Request $request, Order $order): JsonResponse|RedirectResponse
     {
         $isAdminRoute = $request->routeIs('admin.orders.messages.*');
         $this->authorizeParticipant($request, $order, $isAdminRoute);
@@ -51,6 +45,14 @@ class OrderMessageController extends Controller
                 'body' => $validated['body'],
             ]);
         });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => __('store.order_chat_message_sent'),
+                'html' => $this->renderMessages($order, $isAdminRoute),
+            ], 201);
+        }
 
         return $this->redirectToOrder($order, $isAdminRoute)
             ->with('success', __('store.order_chat_message_sent'));
@@ -137,6 +139,17 @@ class OrderMessageController extends Controller
             422,
             __('store.order_chat_closed'),
         );
+    }
+
+    private function renderMessages(Order $order, bool $isAdminRoute): string
+    {
+        return view('components.order-chat-messages', [
+            'order' => $order,
+            'messages' => $order->messages()->get(),
+            'isAdmin' => $isAdminRoute,
+            'canSendMessages' => in_array($order->status, ['payment_submitted', 'payment_confirmed'], true),
+            'messageRoutePrefix' => $isAdminRoute ? 'admin.orders.messages' : 'orders.messages',
+        ])->render();
     }
 
     private function redirectToOrder(Order $order, bool $isAdminRoute): RedirectResponse

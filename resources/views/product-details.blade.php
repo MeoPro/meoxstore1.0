@@ -94,7 +94,17 @@
     .product-detail-buy > div { min-width: 0; }
     .product-detail-buy-actions > * { min-width: 0; }
     .product-detail-buy label { color: #1e1e1e; display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .product-detail-quantity-control { align-items: center; background: #fff; border: 1px solid #dce3ee; border-radius: 14px; display: grid; grid-template-columns: 38px minmax(0, 1fr) 38px; max-width: 180px; min-height: 54px; overflow: hidden; width: 100%; }
+    .product-detail-quantity-control:focus-within { border-color: #779df7; box-shadow: 0 0 0 4px rgba(89, 132, 245, .14); }
+    .single-product .product-purchase-card .product-detail-buy .product-detail-quantity-control input { background: transparent; border: 0; border-radius: 0; font-size: 16px; font-weight: 700; min-height: 52px; padding: 8px 0; text-align: center; width: 100%; }
+    .single-product .product-purchase-card .product-detail-buy .product-detail-quantity-control input:focus { border: 0; box-shadow: none; outline: 0; }
+    .product-detail-quantity-control input::-webkit-inner-spin-button,
+    .product-detail-quantity-control input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+    .product-detail-quantity-control input[type="number"] { -moz-appearance: textfield; }
     .single-product .product-detail-buy button { align-items: center; background: #ee626b; border: 0; border-radius: 16px; box-sizing: border-box; color: #fff; cursor: pointer; display: inline-flex; height: 56px; justify-content: center; line-height: 1; font-weight: 700; padding: 10px; text-align: center; transition: background-color .2s, box-shadow .2s, transform .2s; vertical-align: middle; }
+    .single-product .product-detail-buy .product-detail-quantity-button { background: #f3f6fa; border: 0; border-radius: 10px; color: #34445a; height: 36px; margin: auto; padding: 0; width: 36px; }
+    .single-product .product-detail-buy .product-detail-quantity-button:hover:not(:disabled) { background: #e7edf5; color: #1e5c9b; }
+    .single-product .product-detail-buy .product-detail-quantity-button:disabled { background: #f8f9fb; color: #aab4c2; cursor: not-allowed; opacity: 1; }
     .single-product .product-detail-buy .product-detail-add-cart { font-size: 20px; padding: 0; width: 56px; }
     .single-product .product-detail-buy .product-detail-add-cart i { display: block; line-height: 1; margin: 0; }
     .single-product .product-detail-buy .product-detail-buy-now { box-shadow: 0 8px 18px rgba(238, 98, 107, .2); font-size: 16px; min-width: 0; padding: 10px 16px; width: 100%; }
@@ -204,22 +214,28 @@
       .product-detail-description-card { padding: 20px; }
       .product-detail-page { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
       .product-detail-buy { grid-template-columns: minmax(0, 1fr); padding-bottom: 100px; }
+      .product-detail-buy label { font-size: 11px; margin-bottom: 4px; }
       .product-detail-buy-actions[data-mobile-purchase-bar] {
         background: #fff;
         border-top: 1px solid #e6eaf2;
         bottom: 0;
         box-shadow: 0 -8px 24px rgba(30, 56, 90, .12);
         display: grid;
-        gap: 10px;
-        grid-template-columns: minmax(74px, .65fr) 56px minmax(0, 1.4fr);
+        gap: 8px;
+        grid-template-columns: minmax(112px, .85fr) 48px minmax(0, 1.3fr);
         left: 0;
-        padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+        padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
         position: fixed;
         right: 0;
         z-index: 1050;
       }
-      .single-product .product-detail-buy .product-detail-add-cart { font-size: 20px; padding: 0; width: 100%; }
-      .single-product .product-detail-buy .product-detail-buy-now { font-size: 14px; padding: 8px 12px; }
+      .product-detail-quantity-control { grid-template-columns: 30px minmax(0, 1fr) 30px; max-width: none; min-height: 48px; }
+      .single-product .product-purchase-card .product-detail-buy .product-detail-quantity-control input { min-height: 46px; }
+      .single-product .product-detail-buy .product-detail-quantity-button { height: 30px; width: 30px; }
+      .single-product .product-detail-buy .product-detail-add-cart,
+      .single-product .product-detail-buy .product-detail-buy-now { height: 48px; }
+      .single-product .product-detail-buy .product-detail-add-cart { font-size: 18px; padding: 0; width: 100%; }
+      .single-product .product-detail-buy .product-detail-buy-now { font-size: 14px; padding: 8px 10px; }
       .product-detail-page .storefront-whatsapp-float { bottom: calc(112px + env(safe-area-inset-bottom)); }
     }
   </style>
@@ -426,9 +442,17 @@
               @endif
               <div class="product-detail-buy">
                 <div class="product-detail-buy-actions" data-mobile-purchase-bar>
-                  <div>
+                  <div class="product-detail-quantity" data-quantity-stepper>
                     <label for="order-quantity">{{ __('store.quantity') }}</label>
-                    <input id="order-quantity" name="quantity" type="number" min="{{ $selectedVariant->minimum_quantity }}" max="{{ min($selectedVariant->maximum_quantity, $selectedVariant->stock) }}" value="{{ $selectedVariant->minimum_quantity }}" required data-order-quantity data-stock="{{ $selectedVariant->stock }}" data-stock-error-label="{{ __('store.stock_not_enough') }}">
+                    <div class="product-detail-quantity-control">
+                      <button class="product-detail-quantity-button" type="button" aria-label="{{ __('store.decrease_quantity') }}" data-quantity-step="decrease" data-quantity-decrement disabled>
+                        <i class="fa fa-minus" aria-hidden="true"></i>
+                      </button>
+                      <input id="order-quantity" name="quantity" type="number" inputmode="numeric" min="{{ $selectedVariant->minimum_quantity }}" max="{{ min($selectedVariant->maximum_quantity, $selectedVariant->stock) }}" step="1" value="{{ $selectedVariant->minimum_quantity }}" required data-order-quantity data-stock="{{ $selectedVariant->stock }}" data-stock-error-label="{{ __('store.stock_not_enough') }}">
+                      <button class="product-detail-quantity-button" type="button" aria-label="{{ __('store.increase_quantity') }}" data-quantity-step="increase" data-quantity-increment @disabled($selectedVariant->minimum_quantity >= min($selectedVariant->maximum_quantity, $selectedVariant->stock))>
+                        <i class="fa fa-plus" aria-hidden="true"></i>
+                      </button>
+                    </div>
                   </div>
                   <button class="product-detail-add-cart" type="submit" aria-label="{{ __('store.add_product_to_cart', ['product' => $product->localizedName()]) }}" title="{{ __('store.add_to_cart') }}" data-order-submit @disabled($selectedVariant->stock < 1 || $robuxTransactionsDisabled)>
                     <i class="fa fa-shopping-cart" aria-hidden="true"></i>

@@ -37,9 +37,13 @@ it('allows buyers to manage their own messages after submitting payment proof', 
         ->assertSee('data-order-chat-compose', false)
         ->assertSee('data-order-chat-send', false)
         ->assertSee('data-sending-label="'.__('store.order_chat_sending').'"', false)
+        ->assertSee('data-order-chat-compose-status', false)
         ->assertSee('data-order-chat-poller', false)
         ->assertSee('data-messages-url="'.route('orders.messages.poll', $order).'"', false)
-        ->assertSee('name="body"', false);
+        ->assertSee('name="body"', false)
+        ->assertSee('height: 360px;', false)
+        ->assertSee('height: 320px;', false)
+        ->assertSee('overflow-y: auto;', false);
 
     $this->actingAs($buyer)
         ->patch(route('orders.messages.update', [$order, $message]), ['body' => 'Updated question.'])
@@ -55,6 +59,71 @@ it('allows buyers to manage their own messages after submitting payment proof', 
         ->assertRedirect(route('orders.show', $order));
 
     $this->assertDatabaseMissing('order_messages', ['id' => $message->id]);
+});
+
+it('sends buyer chat messages as JSON without redirecting the order page', function () {
+    $buyer = User::factory()->create(['is_admin' => false]);
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'payment_submitted',
+        'total' => '10000.00',
+    ]);
+
+    $response = $this->actingAs($buyer)
+        ->postJson(route('orders.messages.store', $order), ['body' => 'Sent without a page refresh.'])
+        ->assertCreated()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('message', __('store.order_chat_message_sent'));
+
+    expect($response->json('html'))->toContain('Sent without a page refresh.');
+
+    $this->assertDatabaseHas('order_messages', [
+        'order_id' => $order->id,
+        'user_id' => $buyer->id,
+        'sender_type' => 'buyer',
+        'body' => 'Sent without a page refresh.',
+    ]);
+});
+
+it('sends admin chat replies as JSON without redirecting the order page', function () {
+    $buyer = User::factory()->create(['is_admin' => false]);
+    $admin = User::factory()->create(['is_admin' => true]);
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'payment_submitted',
+        'total' => '10000.00',
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->postJson(route('admin.orders.messages.store', $order), ['body' => 'Reply without a page refresh.'])
+        ->assertCreated()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('message', __('store.order_chat_message_sent'));
+
+    expect($response->json('html'))->toContain('Reply without a page refresh.');
+
+    $this->assertDatabaseHas('order_messages', [
+        'order_id' => $order->id,
+        'user_id' => $admin->id,
+        'sender_type' => 'admin',
+        'body' => 'Reply without a page refresh.',
+    ]);
+});
+
+it('returns 422 when a buyer sends an empty chat message as JSON', function () {
+    $buyer = User::factory()->create(['is_admin' => false]);
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'payment_submitted',
+        'total' => '10000.00',
+    ]);
+
+    $this->actingAs($buyer)
+        ->postJson(route('orders.messages.store', $order), ['body' => ''])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['body']);
+
+    $this->assertDatabaseCount('order_messages', 0);
 });
 
 it('provides newly received messages to authorized order chat polling requests', function () {

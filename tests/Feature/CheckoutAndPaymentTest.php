@@ -270,11 +270,16 @@ it('keeps product purchase actions sticky on mobile and places the description a
         ->assertSee('position: fixed;', false)
         ->assertSeeInOrder([
             '<div class="product-detail-buy-actions" data-mobile-purchase-bar>',
+            'data-quantity-stepper',
+            'data-quantity-decrement',
             '<input id="order-quantity" name="quantity"',
+            'data-quantity-increment',
             '<button class="product-detail-add-cart"',
             '<button class="product-detail-buy-now"',
         ], false)
-        ->assertDontSee('product-detail-cart-label', false);
+        ->assertDontSee('product-detail-cart-label', false)
+        ->assertSee('minmax(112px, .85fr) 48px minmax(0, 1.3fr)', false)
+        ->assertSee('inputmode="numeric"', false);
     $html = $response->getContent();
     $purchaseFormPosition = strpos($html, '<form class="purchase-details-panel product-purchase-card"');
     $descriptionPosition = strpos($html, '<section class="product-detail-description-card"');
