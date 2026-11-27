@@ -7,6 +7,7 @@ use App\Models\ItemCategory;
 use App\Models\Product;
 use App\Models\ProductCurrencyRate;
 use App\Models\ProductVariant;
+use App\Services\AccountListingFormatter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -14,6 +15,10 @@ use Illuminate\Http\Request;
 
 class ShopController extends Controller
 {
+    public function __construct(
+        private readonly AccountListingFormatter $accountListingFormatter,
+    ) {}
+
     public function index(Request $request): View
     {
         $selectedCurrency = $request->query('currency', 'idr');
@@ -30,6 +35,7 @@ class ShopController extends Controller
         $searchTerm = $request->query('search', '');
         abort_unless(is_string($searchTerm), 400);
         $searchTerm = trim($searchTerm);
+        $styledSearchTerm = $this->accountListingFormatter->stylizeCategoryName($searchTerm);
 
         $priceFilterRules = [
             'min_price' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
@@ -104,10 +110,11 @@ class ShopController extends Controller
                     'itemSubcategories',
                     fn (Builder $subcategories) => $subcategories->whereIn('item_categories.id', $selectedItemSubcategoryIds),
                 ))
-            ->when($searchTerm !== '', function (Builder $query) use ($searchTerm): void {
-                $query->where(function (Builder $searchQuery) use ($searchTerm): void {
+            ->when($searchTerm !== '', function (Builder $query) use ($searchTerm, $styledSearchTerm): void {
+                $query->where(function (Builder $searchQuery) use ($searchTerm, $styledSearchTerm): void {
                     $searchQuery->where('name', 'like', '%'.$searchTerm.'%')
-                        ->orWhere('description', 'like', '%'.$searchTerm.'%');
+                        ->orWhere('description', 'like', '%'.$searchTerm.'%')
+                        ->orWhere('description', 'like', '%'.$styledSearchTerm.'%');
                 });
             })
             ->whereHas('variants', $availableVariants);

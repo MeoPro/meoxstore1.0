@@ -10,6 +10,8 @@ use InvalidArgumentException;
 
 class Order extends Model
 {
+    public const ADMIN_ACTION_STATUSES = ['payment_submitted', 'payment_confirmed'];
+
     protected $fillable = [
         'user_id',
         'contact_email',

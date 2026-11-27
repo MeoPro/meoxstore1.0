@@ -642,6 +642,44 @@ it('filters shop products by selected game and renders server-side item category
         ->assertDontSee('data-shop-filter-group="game"', false);
 });
 
+it('shows only subcategories for the selected item category and uses All labels', function () {
+    $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);
+    $accountCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    $fruitCategory = ItemCategory::factory()->create(['name' => 'Fruit']);
+    $accountSubcategory = ItemCategory::factory()->create([
+        'name' => 'Premium',
+        'parent_id' => $accountCategory->id,
+    ]);
+    $fruitSubcategory = ItemCategory::factory()->create([
+        'name' => 'Legendary',
+        'parent_id' => $fruitCategory->id,
+    ]);
+    Product::factory()->create([
+        'game_category_id' => $gameCategory->id,
+        'item_category_id' => $accountCategory->id,
+        'status' => 'active',
+    ])->itemSubcategories()->attach($accountSubcategory);
+    Product::factory()->create([
+        'game_category_id' => $gameCategory->id,
+        'item_category_id' => $fruitCategory->id,
+        'status' => 'active',
+    ])->itemSubcategories()->attach($fruitSubcategory);
+
+    $this->withSession(['locale' => 'en'])
+        ->get(route('shop', ['game' => $gameCategory->id, 'item_category' => $accountCategory->id]))
+        ->assertSee('>All</a>', false)
+        ->assertSee('Premium')
+        ->assertDontSee('Legendary')
+        ->assertDontSee('All subcategories')
+        ->assertDontSee('All items');
+
+    $this->get(route('shop', ['game' => $gameCategory->id, 'item_category' => $fruitCategory->id]))
+        ->assertSee('>All</a>', false)
+        ->assertSee('Legendary')
+        ->assertDontSee('Premium')
+        ->assertDontSee('All subcategories');
+});
+
 it('translates known item category names in the selected storefront language', function () {
     $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);
 
@@ -1023,6 +1061,21 @@ it('searches Telegram account item categories in the product description', funct
         ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
         ->assertSee($account->name)
         ->assertDontSee('Another Account');
+});
+
+it('searches styled account category labels with ordinary text', function () {
+    $accountCategory = ItemCategory::factory()->create(['name' => 'Account']);
+    $account = Product::factory()->create([
+        'item_category_id' => $accountCategory->id,
+        'name' => 'Blox Fruit Account - Player',
+        'description' => '➡️𝙈𝙀𝙇𝙀𝙀 : Saber',
+        'is_account_listing' => true,
+        'status' => 'active',
+    ]);
+
+    $this->get(route('shop', ['search' => 'melee']))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1)
+        ->assertSee($account->name);
 });
 
 it('shows one filter for duplicate localized item categories across games', function () {
@@ -1430,6 +1483,20 @@ it('hides the only variant choice while keeping it selected for purchase', funct
         ->assertSee('data-product-variant', false)
         ->assertSee('name="variant_id" value="'.$variant->id.'"', false)
         ->assertSee('data-product-stock', false);
+});
+
+it('formats existing account listing category labels on the product page', function () {
+    $product = Product::factory()->create([
+        'name' => 'Account with categorized items',
+        'description' => "➡️MELEE : Combat\n➡️SWORD : Koko\n➡️GUN : Kabucha",
+        'is_account_listing' => true,
+    ]);
+
+    $this->get(route('product-details.show', $product))
+        ->assertSee('➡️𝙈𝙀𝙇𝙀𝙀 : Combat')
+        ->assertSee('➡️𝙎𝙒𝙊𝙍𝘿 : Koko')
+        ->assertSee('➡️𝙂𝙐𝙉 : Kabucha')
+        ->assertDontSee('➡️MELEE : Combat');
 });
 
 it('shows example images for account listings on the product detail page', function () {

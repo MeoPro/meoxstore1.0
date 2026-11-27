@@ -46,7 +46,7 @@ class OrderController extends Controller
             ->withCount('items')
             ->when(
                 $queuedOnly,
-                fn ($query) => $query->whereIn('status', ['payment_submitted', 'payment_confirmed']),
+                fn ($query) => $query->whereIn('status', Order::ADMIN_ACTION_STATUSES),
             )
             ->latest()
             ->paginate(20);

@@ -1004,6 +1004,78 @@ it('escapes free-text values in the Telegram account template', function () {
         ->not->toContain('<b>unsafe</b>');
 });
 
+it('formats account item categories with the same typeface as listing fields', function () {
+    $formatter = app(AccountListingFormatter::class);
+    $data = [
+        'username' => 'Example account',
+        'level' => '1',
+        'items' => [
+            ['category' => 'Melee', 'name' => 'Combat'],
+            ['category' => 'Sword', 'name' => 'Koko'],
+            ['category' => 'Gun', 'name' => 'Kabucha'],
+        ],
+        'price_idr' => 50000,
+        'post_chat' => '',
+        'post_instagram' => '',
+    ];
+    $rates = [
+        'idr_per_myr' => '4000.0000',
+        'idr_per_usd' => '15000.0000',
+    ];
+
+    $telegramHtml = $formatter->telegramHtml($data, $rates);
+    $plainText = $formatter->plainText($data, $rates);
+
+    expect($telegramHtml)
+        ->toContain('𝙈𝙀𝙇𝙀𝙀')
+        ->toContain('𝙎𝙒𝙊𝙍𝘿')
+        ->toContain('𝙂𝙐𝙉')
+        ->and($plainText)
+        ->toContain('𝙈𝙀𝙇𝙀𝙀 : Combat')
+        ->toContain('𝙎𝙒𝙊𝙍𝘿 : Koko')
+        ->toContain('𝙂𝙐𝙉 : Kabucha')
+        ->not->toContain('MELEE : Combat');
+});
+
+it('prints the race once and keeps Blox Fruit values after colons in normal weight', function () {
+    $formatter = app(AccountListingFormatter::class);
+    $rates = [
+        'idr_per_myr' => '4000.0000',
+        'idr_per_usd' => '15000.0000',
+    ];
+    $data = [
+        'username' => 'Example account',
+        'level' => '1',
+        'items' => [
+            ['category' => 'Fruit', 'name' => 'Kitsune'],
+            ['category' => 'Race', 'name' => 'Human'],
+        ],
+        'race' => 'Rabbit',
+        'price_idr' => 50000,
+        'post_chat' => '',
+        'post_instagram' => '',
+    ];
+
+    $telegramHtml = $formatter->telegramHtml($data, $rates);
+
+    expect($telegramHtml)
+        ->toContain('<b>𝙍𝘼𝘾𝙀 :</b> Rabbit')
+        ->toContain('<b>𝙁𝙍𝙐𝙄𝙏 :</b> Kitsune')
+        ->toContain('<b>𝙇𝙀𝙑𝙀𝙇 :</b> 1')
+        ->not->toContain('<b>𝙍𝘼𝘾𝙀 : Rabbit</b>')
+        ->not->toContain('<b>𝙁𝙍𝙐𝙄𝙏 : Kitsune</b>')
+        ->and(substr_count($telegramHtml, '𝙍𝘼𝘾𝙀'))->toBe(1);
+
+    $data['race'] = 'V3 HUMAN';
+    $data['items'][1]['name'] = 'Rabbit';
+    $telegramHtml = $formatter->telegramHtml($data, $rates);
+
+    expect($telegramHtml)
+        ->toContain('<b>𝙍𝘼𝘾𝙀 :</b> Rabbit')
+        ->not->toContain('V3 HUMAN')
+        ->and(substr_count($telegramHtml, '𝙍𝘼𝘾𝙀'))->toBe(1);
+});
+
 it('escapes generic account details in Telegram listings', function () {
     $html = app(AccountListingFormatter::class)->telegramHtml([
         'account_template' => 'generic',

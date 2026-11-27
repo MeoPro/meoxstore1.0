@@ -225,7 +225,6 @@
         $product->galleryImages(),
     );
     $productImage = $productImages[0] ?? asset('images/trending-01.jpg');
-    $productDescription = $product->description ?: __('store.no_description');
     $variantCount = $product->variants->count();
     $showVariantSelector = $variantCount > 1;
     $selectedIdrPrice = 'Rp '.rtrim(rtrim(number_format($product->priceInIdr((float) $selectedVariant->price, $currencyRates), 2, '.', ','), '0'), '.');

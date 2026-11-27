@@ -26,7 +26,7 @@
             <div class="col-6 col-xl-2">
                 <label class="form-label small mb-1" for="item-category">Item category</label>
                 <select class="form-select" id="item-category" name="item_category_id">
-                    <option value="">All items</option>
+                    <option value="">All</option>
                     @foreach ($itemCategories as $category)
                         <option value="{{ $category->id }}" @selected(($filters['item_category_id'] ?? '') == $category->id)>{{ $category->name }}</option>
                     @endforeach
@@ -35,7 +35,7 @@
             <div class="col-6 col-xl-2">
                 <label class="form-label small mb-1" for="item-subcategory">Item subcategory</label>
                 <select class="form-select" id="item-subcategory" name="item_subcategory_id">
-                    <option value="">All subcategories</option>
+                    <option value="">All</option>
                     @foreach ($itemCategories as $category)
                         @foreach ($category->children as $subcategory)
                             <option value="{{ $subcategory->id }}" @selected(($filters['item_subcategory_id'] ?? '') == $subcategory->id)>

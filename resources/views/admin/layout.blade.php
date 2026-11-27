@@ -105,6 +105,21 @@
             border-color: #eea07d;
             opacity: 1;
         }
+        .admin-nav-alert {
+            align-items: center;
+            background: #ef4444;
+            border-radius: 50%;
+            color: #fff;
+            display: inline-flex;
+            flex: 0 0 18px;
+            font-size: 12px;
+            font-weight: 800;
+            height: 18px;
+            justify-content: center;
+            line-height: 1;
+            margin-left: auto;
+            width: 18px;
+        }
         .admin-rail-footer { border-top: 1px solid rgba(255, 255, 255, .12); margin-top: auto; padding-top: 16px; }
         .admin-storefront-link {
             align-items: center;
@@ -458,6 +473,7 @@
         }
         .admin-shell.sidebar-collapsed .admin-nav a { justify-content: center; padding: 9px 5px; }
         .admin-shell.sidebar-collapsed .admin-nav-icon { flex-basis: 18px; }
+        .admin-shell.sidebar-collapsed .admin-nav-alert { margin-left: 0; }
         .admin-sidebar-toggle .admin-icon { height: 17px; width: 17px; }
         .admin-credit {
             border-top: 1px solid var(--line);
@@ -635,6 +651,9 @@
                 </a>
                 <a href="{{ route('admin.orders.index') }}" class="{{ request()->routeIs('admin.orders.index', 'admin.orders.show') ? 'active' : '' }}">
                     <x-admin-icon name="orders" class="admin-nav-icon" /><span class="admin-nav-text">Orders</span>
+                    @if ($hasOrdersRequiringAdminAction)
+                        <span class="admin-nav-alert" role="status" aria-label="Orders require admin action" title="Orders require admin action" data-order-action-alert>!</span>
+                    @endif
                 </a>
                 <a href="{{ route('admin.orders.queue') }}" class="{{ request()->routeIs('admin.orders.queue') ? 'active' : '' }}">
                     <x-admin-icon name="orders" class="admin-nav-icon" /><span class="admin-nav-text">In Queue</span>

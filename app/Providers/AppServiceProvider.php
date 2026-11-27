@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\GameCategory;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\StoreSetting;
@@ -28,7 +29,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('admin.layout', function (ViewContract $view): void {
-            $view->with('adminStoreSetting', StoreSetting::current());
+            $view->with([
+                'adminStoreSetting' => StoreSetting::current(),
+                'hasOrdersRequiringAdminAction' => Order::query()
+                    ->whereIn('status', Order::ADMIN_ACTION_STATUSES)
+                    ->exists(),
+            ]);
         });
 
         View::composer('components.storefront-header', function (ViewContract $view): void {

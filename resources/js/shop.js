@@ -1,7 +1,6 @@
 const shopResultsSelector = '[data-shop-product-results]';
 const itemCategoryLinkSelector = '[data-shop-item-filter-link]';
 const itemSubcategoryLinkSelector = '[data-shop-subcategory-filter-link]';
-const itemFilterLinkSelector = `${itemCategoryLinkSelector}, ${itemSubcategoryLinkSelector}`;
 let activeShopRequest = null;
 let shopRequestSequence = 0;
 
@@ -125,7 +124,7 @@ document.addEventListener('click', function(event) {
 		return;
 	}
 
-	const link = event.target.closest(itemFilterLinkSelector);
+	const link = event.target.closest(itemSubcategoryLinkSelector);
 	if (!link) {
 		return;
 	}

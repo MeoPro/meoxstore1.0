@@ -6,6 +6,7 @@ use App\Models\ItemCategory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductCurrencyRate;
+use App\Services\AccountListingFormatter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
@@ -14,6 +15,10 @@ use Illuminate\Http\Request;
 
 class ProductDetailsController extends Controller
 {
+    public function __construct(
+        private readonly AccountListingFormatter $accountListingFormatter,
+    ) {}
+
     public function index(): RedirectResponse
     {
         $product = Product::query()
@@ -53,6 +58,11 @@ class ProductDetailsController extends Controller
         ]);
 
         abort_unless($product->status === 'active' && $product->variants->isNotEmpty(), 404);
+        $productDescription = $product->description ?: __('store.no_description');
+        if ($product->is_account_listing) {
+            $productDescription = $this->accountListingFormatter->stylizeAccountCategoryLabels($productDescription);
+        }
+
         $currencyRates = ProductCurrencyRate::current();
         $availableVariants = $product->variants->where('stock', '>', 0);
         $variantsForSelection = $availableVariants->isNotEmpty() ? $availableVariants : $product->variants;
@@ -156,6 +166,7 @@ class ProductDetailsController extends Controller
 
         return view('product-details', [
             'product' => $product,
+            'productDescription' => $productDescription,
             'selectedVariant' => $selectedVariant,
             'currencyRates' => $currencyRates,
             'selectedCurrency' => $selectedCurrency,

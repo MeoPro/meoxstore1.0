@@ -95,3 +95,35 @@ it('forbids non-admin users from viewing sales performance', function () {
         ->get(route('admin.performance.index'))
         ->assertForbidden();
 });
+
+it('shows an alert beside orders while an order needs admin action', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $buyer = User::factory()->create();
+    $createOrder = function (string $status) use ($buyer): Order {
+        return Order::query()->create([
+            'user_id' => $buyer->id,
+            'status' => $status,
+            'total' => '10000.00',
+        ]);
+    };
+
+    $createOrder('pending');
+    $createOrder('completed');
+
+    $this->actingAs($admin)
+        ->get(route('admin.performance.index'))
+        ->assertDontSee('data-order-action-alert', false);
+
+    $order = $createOrder('payment_submitted');
+    $this->get(route('admin.performance.index'))
+        ->assertSee('data-order-action-alert', false)
+        ->assertSee('aria-label="Orders require admin action"', false);
+
+    $order->update(['status' => 'payment_confirmed']);
+    $this->get(route('admin.performance.index'))
+        ->assertSee('data-order-action-alert', false);
+
+    $order->update(['status' => 'completed']);
+    $this->get(route('admin.performance.index'))
+        ->assertDontSee('data-order-action-alert', false);
+});
