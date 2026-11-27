@@ -130,6 +130,71 @@ it('creates an APIQris invoice for IDR checkout and displays the dynamic QR and 
         ->assertSee(__('store.apiqris_scan_instructions'));
 });
 
+it('uses the requested order ID when APIQris omits it from a created invoice', function () {
+    configureApiQrisForTests();
+    [, $variant, $paymentSetting] = createApiQrisCheckoutData();
+    Mail::fake([BuyerOrderUpdate::class]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'app.apiqris.com/v1/invoices' => function (Request $request) {
+            $invoice = apiQrisCheckoutInvoice($request->data()['order_id']);
+            unset($invoice['order_id']);
+
+            return Http::response($invoice, 201);
+        },
+    ]);
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+    $response = $this->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ]);
+    $order = Order::query()->sole();
+
+    $response->assertRedirect(route('orders.show', $order))
+        ->assertSessionHas('success', __('store.order_created'));
+    expect($order->payment_details['apiqris']['invoice_id'])->toBe('qr_test_123')
+        ->and($order->payment_details['apiqris']['qr_image_url'])
+        ->toBe('https://app.apiqris.com/v1/qr/qr_test_123.png')
+        ->and($order->status)->toBe('pending')
+        ->and($variant->fresh()->stock)->toBe(2);
+    Http::assertSentCount(1);
+});
+
+it('rejects an APIQris invoice that contains a different order ID', function () {
+    configureApiQrisForTests();
+    [, $variant, $paymentSetting] = createApiQrisCheckoutData();
+    Http::preventStrayRequests();
+    Http::fake([
+        'app.apiqris.com/v1/invoices' => function (Request $request) {
+            $invoice = apiQrisCheckoutInvoice($request->data()['order_id']);
+            $invoice['order_id'] = 'MEOX-OTHER-ORDER';
+
+            return Http::response($invoice, 201);
+        },
+        'app.apiqris.com/v1/invoices/*/cancel' => Http::response([], 404),
+    ]);
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+    $this->from(route('checkout.show'))->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ])->assertRedirect(route('checkout.show'))
+        ->assertSessionHasErrors('payment_method_id');
+    $order = Order::query()->sole();
+
+    expect($order->status)->toBe('cancelled')
+        ->and(array_key_exists('apiqris', $order->payment_details))->toBeFalse()
+        ->and($variant->fresh()->stock)->toBe(3);
+    Http::assertSentCount(2);
+});
+
 it('accepts whole-number strings in APIQris invoice amounts', function () {
     configureApiQrisForTests();
     [, $variant, $paymentSetting] = createApiQrisCheckoutData();
@@ -301,16 +366,16 @@ it('cancels the provider invoice before restoring stock for a buyer cancellation
             return Http::response(apiQrisCheckoutInvoice($request->data()['order_id']), 201);
         },
         'app.apiqris.com/v1/invoices/*/cancel' => function (Request $request) {
-            preg_match('~/invoices/([^/]+)/cancel$~', $request->url(), $matches);
-
-            return Http::response([
+            $invoice = [
                 'id' => 'qr_test_123',
-                'order_id' => $matches[1],
                 'amount' => 12000,
                 'unique_code' => 123,
                 'total_amount' => 12123,
                 'status' => 'cancelled',
-            ]);
+            ];
+            unset($invoice['order_id']);
+
+            return Http::response($invoice);
         },
     ]);
 

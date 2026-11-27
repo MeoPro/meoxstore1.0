@@ -55,7 +55,11 @@ class ApiQrisClient
             ->post('/invoices', $payload)
             ->throw();
 
-        $invoice = $this->invoiceData($response->json(), requireQr: true);
+        $invoice = $this->invoiceData(
+            $response->json(),
+            requireQr: true,
+            expectedOrderId: $orderId,
+        );
         if (
             $invoice['order_id'] !== $orderId
             || $invoice['amount'] !== $amount
@@ -83,7 +87,11 @@ class ApiQrisClient
 
         $response->throw();
 
-        return $this->invoiceData($response->json(), requireQr: true);
+        return $this->invoiceData(
+            $response->json(),
+            requireQr: true,
+            expectedOrderId: $orderId,
+        );
     }
 
     /**
@@ -106,7 +114,11 @@ class ApiQrisClient
 
         $response->throw();
 
-        return $this->invoiceData($response->json(), requireQr: false);
+        return $this->invoiceData(
+            $response->json(),
+            requireQr: false,
+            expectedOrderId: $orderId,
+        );
     }
 
     public function hasValidWebhookSignature(string $body, ?string $signatureHeader): bool
@@ -147,13 +159,16 @@ class ApiQrisClient
     /**
      * @return array<string, mixed>
      */
-    private function invoiceData(mixed $payload, bool $requireQr): array
+    private function invoiceData(mixed $payload, bool $requireQr, string $expectedOrderId): array
     {
         if (! is_array($payload)) {
             throw new UnexpectedValueException('APIQris returned an invalid invoice response.');
         }
 
         $invoice = is_array($payload['data'] ?? null) ? $payload['data'] : $payload;
+        if (! array_key_exists('order_id', $invoice)) {
+            $invoice['order_id'] = $expectedOrderId;
+        }
         $amount = $this->integerValue($invoice['amount'] ?? null);
         $totalAmount = $this->integerValue($invoice['total_amount'] ?? null);
         $invalidFields = [];
@@ -163,6 +178,8 @@ class ApiQrisClient
         }
         if (! is_string($invoice['order_id'] ?? null)) {
             $invalidFields[] = $this->invalidFieldDescription($invoice, 'order_id');
+        } elseif ($invoice['order_id'] !== $expectedOrderId) {
+            $invalidFields[] = 'order_id (mismatch)';
         }
         if ($amount === null) {
             $invalidFields[] = $this->invalidFieldDescription($invoice, 'amount');
