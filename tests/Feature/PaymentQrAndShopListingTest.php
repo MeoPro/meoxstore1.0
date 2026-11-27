@@ -166,6 +166,36 @@ it('keeps the selected payment type when a QR image is uploaded', function () {
         ->assertSee('E-wallet');
 });
 
+it('allows APIQris payment methods without a static QR image', function () {
+    Storage::fake('public');
+    $admin = User::factory()->create(['is_admin' => true]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.payment-settings.create'))
+        ->assertSee('Optional. APIQris QRIS payments generate a dynamic QR at checkout.');
+    $this->post(route('admin.payment-settings.store'), [
+        'type' => 'qris',
+        'currency' => 'idr',
+        'name' => 'QRIS APIQris',
+        'is_active' => '1',
+    ])->assertRedirect(route('admin.payment-settings.index'));
+
+    $paymentSetting = PaymentSetting::query()->sole();
+    expect($paymentSetting->type)->toBe('qris')
+        ->and($paymentSetting->qr_code_path)->toBeNull();
+
+    $this->put(route('admin.payment-settings.update', $paymentSetting), [
+        'type' => 'qris',
+        'currency' => 'idr',
+        'name' => 'QRIS APIQris updated',
+        'is_active_present' => '1',
+        'is_active' => '1',
+    ])->assertRedirect(route('admin.payment-settings.index'));
+
+    expect($paymentSetting->fresh()->type)->toBe('qris')
+        ->and($paymentSetting->fresh()->qr_code_path)->toBeNull();
+});
+
 it('shows product rating and only completed sales in the shop listing', function () {
     $buyer = User::factory()->create();
     $product = Product::factory()->create([

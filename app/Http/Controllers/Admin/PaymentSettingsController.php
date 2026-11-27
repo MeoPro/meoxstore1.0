@@ -185,16 +185,6 @@ class PaymentSettingsController extends Controller
         }
         $validated['type'] = $validated['type'] ?? $paymentSetting?->type ?? 'bank_transfer';
 
-        if (
-            $validated['type'] === 'qris'
-            && ! $request->hasFile('qr_code')
-            && $paymentSetting?->qr_code_path === null
-        ) {
-            throw ValidationException::withMessages([
-                'qr_code' => 'Upload a QR image for QRIS payment methods.',
-            ]);
-        }
-
         $validated['is_active'] = $request->has('is_active_present')
             ? $request->boolean('is_active')
             : $defaultActive;

@@ -63,7 +63,7 @@
         <div class="mb-3">
             <label class="form-label" for="qr_code">QR payment image</label>
             <input class="form-control @error('qr_code') is-invalid @enderror" id="qr_code" name="qr_code" type="file" accept="image/png,image/jpeg,image/webp" data-preserve-image-format>
-            <div class="form-text">Required for QRIS; for other methods, upload only if the provider uses a QR image. PNG, JPG, or WEBP, up to 4 MB.</div>
+            <div class="form-text">Optional. APIQris QRIS payments generate a dynamic QR at checkout. PNG, JPG, or WEBP, up to 4 MB.</div>
             @error('qr_code')<div class="invalid-feedback">{{ $message }}</div>@enderror
             @if ($paymentSetting->qr_code_path)
                 <img class="mt-3 rounded border" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentSetting->qr_code_path) }}" alt="Current payment QR code" style="display: block; height: auto; max-height: 180px; max-width: 100%; object-fit: contain; width: auto">
