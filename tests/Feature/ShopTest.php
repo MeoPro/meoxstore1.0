@@ -1415,11 +1415,11 @@ it('selects the cheapest in-stock variant and disables sold-out variants', funct
         ->toMatch('/<button(?=[^>]*value="'.$availableVariant->id.'")(?=[^>]*aria-pressed="true")[^>]*>/');
 });
 
-it('hides the default variant choice while keeping it selected for purchase', function () {
+it('hides the only variant choice while keeping it selected for purchase', function () {
     $product = Product::factory()->create(['name' => 'Default variant product']);
     $variant = $product->variants()->firstOrFail();
     $variant->update([
-        'name' => 'Default',
+        'name' => 'Physical',
         'price' => '25000.00',
         'stock' => 10,
     ]);

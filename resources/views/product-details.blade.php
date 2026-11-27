@@ -227,9 +227,7 @@
     $productImage = $productImages[0] ?? asset('images/trending-01.jpg');
     $productDescription = $product->description ?: __('store.no_description');
     $variantCount = $product->variants->count();
-    $showVariantSelector = $variantCount > 1
-        || ($variantCount === 1
-            && strcasecmp(trim($product->variants->first()->name), 'default') !== 0);
+    $showVariantSelector = $variantCount > 1;
     $selectedIdrPrice = 'Rp '.rtrim(rtrim(number_format($product->priceInIdr((float) $selectedVariant->price, $currencyRates), 2, '.', ','), '0'), '.');
     $robuxTransactionsDisabled = $product->usesRobuxPricing()
         && ! $currencyRates->bobuxTransactionsEnabled($product->bobuxType());
