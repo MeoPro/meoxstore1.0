@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\BlogCategoryController;
 use App\Http\Controllers\Admin\BlogPostController;
 use App\Http\Controllers\Admin\BlogSidebarBlockController;
+use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\GameCategoryController;
 use App\Http\Controllers\Admin\GoogleBusinessProfileController;
 use App\Http\Controllers\Admin\ItemCategoryController;
@@ -69,6 +70,10 @@ Route::delete('/cart/items/{variantId}', [CartController::class, 'destroy'])->wh
 Route::post('/cart/checkout', [CheckoutController::class, 'fromCart'])->name('cart.checkout');
 Route::post('/checkout/direct', [CheckoutController::class, 'direct'])->name('checkout.direct');
 Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.show');
+Route::post('/checkout/coupon', [CheckoutController::class, 'applyCoupon'])
+    ->middleware('throttle:10,1')
+    ->name('checkout.coupon.store');
+Route::delete('/checkout/coupon', [CheckoutController::class, 'removeCoupon'])->name('checkout.coupon.destroy');
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::post('/orders/{order}/payment-proof', [OrderController::class, 'submitPaymentProof'])->name('orders.payment-proof');
@@ -105,6 +110,8 @@ Route::middleware('auth')->group(function () {
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('performance', PerformanceController::class)->name('performance.index');
+    Route::patch('coupons/{coupon}/status', [CouponController::class, 'toggleStatus'])->name('coupons.status');
+    Route::resource('coupons', CouponController::class)->except(['show', 'destroy']);
     Route::resource('blog-posts', BlogPostController::class)->except(['show']);
     Route::resource('blog-categories', BlogCategoryController::class)->except(['show']);
     Route::resource('blog-sidebar-blocks', BlogSidebarBlockController::class)->except(['show']);

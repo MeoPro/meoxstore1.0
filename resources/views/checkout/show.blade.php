@@ -96,6 +96,42 @@
                         </article>
                     @endforeach
                 </div>
+                <div class="mt-4">
+                    <form class="row g-2 align-items-end" method="POST" action="{{ route('checkout.coupon.store') }}">
+                        @csrf
+                        <div class="col">
+                            <label class="form-label mb-1" for="coupon-code">{{ __('store.coupon_code') }}</label>
+                            <input class="form-control @error('coupon_code') is-invalid @enderror" id="coupon-code" name="coupon_code" value="{{ old('coupon_code', $couponCodeInput) }}" maxlength="40" autocomplete="off">
+                            @error('coupon_code')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-outline-primary" type="submit">{{ __('store.apply_coupon') }}</button>
+                        </div>
+                    </form>
+                    @if ($couponUnavailable)
+                        <div class="alert alert-warning mt-2 mb-0" role="status">{{ __('store.coupon_unavailable') }}</div>
+                    @endif
+                    @if ($coupon)
+                        <div class="align-items-center d-flex flex-wrap gap-2 mt-2">
+                            <span class="small text-success">{{ __('store.coupon_applied') }} <strong>{{ $coupon->code }}</strong></span>
+                            <form method="POST" action="{{ route('checkout.coupon.destroy') }}">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn btn-sm btn-link p-0 text-danger" type="submit">{{ __('store.remove_coupon') }}</button>
+                            </form>
+                        </div>
+                    @endif
+                </div>
+                <div class="checkout-total">
+                    <span>{{ __('store.subtotal') }}</span>
+                    <strong>{{ $totalCurrencySymbol }} {{ number_format((float) $subtotal, $totalCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                </div>
+                @if ($coupon && $couponDiscountInIdr > 0)
+                    <div class="checkout-total pt-2">
+                        <span>{{ __('store.coupon_discount') }}</span>
+                        <strong>− {{ $totalCurrencySymbol }} {{ number_format((float) $couponDiscount, $totalCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                    </div>
+                @endif
                 <div class="checkout-total">
                     <span>{{ __('store.total') }}</span>
                     <strong>{{ $totalCurrencySymbol }} {{ number_format((float) $total, $totalCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
@@ -103,7 +139,7 @@
                 <a class="btn btn-link px-0 mt-2 text-decoration-none" href="{{ route('cart.index') }}">← {{ __('store.back_to_cart') }}</a>
             </section>
             <section class="checkout-section">
-            @if ($paymentSettings->isEmpty())
+            @if ($total > 0 && $paymentSettings->isEmpty())
                 <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>
                 <div class="alert alert-warning mb-0">{{ __('store.payment_methods_unavailable') }}</div>
             @else
@@ -126,23 +162,27 @@
                             @error('customer_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>
-                    <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>
-                    @if ($totalCurrency === 'idr' && $paymentSettings->contains(fn ($paymentSetting) => $paymentSetting->type === 'qris'))
-                        <div class="alert alert-danger" role="alert">{{ __('store.checkout_idr_qris_warning') }}</div>
+                    @if ($total > 0)
+                        <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>
+                        @if ($totalCurrency === 'idr' && $paymentSettings->contains(fn ($paymentSetting) => $paymentSetting->type === 'qris'))
+                            <div class="alert alert-danger" role="alert">{{ __('store.checkout_idr_qris_warning') }}</div>
+                        @endif
+                        <div>
+                            @foreach ($paymentSettings as $paymentSetting)
+                                <label class="payment-method">
+                                    <span class="payment-method-choice">
+                                        <input class="form-check-input" type="radio" name="payment_method_id" value="{{ $paymentSetting->id }}" @checked(old('payment_method_id') == $paymentSetting->id) required>
+                                        @if ($paymentSetting->logo_path)
+                                            <img class="payment-method-logo" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentSetting->logo_path) }}" alt="">
+                                        @endif
+                                        <strong class="payment-method-name">{{ $paymentSetting->name ?: $paymentSetting->bank_name }}</strong>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="alert alert-success" role="status">{{ __('store.no_payment_required') }}</div>
                     @endif
-                    <div>
-                        @foreach ($paymentSettings as $paymentSetting)
-                            <label class="payment-method">
-                                <span class="payment-method-choice">
-                                    <input class="form-check-input" type="radio" name="payment_method_id" value="{{ $paymentSetting->id }}" @checked(old('payment_method_id') == $paymentSetting->id) required>
-                                    @if ($paymentSetting->logo_path)
-                                        <img class="payment-method-logo" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentSetting->logo_path) }}" alt="">
-                                    @endif
-                                    <strong class="payment-method-name">{{ $paymentSetting->name ?: $paymentSetting->bank_name }}</strong>
-                                </span>
-                            </label>
-                        @endforeach
-                    </div>
                     <button class="btn checkout-submit w-100 mt-4" type="submit">{{ __('store.place_order') }} · {{ $totalCurrencySymbol }} {{ number_format((float) $total, $totalCurrency === 'idr' ? 0 : 2, ',', '.') }}</button>
                 </form>
             @endif

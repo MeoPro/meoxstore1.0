@@ -1046,10 +1046,13 @@ class TelegramAccountPostingBot
         $photoNotice = $step === 'username'
             ? 'Foto tersimpan: '.count($draft->images ?? []).".\n"
             : '';
+        $replyMarkup = $this->previousStep($step, (string) ($draft->data['account_template'] ?? 'blox_fruit')) === null
+            ? ['inline_keyboard' => []]
+            : ['inline_keyboard' => [$this->draftBackButtonRow()]];
         $this->sendDraftMessage(
             $draft,
             $photoNotice.($prompts[$step] ?? 'Kirim jawaban untuk melanjutkan.'),
-            ['inline_keyboard' => []],
+            $replyMarkup,
         );
     }
 
@@ -1106,7 +1109,20 @@ class TelegramAccountPostingBot
             return;
         }
 
-        $draft->update(['step' => 'items']);
+        $data = $draft->data;
+        $selectedCategoryNames = array_map(
+            fn (string $key): string => $data['category_options'][$key] ?? '',
+            $selected,
+        );
+        $selectedItemIds = array_map('intval', $data['selected_item_ids'] ?? []);
+        $data['selected_item_ids'] = TelegramAccountItem::query()
+            ->whereKey($selectedItemIds)
+            ->whereIn('category', $selectedCategoryNames)
+            ->pluck('id')
+            ->map(fn (int $id): int => $id)
+            ->all();
+
+        $draft->update(['data' => $data, 'step' => 'items']);
         $this->sendItemKeyboard($draft->fresh());
     }
 
@@ -1129,6 +1145,7 @@ class TelegramAccountPostingBot
                 ...array_chunk($buttons, 2),
                 [['text' => '➕ Tambah kategori', 'callback_data' => 'cat:add']],
                 [['text' => '✅ Selesai memilih', 'callback_data' => 'cat:done']],
+                $this->draftBackButtonRow(),
             ],
         ];
 
@@ -1175,6 +1192,7 @@ class TelegramAccountPostingBot
             'inline_keyboard' => [
                 ...array_chunk($buttons, 2),
                 [['text' => '✅ Selesai memilih item', 'callback_data' => 'item:done']],
+                $this->draftBackButtonRow(),
             ],
         ];
 
@@ -1216,6 +1234,7 @@ class TelegramAccountPostingBot
                 ...array_chunk($buttons, 2),
                 [['text' => '➕ Tambah jenis item', 'callback_data' => 'item:add:'.$categoryKey]],
                 [['text' => '⬅️ Kembali ke kategori', 'callback_data' => 'item:back']],
+                $this->draftBackButtonRow(),
                 [['text' => '✅ Selesai memilih item', 'callback_data' => 'item:done']],
             ],
         ];
@@ -1241,7 +1260,7 @@ class TelegramAccountPostingBot
         $this->sendDraftMessage(
             $draft,
             'Kirim nama item baru untuk kategori '.$data['pending_item_category'].' (maksimal 80 karakter).',
-            ['inline_keyboard' => []],
+            ['inline_keyboard' => [$this->draftBackButtonRow()]],
         );
     }
 
@@ -1260,7 +1279,7 @@ class TelegramAccountPostingBot
         $this->sendDraftMessage(
             $draft,
             'Kirim emoji/icon untuk item ini, atau /skip jika tanpa emoji.',
-            ['inline_keyboard' => []],
+            ['inline_keyboard' => [$this->draftBackButtonRow()]],
         );
     }
 
@@ -1351,12 +1370,102 @@ class TelegramAccountPostingBot
             'Judul website: '.$websiteTitle."\n\n".
                 $this->formatter->plainText($draft->data, $rates)."\n\nPosting akan membuat produk aktif di website dan mengirim foto serta detail ke channel.",
             [
-                'inline_keyboard' => [[
-                    ['text' => '✅ Posting Website + Telegram', 'callback_data' => 'publish'],
-                    ['text' => '❌ Batal', 'callback_data' => 'cancel'],
-                ]],
+                'inline_keyboard' => [
+                    $this->draftBackButtonRow(),
+                    [
+                        ['text' => '✅ Posting Website + Telegram', 'callback_data' => 'publish'],
+                        ['text' => '❌ Batal', 'callback_data' => 'cancel'],
+                    ],
+                ],
             ],
         );
+    }
+
+    private function goBack(TelegramAccountDraft $draft): void
+    {
+        $previousStep = $this->previousStep(
+            $draft->step,
+            (string) ($draft->data['account_template'] ?? 'blox_fruit'),
+        );
+
+        if ($previousStep === null) {
+            $this->sendDraftMessage($draft, 'Tidak ada langkah sebelumnya.');
+
+            return;
+        }
+
+        $draft->update(['step' => $previousStep]);
+        $draft = $draft->fresh();
+
+        if ($previousStep === 'game') {
+            $this->sendGameCategoryKeyboard($draft);
+
+            return;
+        }
+
+        if ($previousStep === 'photos') {
+            $this->sendDraftMessage(
+                $draft,
+                'Kirim foto akun (maksimal 20 foto). Setelah semua foto terkirim, kirim /done.',
+                ['inline_keyboard' => [$this->draftBackButtonRow()]],
+            );
+
+            return;
+        }
+
+        if ($previousStep === 'categories') {
+            $this->sendCategoryKeyboard($draft);
+
+            return;
+        }
+
+        if ($previousStep === 'items') {
+            $this->sendItemKeyboard($draft);
+
+            return;
+        }
+
+        if ($previousStep === 'new_item_name') {
+            $currentName = $draft->data['pending_item_name'] ?? '';
+            $this->sendDraftMessage(
+                $draft,
+                'Nama item saat ini: '.$currentName.'. Kirim nama baru untuk mengubahnya.',
+                ['inline_keyboard' => [$this->draftBackButtonRow()]],
+            );
+
+            return;
+        }
+
+        $this->askForStep($draft, $previousStep);
+    }
+
+    private function previousStep(string $step, string $accountTemplate): ?string
+    {
+        return match ($step) {
+            'photos' => 'game',
+            'username' => 'photos',
+            'website_title' => 'username',
+            'level' => 'website_title',
+            'belly' => 'level',
+            'fragment' => 'belly',
+            'categories' => 'fragment',
+            'items' => 'categories',
+            'details' => 'website_title',
+            'price' => $accountTemplate === 'generic' ? 'details' : 'items',
+            'preview' => 'price',
+            'new_category' => 'categories',
+            'new_item_name' => 'items',
+            'new_item_emoji' => 'new_item_name',
+            default => null,
+        };
+    }
+
+    /**
+     * @return array<int, array{text: string, callback_data: string}>
+     */
+    private function draftBackButtonRow(): array
+    {
+        return [['text' => '⬅️ Kembali', 'callback_data' => 'draft:back']];
     }
 
     /**
@@ -1418,6 +1527,13 @@ class TelegramAccountPostingBot
         if (str_starts_with($callbackData, 'item:')) {
             $draft->save();
             $this->handleItemCallback($draft, substr($callbackData, 5));
+
+            return;
+        }
+
+        if ($callbackData === 'draft:back') {
+            $draft->save();
+            $this->goBack($draft->fresh());
 
             return;
         }
@@ -1596,7 +1712,11 @@ class TelegramAccountPostingBot
 
         if ($action === 'add') {
             $draft->update(['step' => 'new_category']);
-            $this->sendDraftMessage($draft, 'Kirim nama kategori baru (maksimal 30 karakter).');
+            $this->sendDraftMessage(
+                $draft,
+                'Kirim nama kategori baru (maksimal 30 karakter).',
+                ['inline_keyboard' => [$this->draftBackButtonRow()]],
+            );
 
             return;
         }
@@ -1651,7 +1771,7 @@ class TelegramAccountPostingBot
         $this->sendDraftMessage(
             $draft->fresh(),
             'Game dipilih: '.$gameCategory->name.'. Kirim foto akun (maksimal 20 foto). Setelah semua foto terkirim, kirim /done. Kirim /cancel untuk membatalkan.',
-            ['inline_keyboard' => []],
+            ['inline_keyboard' => [$this->draftBackButtonRow()]],
         );
     }
 

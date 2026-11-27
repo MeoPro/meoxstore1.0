@@ -167,7 +167,8 @@ it('records the selected active game before asking for account photos', function
         ->and($draft->fresh()->data['account_template'])->toBe('generic');
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
         && str_contains($request['text'], 'Game dipilih: Growtopia.')
-        && str_contains($request['text'], 'Kirim foto akun'));
+        && str_contains($request['text'], 'Kirim foto akun')
+        && str_contains(json_encode($request['reply_markup']), 'draft:back'));
 });
 
 it('asks for a custom website title after the account name', function () {
@@ -204,7 +205,8 @@ it('asks for a custom website title after the account name', function () {
         ->and($draft->fresh()->data['website_title'])->toBe('Blox Fruit Account - Wetoxxa');
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
         && str_contains($request['text'], 'judul produk untuk website')
-        && str_contains($request['text'], '/skip'));
+        && str_contains($request['text'], '/skip')
+        && str_contains(json_encode($request['reply_markup']), 'draft:back'));
 });
 
 it('uses a custom website title or the generated title when skipped', function (string $title, string $expectedTitle) {
@@ -311,6 +313,125 @@ it('converts an entered price in thousands and shows the preview with defaults',
         && str_contains($request['text'], '50K | RM 20.00 | $6.00')
         && str_contains($request['text'], 'SKY JUMP, BODY, FLASH STEP')
         && str_contains($request['text'], '𝙎𝙏𝘼𝙏 𝙍𝙀𝙁𝙐𝙉𝘿 : 2'));
+});
+
+it('returns from the price prompt to item selection with a back button', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 4]]),
+    ]);
+    $item = TelegramAccountItem::query()->create([
+        'category' => 'Fruit',
+        'name' => 'Kitsune',
+        'emoji' => '🦊',
+    ]);
+    $draft = TelegramAccountDraft::query()->create([
+        'telegram_user_id' => '12345',
+        'chat_id' => '12345',
+        'status' => 'active',
+        'step' => 'items',
+        'data' => [
+            'account_template' => 'blox_fruit',
+            'category_options' => ['fruit' => 'Fruit'],
+            'selected_categories' => ['fruit'],
+            'selected_item_ids' => [$item->id],
+            'items' => [],
+        ],
+        'images' => ['products/one.jpg'],
+        'processed_message_ids' => [],
+        'last_update_id' => 871236,
+    ]);
+    $processCallback = function (int $updateId, string $callbackData): void {
+        $update = TelegramUpdate::query()->create([
+            'telegram_update_id' => $updateId,
+            'payload' => ['callback_query' => [
+                'id' => 'callback-'.$updateId,
+                'from' => ['id' => 12345],
+                'message' => [
+                    'message_id' => 4,
+                    'chat' => ['id' => 12345, 'type' => 'private'],
+                ],
+                'data' => $callbackData,
+            ]],
+        ]);
+
+        app(TelegramAccountPostingBot::class)->handle($update);
+    };
+
+    $processCallback(871237, 'item:done');
+
+    expect($draft->fresh()->step)->toBe('price');
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMessage')
+        && str_contains($request['text'], 'Masukkan harga dalam ribuan')
+        && str_contains(json_encode($request['reply_markup']), 'draft:back'));
+
+    $processCallback(871238, 'draft:back');
+
+    expect($draft->fresh()->step)->toBe('items');
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/editMessageText')
+        && str_contains($request['text'], 'Pilih kategori untuk membuka daftar jenis item')
+        && str_contains(json_encode($request['reply_markup']), 'draft:back')
+        && str_contains(json_encode($request['reply_markup']), 'item:done'));
+});
+
+it('removes selected items from categories that are deselected after going back', function () {
+    config([
+        'services.telegram.admin_ids' => ['12345'],
+        'services.telegram.bot_token' => 'test-token',
+    ]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 4]]),
+    ]);
+    $fruit = TelegramAccountItem::query()->create([
+        'category' => 'Fruit',
+        'name' => 'Kitsune',
+    ]);
+    $sword = TelegramAccountItem::query()->create([
+        'category' => 'Sword',
+        'name' => 'Shark Anchor',
+    ]);
+    $draft = TelegramAccountDraft::query()->create([
+        'telegram_user_id' => '12345',
+        'chat_id' => '12345',
+        'status' => 'active',
+        'step' => 'categories',
+        'data' => [
+            'account_template' => 'blox_fruit',
+            'category_options' => ['fruit' => 'Fruit', 'sword' => 'Sword'],
+            'selected_categories' => ['fruit', 'sword'],
+            'selected_item_ids' => [$fruit->id, $sword->id],
+        ],
+        'images' => ['products/one.jpg'],
+        'processed_message_ids' => [],
+        'last_update_id' => 871236,
+    ]);
+    $processCallback = function (int $updateId, string $callbackData): void {
+        $update = TelegramUpdate::query()->create([
+            'telegram_update_id' => $updateId,
+            'payload' => ['callback_query' => [
+                'id' => 'callback-'.$updateId,
+                'from' => ['id' => 12345],
+                'message' => [
+                    'message_id' => 4,
+                    'chat' => ['id' => 12345, 'type' => 'private'],
+                ],
+                'data' => $callbackData,
+            ]],
+        ]);
+
+        app(TelegramAccountPostingBot::class)->handle($update);
+    };
+
+    $processCallback(871237, 'cat:sword');
+    $processCallback(871238, 'cat:done');
+
+    expect($draft->fresh()->step)->toBe('items')
+        ->and($draft->fresh()->data['selected_item_ids'])->toBe([$fruit->id]);
 });
 
 it('saves new catalog items and selects multiple items for a listing', function () {

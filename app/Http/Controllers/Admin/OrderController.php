@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\QueueBuyerOrderUpdate;
+use App\Actions\UpdateCouponOrderUsage;
 use App\Enums\BuyerOrderUpdateType;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
@@ -23,7 +24,10 @@ class OrderController extends Controller
         'payment_confirmed' => ['completed', 'cancelled'],
     ];
 
-    public function __construct(private QueueBuyerOrderUpdate $queueBuyerOrderUpdate) {}
+    public function __construct(
+        private QueueBuyerOrderUpdate $queueBuyerOrderUpdate,
+        private UpdateCouponOrderUsage $updateCouponOrderUsage,
+    ) {}
 
     public function index(): View
     {
@@ -194,6 +198,10 @@ class OrderController extends Controller
                     $item->variant()->lockForUpdate()->first()?->increment('stock', $item->quantity);
                 }
             }
+
+            $this->updateCouponOrderUsage->release($order);
+        } elseif ($nextStatus === 'payment_confirmed') {
+            $this->updateCouponOrderUsage->redeem($order);
         }
 
         $order->update([

@@ -22,6 +22,10 @@ class Order extends Model
         'payment_confirmed_at',
         'completed_at',
         'customer_completed_at',
+        'coupon_id',
+        'coupon_code',
+        'coupon_discount_amount',
+        'coupon_usage_status',
     ];
 
     protected $hidden = [
@@ -32,6 +36,7 @@ class Order extends Model
     {
         return [
             'total' => 'decimal:2',
+            'coupon_discount_amount' => 'decimal:2',
             'payment_details' => 'array',
             'delivery_details' => 'encrypted:array',
             'payment_confirmed_at' => 'datetime',
@@ -58,6 +63,11 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     public function items(): HasMany
@@ -110,6 +120,16 @@ class Order extends Model
         $paymentDetails ??= $this->payment_details ?? [];
 
         return $this->amountInPaymentCurrency((float) $item->unit_price, $paymentDetails) * $item->quantity;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $paymentDetails
+     */
+    public function couponDiscountPaymentAmount(?array $paymentDetails = null): float
+    {
+        $paymentDetails ??= $this->payment_details ?? [];
+
+        return $this->amountInPaymentCurrency((float) $this->coupon_discount_amount, $paymentDetails);
     }
 
     /**

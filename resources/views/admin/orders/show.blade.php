@@ -216,6 +216,12 @@
                 })();
             </script>
         @endif
+        @if ($order->coupon_code)
+            <div class="border-top pt-3 d-flex justify-content-between text-success">
+                <span>Coupon ({{ $order->coupon_code }})</span>
+                <span>− Rp {{ number_format((float) $order->coupon_discount_amount, 0, ',', '.') }}</span>
+            </div>
+        @endif
         <div class="border-top pt-3 d-flex justify-content-between">
             <strong>Total</strong>
             <strong>Rp {{ number_format((float) $order->total, 0, ',', '.') }}</strong>

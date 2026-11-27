@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\UpdateCouponOrderUsage;
 use App\Models\Order;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,7 @@ class PruneUnpaidOrders extends Command
 
     protected $description = 'Cancel unpaid orders older than 24 hours and restore reserved stock';
 
-    public function handle(): int
+    public function handle(UpdateCouponOrderUsage $updateCouponOrderUsage): int
     {
         $expiredBefore = now()->subDay();
         $cancelledOrders = 0;
@@ -22,9 +23,9 @@ class PruneUnpaidOrders extends Command
             ->whereNull('payment_proof_path')
             ->where('created_at', '<=', $expiredBefore)
             ->select('id')
-            ->chunkById(100, function ($orders) use ($expiredBefore, &$cancelledOrders): void {
+            ->chunkById(100, function ($orders) use ($expiredBefore, &$cancelledOrders, $updateCouponOrderUsage): void {
                 foreach ($orders as $order) {
-                    $wasCancelled = DB::transaction(function () use ($order, $expiredBefore): bool {
+                    $wasCancelled = DB::transaction(function () use ($order, $expiredBefore, $updateCouponOrderUsage): bool {
                         $lockedOrder = Order::query()
                             ->with('items')
                             ->lockForUpdate()
@@ -45,6 +46,7 @@ class PruneUnpaidOrders extends Command
                             }
                         }
 
+                        $updateCouponOrderUsage->release($lockedOrder);
                         $lockedOrder->status = 'cancelled';
                         $lockedOrder->save();
 

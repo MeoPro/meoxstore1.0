@@ -3,6 +3,7 @@
 use App\Enums\BuyerOrderUpdateType;
 use App\Mail\BuyerOrderUpdate;
 use App\Mail\PaymentProofReceived;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\PaymentSetting;
 use App\Models\Product;
@@ -355,10 +356,19 @@ it('cancels unpaid pending orders after 24 hours and restores reserved stock', f
     $product = Product::factory()->create(['status' => 'active']);
     $variant = $product->variants()->firstOrFail();
     $variant->update(['stock' => 3, 'maximum_quantity' => 5]);
+    $coupon = Coupon::factory()->create([
+        'code' => 'EXPIRED10',
+        'stock' => 3,
+        'reserved_uses' => 1,
+    ]);
 
     $expiredOrder = Order::query()->create([
         'status' => 'pending',
         'total' => '20000.00',
+        'coupon_id' => $coupon->id,
+        'coupon_code' => $coupon->code,
+        'coupon_discount_amount' => '1000.00',
+        'coupon_usage_status' => 'reserved',
     ]);
     $expiredOrder->forceFill([
         'created_at' => now()->subDay(),
@@ -396,6 +406,8 @@ it('cancels unpaid pending orders after 24 hours and restores reserved stock', f
         ->assertSuccessful();
 
     $this->assertDatabaseHas('orders', ['id' => $expiredOrder->id, 'status' => 'cancelled']);
+    $this->assertDatabaseHas('orders', ['id' => $expiredOrder->id, 'coupon_usage_status' => 'released']);
+    $this->assertDatabaseHas('coupons', ['id' => $coupon->id, 'reserved_uses' => 0]);
     $this->assertDatabaseHas('order_items', ['order_id' => $expiredOrder->id]);
     $this->assertDatabaseMissing('product_reviews', ['order_id' => $expiredOrder->id]);
     $this->assertDatabaseHas('orders', ['id' => $notExpiredOrder->id, 'status' => 'pending']);

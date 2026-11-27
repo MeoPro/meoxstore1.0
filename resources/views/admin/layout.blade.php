@@ -642,6 +642,9 @@
                 <a href="{{ route('admin.reviews.index') }}" class="{{ request()->routeIs('admin.reviews.*') ? 'active' : '' }}">
                     <x-admin-icon name="reviews" class="admin-nav-icon" /><span class="admin-nav-text">Reviews</span>
                 </a>
+                <a href="{{ route('admin.coupons.index') }}" class="{{ request()->routeIs('admin.coupons.*') ? 'active' : '' }}">
+                    <x-admin-icon name="payment" class="admin-nav-icon" /><span class="admin-nav-text">Coupons</span>
+                </a>
             </div>
             <div class="admin-nav-group">
                 <p class="admin-nav-label">Catalog</p>

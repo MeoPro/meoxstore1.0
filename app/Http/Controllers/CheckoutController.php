@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\QueueBuyerOrderUpdate;
 use App\Enums\BuyerOrderUpdateType;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\PaymentSetting;
 use App\Models\ProductCurrencyRate;
@@ -14,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -189,6 +191,17 @@ class CheckoutController extends Controller
         $totalCurrency = $this->checkoutCurrency($checkout);
         $idrTotal = $items->sum('subtotal');
         $displayTotal = $items->sum('displaySubtotal');
+        $couponCode = $request->session()->get('checkout_coupon_code');
+        $coupon = is_string($couponCode)
+            ? Coupon::query()->where('code', $couponCode)->first()
+            : null;
+        $couponUnavailable = $couponCode !== null
+            && (! is_string($couponCode) || $coupon === null || ! $coupon->isAvailable());
+        $couponDiscountInIdr = $couponUnavailable || $coupon === null
+            ? 0.0
+            : $coupon->discountAmountFor($idrTotal);
+        $couponDiscount = $currencyRates->convertIdrTo($couponDiscountInIdr, $totalCurrency);
+        $displayTotal = max(0, $displayTotal - $couponDiscount);
         $totalCurrencySymbol = $this->currencySymbol($totalCurrency);
 
         $buyer = $request->user();
@@ -196,6 +209,12 @@ class CheckoutController extends Controller
         return view('checkout.show', [
             'items' => $items,
             'total' => $displayTotal,
+            'subtotal' => $items->sum('displaySubtotal'),
+            'coupon' => $couponUnavailable ? null : $coupon,
+            'couponCodeInput' => is_string($couponCode) ? $couponCode : '',
+            'couponUnavailable' => $couponUnavailable,
+            'couponDiscountInIdr' => $couponDiscountInIdr,
+            'couponDiscount' => $couponDiscount,
             'totalCurrencySymbol' => $totalCurrencySymbol,
             'totalCurrency' => $totalCurrency,
             'checkoutCurrency' => $totalCurrency,
@@ -214,10 +233,48 @@ class CheckoutController extends Controller
         ]);
     }
 
+    public function applyCoupon(Request $request): RedirectResponse
+    {
+        $checkout = $request->session()->get('checkout');
+        if (! is_array($checkout) || ($checkout['items'] ?? []) === []) {
+            return redirect()->route('cart.index')->withErrors([
+                'cart' => __('store.cart_empty'),
+            ]);
+        }
+
+        $submittedCouponCode = $request->input('coupon_code');
+        if (is_string($submittedCouponCode)) {
+            $request->merge(['coupon_code' => trim($submittedCouponCode)]);
+        }
+
+        $validated = $request->validate([
+            'coupon_code' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/'],
+        ]);
+        $couponCode = Str::upper(trim($validated['coupon_code']));
+        $coupon = Coupon::query()->where('code', $couponCode)->first();
+
+        if ($coupon === null || ! $coupon->isAvailable()) {
+            throw ValidationException::withMessages([
+                'coupon_code' => __('store.coupon_unavailable'),
+            ]);
+        }
+
+        $request->session()->put('checkout_coupon_code', $coupon->code);
+
+        return redirect()->route('checkout.show');
+    }
+
+    public function removeCoupon(Request $request): RedirectResponse
+    {
+        $request->session()->forget('checkout_coupon_code');
+
+        return redirect()->route('checkout.show');
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'payment_method_id' => ['required', 'integer', 'exists:payment_settings,id'],
+            'payment_method_id' => ['nullable', 'integer', 'exists:payment_settings,id'],
             'customer_email' => ['required_without:customer_phone', 'nullable', 'string', 'email', 'max:255'],
             'customer_phone' => ['required_without:customer_email', 'nullable', 'string', 'regex:/^[+0-9][0-9\s().-]{6,39}$/'],
         ], [
@@ -238,8 +295,9 @@ class CheckoutController extends Controller
         $checkoutCurrency = $this->checkoutCurrency($checkout);
         $currencyRates = ProductCurrencyRate::current();
         $cartDetails = $request->session()->get('cart_details', []);
+        $couponCode = $request->session()->get('checkout_coupon_code');
 
-        $order = DB::transaction(function () use ($request, $validated, $customerEmail, $customerPhone, $checkout, $cartDetails, $checkoutCurrency, $currencyRates): Order {
+        $order = DB::transaction(function () use ($request, $validated, $customerEmail, $customerPhone, $checkout, $cartDetails, $checkoutCurrency, $currencyRates, $couponCode): Order {
             $currencyRates = ProductCurrencyRate::query()
                 ->whereKey($currencyRates->id)
                 ->lockForUpdate()
@@ -249,19 +307,6 @@ class CheckoutController extends Controller
                 'usd' => (float) $currencyRates->idr_per_usd,
                 default => 1.0,
             };
-
-            $paymentSetting = PaymentSetting::query()
-                ->whereKey($validated['payment_method_id'])
-                ->where('is_active', true)
-                ->where('currency', $checkoutCurrency)
-                ->lockForUpdate()
-                ->first();
-
-            if ($paymentSetting === null) {
-                throw ValidationException::withMessages([
-                    'payment_method_id' => __('store.payment_method_unavailable'),
-                ]);
-            }
 
             $variants = ProductVariant::query()
                 ->with(['product.itemCategory:id,bobux_type,uses_robux'])
@@ -300,25 +345,80 @@ class CheckoutController extends Controller
                 $paymentAmount += $currencyRates->convertIdrTo($unitPriceInIdr, $checkoutCurrency) * $quantity;
             }
 
+            $coupon = null;
+            $couponDiscountInIdr = 0.0;
+            $couponDiscount = 0.0;
+            if ($couponCode !== null) {
+                if (! is_string($couponCode)) {
+                    throw ValidationException::withMessages([
+                        'coupon_code' => __('store.coupon_unavailable'),
+                    ]);
+                }
+
+                $coupon = Coupon::query()
+                    ->where('code', $couponCode)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($coupon === null || ! $coupon->isAvailable()) {
+                    throw ValidationException::withMessages([
+                        'coupon_code' => __('store.coupon_unavailable'),
+                    ]);
+                }
+
+                $couponDiscountInIdr = $coupon->discountAmountFor($total);
+                $couponDiscount = $currencyRates->convertIdrTo($couponDiscountInIdr, $checkoutCurrency);
+                $total -= $couponDiscountInIdr;
+                $paymentAmount = max(0, $paymentAmount - $couponDiscount);
+            }
+
+            $paymentSetting = null;
+            if ($paymentAmount > 0) {
+                $paymentSetting = PaymentSetting::query()
+                    ->whereKey($validated['payment_method_id'] ?? null)
+                    ->where('is_active', true)
+                    ->where('currency', $checkoutCurrency)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($paymentSetting === null) {
+                    throw ValidationException::withMessages([
+                        'payment_method_id' => __('store.payment_method_unavailable'),
+                    ]);
+                }
+            }
+
+            $orderStatus = $paymentAmount > 0 ? 'pending' : 'payment_confirmed';
             $order = Order::query()->create([
                 'user_id' => $request->user()?->id,
                 'contact_email' => $customerEmail,
                 'contact_phone' => $customerPhone,
-                'status' => 'pending',
-                'total' => $total,
+                'status' => $orderStatus,
+                'total' => round($total, 2),
+                'coupon_id' => $coupon?->id,
+                'coupon_code' => $coupon?->code,
+                'coupon_discount_amount' => $couponDiscountInIdr,
+                'coupon_usage_status' => $coupon === null
+                    ? null
+                    : ($orderStatus === 'payment_confirmed' ? 'redeemed' : 'reserved'),
+                'payment_confirmed_at' => $orderStatus === 'payment_confirmed' ? now() : null,
                 'payment_details' => [
-                    'type' => $paymentSetting->type,
-                    'currency' => $paymentSetting->currency,
+                    'type' => $paymentSetting?->type ?? 'free',
+                    'currency' => $paymentSetting?->currency ?? $checkoutCurrency,
                     'idr_per_unit' => $idrPerCurrencyUnit,
                     'payment_amount' => round($paymentAmount, 2),
-                    'name' => $paymentSetting->name ?? $paymentSetting->bank_name,
-                    'bank_name' => $paymentSetting->bank_name,
-                    'account_name' => $paymentSetting->account_name,
-                    'account_number' => $paymentSetting->account_number,
-                    'qr_code_path' => $paymentSetting->qr_code_path,
-                    'instructions' => $paymentSetting->instructions,
+                    'name' => $paymentSetting?->name ?? $paymentSetting?->bank_name ?? __('store.no_payment_required'),
+                    'bank_name' => $paymentSetting?->bank_name,
+                    'account_name' => $paymentSetting?->account_name,
+                    'account_number' => $paymentSetting?->account_number,
+                    'qr_code_path' => $paymentSetting?->qr_code_path,
+                    'instructions' => $paymentSetting?->instructions,
                 ],
             ]);
+
+            if ($coupon !== null) {
+                $coupon->increment($orderStatus === 'payment_confirmed' ? 'redeemed_uses' : 'reserved_uses');
+            }
 
             foreach ($checkout['items'] as $variantId => $quantity) {
                 $variant = $variants->get($variantId);
@@ -380,14 +480,19 @@ class CheckoutController extends Controller
             }
         }
 
-        $request->session()->forget('checkout');
+        $request->session()->forget(['checkout', 'checkout_coupon_code']);
         if ($order->user_id === null) {
             $guestOrders = $request->session()->get('guest_orders', []);
             $guestOrders[$order->id] = true;
             $request->session()->put('guest_orders', $guestOrders);
         }
 
-        $this->queueBuyerOrderUpdate->handle($order, BuyerOrderUpdateType::PaymentRequired);
+        $this->queueBuyerOrderUpdate->handle(
+            $order,
+            $order->status === 'payment_confirmed'
+                ? BuyerOrderUpdateType::PaymentConfirmed
+                : BuyerOrderUpdateType::PaymentRequired,
+        );
 
         return redirect()->route('orders.show', $order)->with('success', __('store.order_created'));
     }

@@ -78,6 +78,14 @@
                     </table>
                 @endforeach
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+                    @if ($order->coupon_code && $order->coupon_discount_amount > 0)
+                        <tr>
+                            <td style="color:#047857; font-size:13px; line-height:20px;">Diskon kupon ({{ $order->coupon_code }})</td>
+                            <td align="right" style="color:#047857; font-size:13px; line-height:20px; white-space:nowrap;">
+                                − {{ $currencySymbol }} {{ number_format($order->couponDiscountPaymentAmount(), $currencySymbol === 'Rp' ? 0 : 2, ',', '.') }}
+                            </td>
+                        </tr>
+                    @endif
                     <tr>
                         <td style="color:#64748b; font-size:13px; line-height:20px;">Total pembayaran</td>
                         <td align="right" style="color:#1d4ed8; font-size:18px; font-weight:bold; line-height:24px;">{{ $formattedTotal }}</td>

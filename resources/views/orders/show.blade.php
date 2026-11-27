@@ -220,6 +220,12 @@
                     <strong>{{ $paymentCurrencySymbol }} {{ number_format($order->itemPaymentAmount($item, $paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
                 </div>
             @endforeach
+            @if ($order->coupon_code)
+                <div class="order-total">
+                    <span>{{ __('store.coupon_discount') }} ({{ $order->coupon_code }})</span>
+                    <strong>− {{ $paymentCurrencySymbol }} {{ number_format($order->couponDiscountPaymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                </div>
+            @endif
             <div class="order-total"><span>{{ __('store.total') }}</span><strong>{{ $paymentCurrencySymbol }} {{ number_format($order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong></div>
         </section>
         @if ($order->customer_completed_at)
