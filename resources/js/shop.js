@@ -66,11 +66,7 @@ const loadShopResults = async function(url, pushHistory) {
 	const controller = new AbortController();
 	activeShopRequest = controller;
 	const requestSequence = ++shopRequestSequence;
-	const currentResults = document.querySelector(shopResultsSelector);
-	if (!currentResults) {
-		return;
-	}
-	currentResults.setAttribute('aria-busy', 'true');
+	document.querySelector(shopResultsSelector)?.setAttribute('aria-busy', 'true');
 
 	try {
 		const response = await fetch(url.toString(), {
@@ -88,18 +84,17 @@ const loadShopResults = async function(url, pushHistory) {
 		const responseDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
 		const nextResults = responseDocument.querySelector(shopResultsSelector);
 		const nextItemFilters = responseDocument.querySelector('[data-shop-item-filters]');
-		if (!nextResults) {
-			throw new Error('The shop response did not contain product results.');
+		const currentResults = document.querySelector(shopResultsSelector);
+		const currentItemFilters = document.querySelector('[data-shop-item-filters]');
+		if (!nextResults || !nextItemFilters || !currentResults || !currentItemFilters) {
+			throw new Error('The shop response did not contain the results and category filters.');
 		}
 		if (requestSequence !== shopRequestSequence) {
 			return;
 		}
 
+		currentItemFilters.replaceWith(nextItemFilters);
 		currentResults.replaceWith(nextResults);
-		const currentItemFilters = document.querySelector('[data-shop-item-filters]');
-		if (currentItemFilters && nextItemFilters) {
-			currentItemFilters.replaceWith(nextItemFilters);
-		}
 		syncItemCategory(url);
 		if (pushHistory) {
 			window.history.pushState(null, '', url.toString());
@@ -124,7 +119,7 @@ document.addEventListener('click', function(event) {
 		return;
 	}
 
-	const link = event.target.closest(itemSubcategoryLinkSelector);
+	const link = event.target.closest(`${itemCategoryLinkSelector}, ${itemSubcategoryLinkSelector}`);
 	if (!link) {
 		return;
 	}

@@ -666,8 +666,13 @@ it('shows only subcategories for the selected item category and uses All labels'
     ])->itemSubcategories()->attach($fruitSubcategory);
 
     $this->withSession(['locale' => 'en'])
+        ->withHeaders([
+            'Accept' => 'text/html',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
         ->get(route('shop', ['game' => $gameCategory->id, 'item_category' => $accountCategory->id]))
         ->assertSee('>All</a>', false)
+        ->assertSee('data-shop-item-filters', false)
         ->assertSee('data-shop-item-category-link', false)
         ->assertDontSee('data-shop-item-filter-link', false)
         ->assertSee('Premium')
