@@ -120,12 +120,12 @@
                                 <div>
                                     <h2 class="store-review-product">
                                         @if ($review->product->status === 'active')
-                                            <a href="{{ route('product-details.show', ['product' => $review->product->slug]) }}">{{ $review->product->name }}</a>
+                                            <a href="{{ route('product-details.show', ['product' => $review->product->slug]) }}">{{ $review->product->localizedName() }}</a>
                                         @else
-                                            {{ $review->product->name }}
+                                            {{ $review->product->localizedName() }}
                                         @endif
                                     </h2>
-                                    <span class="store-review-buyer">{{ $review->user?->name ?? __('store.verified_buyer') }}</span>
+                                    <span class="store-review-buyer">{{ $review->is_anonymous ? __('store.anonymous_reviewer') : ($review->user?->name ?? __('store.verified_buyer')) }}</span>
                                 </div>
                                 <time class="store-review-date" datetime="{{ $review->created_at->toDateString() }}">{{ $review->created_at->format('d/m/Y') }}</time>
                             </div>

@@ -708,6 +708,7 @@ it('renders the add product form with a default variant row', function () {
         ->assertDontSee('name="status"', false)
         ->assertSee('Maximum qty', false)
         ->assertSee('data-stock-input', false)
+        ->assertSee('type="text" inputmode="numeric" pattern="[0-9]*"', false)
         ->assertSee('data-maximum-quantity readonly', false);
 });
 
@@ -758,6 +759,28 @@ it('renders inline category creation and variant price/status controls', functio
         ->assertSee('Save prices')
         ->assertSee('Status for Editable Product')
         ->assertSee(route('admin.products.variant-prices', $product), false);
+});
+
+it('renders stock editors for each variant in the product list', function () {
+    $this->actingAs(User::factory()->create());
+    $product = Product::factory()->create(['name' => 'Stock Editable Product']);
+    $firstVariant = $product->variants()->firstOrFail();
+    $firstVariant->update(['stock' => 5, 'maximum_quantity' => 5]);
+    $secondVariant = ProductVariant::factory()->for($product)->create([
+        'name' => 'Premium',
+        'stock' => 7,
+        'maximum_quantity' => 7,
+    ]);
+
+    $this->get(route('admin.products.index'))
+        ->assertOk()
+        ->assertSee('Stock')
+        ->assertSee('Default')
+        ->assertSee('Premium')
+        ->assertSee('Save stock')
+        ->assertSee(route('admin.products.variant-stock', $product), false)
+        ->assertSee('name="variants[0][stock]"', false)
+        ->assertSee('name="variants[1][stock]"', false);
 });
 
 it('creates products active with their variants in one request', function () {
@@ -938,6 +961,74 @@ it('updates variant prices from the product listing endpoint', function () {
     ])->assertRedirect();
 
     expect($variant->fresh()->price)->toBe('18.75');
+});
+
+it('updates stock per variant from the product listing and keeps quantity limits aligned', function () {
+    $this->actingAs(User::factory()->create());
+    $product = Product::factory()->create();
+    $firstVariant = $product->variants()->firstOrFail();
+    $firstVariant->update([
+        'stock' => 5,
+        'minimum_quantity' => 3,
+        'maximum_quantity' => 5,
+    ]);
+    $secondVariant = ProductVariant::factory()->for($product)->create([
+        'name' => 'Premium',
+        'stock' => 7,
+        'minimum_quantity' => 2,
+        'maximum_quantity' => 7,
+    ]);
+
+    $this->patch(route('admin.products.variant-stock', $product), [
+        'variants' => [
+            ['id' => $firstVariant->id, 'stock' => 2],
+            ['id' => $secondVariant->id, 'stock' => 4],
+        ],
+    ])->assertRedirect();
+
+    expect($firstVariant->fresh()->stock)->toBe(2)
+        ->and($firstVariant->fresh()->minimum_quantity)->toBe(2)
+        ->and($firstVariant->fresh()->maximum_quantity)->toBe(2)
+        ->and($secondVariant->fresh()->stock)->toBe(4)
+        ->and($product->fresh()->status)->toBe('active');
+
+    $this->patch(route('admin.products.variant-stock', $product), [
+        'variants' => [
+            ['id' => $firstVariant->id, 'stock' => 0],
+            ['id' => $secondVariant->id, 'stock' => 0],
+        ],
+    ])->assertRedirect();
+
+    expect($product->fresh()->status)->toBe('inactive');
+});
+
+it('protects product stock updates with admin access and variant ownership validation', function () {
+    $product = Product::factory()->create();
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 5, 'minimum_quantity' => 1, 'maximum_quantity' => 5]);
+
+    $this->patch(route('admin.products.variant-stock', $product), [
+        'variants' => [['id' => $variant->id, 'stock' => 8]],
+    ])->assertRedirectToRoute('login');
+
+    $this->actingAs(User::factory()->create(['is_admin' => false]))
+        ->patch(route('admin.products.variant-stock', $product), [
+            'variants' => [['id' => $variant->id, 'stock' => 8]],
+        ])
+        ->assertForbidden();
+
+    $this->actingAs(User::factory()->create());
+    $otherVariant = Product::factory()->create()->variants()->firstOrFail();
+
+    $this->patch(route('admin.products.variant-stock', $product), [
+        'variants' => [['id' => $otherVariant->id, 'stock' => 8]],
+    ])->assertInvalid(['variants.0.id']);
+
+    $this->patch(route('admin.products.variant-stock', $product), [
+        'variants' => [['id' => $variant->id, 'stock' => -1]],
+    ])->assertInvalid(['variants.0.stock']);
+
+    expect($variant->fresh()->stock)->toBe(5);
 });
 
 it('updates currency rates from the dedicated rates menu and persists toggles', function () {

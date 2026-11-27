@@ -12,6 +12,7 @@ class ProductReview extends Model
         'user_id',
         'order_id',
         'rating',
+        'is_anonymous',
         'comment',
         'admin_reply',
         'admin_reply_image',
@@ -22,6 +23,7 @@ class ProductReview extends Model
     {
         return [
             'rating' => 'integer',
+            'is_anonymous' => 'boolean',
             'is_hidden' => 'boolean',
         ];
     }

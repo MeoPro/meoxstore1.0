@@ -95,7 +95,7 @@
     <div class="panel overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead><tr><th><input class="form-check-input" id="select-all-products" type="checkbox" aria-label="Select all products on this page"></th><th>Product</th><th>Game</th><th>Item</th><th>Price</th><th>Status</th><th>Featured</th><th class="text-end">Actions</th></tr></thead>
+                <thead><tr><th><input class="form-check-input" id="select-all-products" type="checkbox" aria-label="Select all products on this page"></th><th>Product</th><th>Game</th><th>Item</th><th>Price</th><th>Stock</th><th>Status</th><th>Featured</th><th class="text-end">Actions</th></tr></thead>
                 <tbody>
                 @forelse ($products as $product)
                     <tr>
@@ -161,6 +161,27 @@
                             @endif
                         </td>
                         <td>
+                            @if ($product->variants->isNotEmpty())
+                                <details class="price-editor">
+                                    <summary>{{ $product->variants->sum('stock') }} total</summary>
+                                    <form class="price-editor-form" method="POST" action="{{ route('admin.products.variant-stock', $product) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        @foreach ($product->variants as $variant)
+                                            <div class="mb-2">
+                                                <label class="form-label small mb-1" for="stock-{{ $product->id }}-{{ $variant->id }}">{{ $variant->name }}</label>
+                                                <input name="variants[{{ $loop->index }}][id]" type="hidden" value="{{ $variant->id }}">
+                                                <input class="form-control form-control-sm" id="stock-{{ $product->id }}-{{ $variant->id }}" name="variants[{{ $loop->index }}][stock]" type="number" min="0" max="2147483647" step="1" value="{{ $variant->stock }}" inputmode="numeric" required>
+                                            </div>
+                                        @endforeach
+                                        <button class="btn btn-sm btn-accent w-100" type="submit">Save stock</button>
+                                    </form>
+                                </details>
+                            @else
+                                <span class="text-muted">No variants</span>
+                            @endif
+                        </td>
+                        <td>
                             <form class="d-flex gap-1" method="POST" action="{{ route('admin.products.status', $product) }}">
                                 @csrf
                                 @method('PATCH')
@@ -186,7 +207,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td class="py-5 text-center text-muted" colspan="8">No products match these filters.</td></tr>
+                    <tr><td class="py-5 text-center text-muted" colspan="9">No products match these filters.</td></tr>
                 @endforelse
                 </tbody>
             </table>

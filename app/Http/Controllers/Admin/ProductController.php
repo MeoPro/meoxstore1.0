@@ -31,7 +31,7 @@ class ProductController extends Controller
                 'itemCategory:id,name,bobux_type,uses_robux',
                 'itemSubcategories:id,name,parent_id',
             ])
-            ->with(['variants:id,product_id,name,price,sort_order']);
+            ->with(['variants:id,product_id,name,price,stock,minimum_quantity,maximum_quantity,sort_order']);
 
         $search = trim((string) $request->query('search', ''));
         if ($search !== '') {
@@ -213,6 +213,47 @@ class ProductController extends Controller
         });
 
         return back()->with('success', 'Variant prices updated.');
+    }
+
+    public function updateVariantStock(Request $request, Product $product): RedirectResponse
+    {
+        $validated = $request->validate([
+            'variants' => ['required', 'array', 'min:1'],
+            'variants.*.id' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists('product_variants', 'id')->where('product_id', $product->id),
+            ],
+            'variants.*.stock' => ['required', 'integer', 'min:0', 'max:2147483647'],
+        ]);
+
+        DB::transaction(function () use ($product, $validated): void {
+            $lockedProduct = Product::query()->lockForUpdate()->findOrFail($product->id);
+
+            foreach ($validated['variants'] as $variantData) {
+                $variant = $lockedProduct->variants()
+                    ->lockForUpdate()
+                    ->whereKey($variantData['id'])
+                    ->firstOrFail();
+                $stock = (int) $variantData['stock'];
+                $minimumQuantity = max(1, (int) $variant->minimum_quantity);
+
+                if ($stock > 0) {
+                    $minimumQuantity = min($minimumQuantity, $stock);
+                }
+
+                $variant->update([
+                    'stock' => $stock,
+                    'minimum_quantity' => $minimumQuantity,
+                    'maximum_quantity' => $stock,
+                ]);
+            }
+
+            $lockedProduct->deactivateIfOutOfStock();
+        });
+
+        return back()->with('success', 'Variant stock quantities updated.');
     }
 
     /**

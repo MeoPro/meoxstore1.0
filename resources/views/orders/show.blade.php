@@ -207,7 +207,7 @@
                             <span class="order-product-placeholder" aria-hidden="true"><i class="fa fa-gamepad"></i></span>
                         @endif
                         <div class="order-item-info">
-                            <span class="fw-semibold">{{ $item->product_name }}</span>
+                            <span class="fw-semibold">{{ $item->product?->localizedName() ?? $item->product_name }}</span>
                             <span class="order-note">{{ $item->variant_name }} × {{ $item->quantity }}</span>
                             @if (filled($productDescription))
                                 <details class="order-details-disclosure order-item-description">
@@ -239,7 +239,7 @@
                     @if ($reviewedProducts->has($product->id))
                         @php($review = $reviewedProducts->get($product->id))
                         <div class="order-review">
-                            <h3 class="h6">{{ $product->name }}</h3>
+                            <h3 class="h6">{{ $product->localizedName() }}</h3>
                             <div class="text-warning" aria-label="{{ __('store.rating_out_of_five', ['rating' => $review->rating]) }}">{{ str_repeat('★', $review->rating) }}{{ str_repeat('☆', 5 - $review->rating) }}</div>
                             @if (filled($review->comment))
                                 <p class="mb-0">{{ $review->comment }}</p>
@@ -257,7 +257,7 @@
                         @enderror
                         @foreach ($productsAwaitingReview as $reviewIndex => $product)
                             <div class="order-review">
-                                <h3 class="h6">{{ $product->name }}</h3>
+                                <h3 class="h6">{{ $product->localizedName() }}</h3>
                                 <input type="hidden" name="reviews[{{ $reviewIndex }}][product_id]" value="{{ $product->id }}">
                                 <fieldset class="border-0 m-0 p-0">
                                     <legend class="form-label small">{{ __('store.give_stars') }}</legend>
@@ -273,6 +273,13 @@
                                 </fieldset>
                                 <label class="form-label small" for="review-comment-{{ $product->id }}">{{ __('store.review') }}</label>
                                 <textarea class="form-control mb-2" id="review-comment-{{ $product->id }}" name="reviews[{{ $reviewIndex }}][comment]" rows="3" maxlength="2000">{{ old('reviews.'.$reviewIndex.'.comment') }}</textarea>
+                                @if (auth()->check())
+                                    <div class="form-check mb-2">
+                                        <input type="hidden" name="reviews[{{ $reviewIndex }}][is_anonymous]" value="0">
+                                        <input class="form-check-input" id="review-anonymous-{{ $product->id }}" name="reviews[{{ $reviewIndex }}][is_anonymous]" type="checkbox" value="1" @checked(old('reviews.'.$reviewIndex.'.is_anonymous'))>
+                                        <label class="form-check-label small" for="review-anonymous-{{ $product->id }}">{{ __('store.post_review_anonymously') }}</label>
+                                    </div>
+                                @endif
                                 @error('reviews.'.$reviewIndex.'.comment')
                                     <div class="text-danger small mb-2">{{ $message }}</div>
                                 @enderror

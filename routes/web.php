@@ -3,7 +3,9 @@
 use App\Http\Controllers\Admin\BlogCategoryController;
 use App\Http\Controllers\Admin\BlogPostController;
 use App\Http\Controllers\Admin\BlogSidebarBlockController;
+use App\Http\Controllers\Admin\CashierController;
 use App\Http\Controllers\Admin\CouponController;
+use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\GameCategoryController;
 use App\Http\Controllers\Admin\GoogleBusinessProfileController;
 use App\Http\Controllers\Admin\ItemCategoryController;
@@ -52,6 +54,11 @@ Route::get('/robots.txt', function (): Response {
 })->name('robots');
 
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
+Route::get('/shop/{game}/{item_category?}/{item_subcategory?}', [ShopController::class, 'index'])
+    ->where('game', '[a-zA-Z0-9-]+')
+    ->where('item_category', '[a-zA-Z0-9-]+')
+    ->where('item_subcategory', '[a-zA-Z0-9-]+')
+    ->name('shop.category');
 Route::get('/games', [GameCatalogController::class, 'index'])->name('games.index');
 Route::get('/reviews', [StoreReviewController::class, 'index'])->name('reviews.index');
 Route::get('/product-details', [ProductDetailsController::class, 'index'])->name('product-details');
@@ -110,6 +117,11 @@ Route::middleware('auth')->group(function () {
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('performance', PerformanceController::class)->name('performance.index');
+    Route::get('cashier', [CashierController::class, 'index'])->name('cashier.index');
+    Route::post('cashier', [CashierController::class, 'store'])->name('cashier.store');
+    Route::get('expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+    Route::post('expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+    Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
     Route::patch('coupons/{coupon}/status', [CouponController::class, 'toggleStatus'])->name('coupons.status');
     Route::resource('coupons', CouponController::class)->except(['show', 'destroy']);
     Route::resource('blog-posts', BlogPostController::class)->except(['show']);
@@ -174,5 +186,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         ->name('products.status');
     Route::patch('products/{product}/variant-prices', [ProductController::class, 'updateVariantPrices'])
         ->name('products.variant-prices');
+    Route::patch('products/{product}/variant-stock', [ProductController::class, 'updateVariantStock'])
+        ->name('products.variant-stock');
     Route::resource('products', ProductController::class)->except(['destroy']);
 });

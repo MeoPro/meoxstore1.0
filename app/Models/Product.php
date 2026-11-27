@@ -113,6 +113,15 @@ class Product extends Model
         }
     }
 
+    public function localizedName(): string
+    {
+        if (in_array(Str::lower(trim($this->name)), ['akun', 'account'], true)) {
+            return __('item_categories.account');
+        }
+
+        return $this->name;
+    }
+
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);

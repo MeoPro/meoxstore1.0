@@ -649,6 +649,12 @@
                 <a href="{{ route('admin.products.index') }}" class="{{ request()->routeIs('admin.products.*') ? 'active' : '' }}">
                     <x-admin-icon name="products" class="admin-nav-icon" /><span class="admin-nav-text">Products</span>
                 </a>
+                <a href="{{ route('admin.cashier.index') }}" class="{{ request()->routeIs('admin.cashier.*') ? 'active' : '' }}">
+                    <x-admin-icon name="sales" class="admin-nav-icon" /><span class="admin-nav-text">Cashier</span>
+                </a>
+                <a href="{{ route('admin.expenses.index') }}" class="{{ request()->routeIs('admin.expenses.*') ? 'active' : '' }}">
+                    <x-admin-icon name="payment" class="admin-nav-icon" /><span class="admin-nav-text">Expenses</span>
+                </a>
                 <a href="{{ route('admin.orders.index') }}" class="{{ request()->routeIs('admin.orders.index', 'admin.orders.show') ? 'active' : '' }}">
                     <x-admin-icon name="orders" class="admin-nav-icon" /><span class="admin-nav-text">Orders</span>
                     @if ($hasOrdersRequiringAdminAction)

@@ -119,12 +119,12 @@
                                             @disabled(! $variant || ! $item['available'])
                                         >
                                         @if ($variant?->product?->image)
-                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($variant->product->image) }}" alt="{{ $variant->product->name }}">
+                                            <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($variant->product->image) }}" alt="{{ $variant->product->localizedName() }}">
                                         @else
                                             <img src="{{ asset('images/trending-01.jpg') }}" alt="">
                                         @endif
                                         <div>
-                                            <h2>{{ $variant?->product?->name ?? __('store.unavailable') }}</h2>
+                                            <h2>{{ $variant?->product?->localizedName() ?? __('store.unavailable') }}</h2>
                                             <span class="text-secondary">{{ $variant?->name ?? __('store.unavailable') }}</span>
                                             @unless ($item['available'])
                                                 <div class="text-danger small">

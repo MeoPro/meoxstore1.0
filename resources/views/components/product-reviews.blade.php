@@ -44,7 +44,7 @@
                 @foreach ($product->reviews as $review)
                     <article class="product-review-card">
                         <div class="product-review-card-header">
-                            <strong class="product-review-card-name">{{ $review->user?->name ?? __('store.verified_buyer') }}</strong>
+                            <strong class="product-review-card-name">{{ $review->is_anonymous ? __('store.anonymous_reviewer') : ($review->user?->name ?? __('store.verified_buyer')) }}</strong>
                             <time class="product-review-card-date" datetime="{{ $review->created_at->toDateString() }}">{{ $review->created_at->format('d/m/Y') }}</time>
                         </div>
                         <div class="product-review-card-stars" aria-label="{{ __('store.stars', ['count' => $review->rating]) }}">
@@ -96,6 +96,11 @@
                 <label class="form-label" for="review-comment">{{ __('store.review') }}</label>
                 <textarea class="form-control @error('comment') is-invalid @enderror" id="review-comment" name="comment" rows="4" maxlength="2000">{{ old('comment') }}</textarea>
                 @error('comment')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            <div class="form-check mb-3">
+                <input type="hidden" name="is_anonymous" value="0">
+                <input class="form-check-input" id="review-anonymous" name="is_anonymous" type="checkbox" value="1" @checked(old('is_anonymous'))>
+                <label class="form-check-label" for="review-anonymous">{{ __('store.post_review_anonymously') }}</label>
             </div>
             <button type="submit">{{ __('store.send_review') }}</button>
         </form>

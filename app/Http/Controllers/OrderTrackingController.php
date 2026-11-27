@@ -82,12 +82,14 @@ class OrderTrackingController extends Controller
         $validated = $request->validate([
             'rating' => ['required', 'integer', 'between:1,5'],
             'comment' => ['nullable', 'string', 'max:2000'],
+            'is_anonymous' => ['sometimes', 'boolean'],
         ]);
 
         $this->storeOrderReviews($order, [[
             'product_id' => (int) $product->id,
             'rating' => (int) $validated['rating'],
             'comment' => $validated['comment'] ?? null,
+            'is_anonymous' => (bool) ($validated['is_anonymous'] ?? false),
         ]], $request->user()?->id, 'rating');
 
         return redirect()->route('orders.show', $order)->with('success', __('store.review_submitted'));
@@ -100,10 +102,11 @@ class OrderTrackingController extends Controller
         $maximumReviewCount = $order->items()->distinct()->count('product_id');
         $validated = $request->validate([
             'reviews' => ['required', 'array', 'min:1', 'max:'.$maximumReviewCount],
-            'reviews.*' => ['required', 'array:product_id,rating,comment'],
+            'reviews.*' => ['required', 'array:product_id,rating,comment,is_anonymous'],
             'reviews.*.product_id' => ['required', 'integer', 'distinct'],
             'reviews.*.rating' => ['required', 'integer', 'between:1,5'],
             'reviews.*.comment' => ['nullable', 'string', 'max:2000'],
+            'reviews.*.is_anonymous' => ['sometimes', 'boolean'],
         ]);
 
         $reviews = array_map(
@@ -111,6 +114,7 @@ class OrderTrackingController extends Controller
                 'product_id' => (int) $review['product_id'],
                 'rating' => (int) $review['rating'],
                 'comment' => $review['comment'] ?? null,
+                'is_anonymous' => (bool) ($review['is_anonymous'] ?? false),
             ],
             $validated['reviews'],
         );
@@ -127,7 +131,7 @@ class OrderTrackingController extends Controller
     }
 
     /**
-     * @param  array<int, array{product_id: int, rating: int, comment: ?string}>  $reviews
+     * @param  array<int, array{product_id: int, rating: int, comment: ?string, is_anonymous: bool}>  $reviews
      */
     private function storeOrderReviews(
         Order $order,
@@ -169,6 +173,7 @@ class OrderTrackingController extends Controller
                     'order_id' => $lockedOrder->id,
                     'rating' => $review['rating'],
                     'comment' => $review['comment'],
+                    'is_anonymous' => $review['is_anonymous'],
                 ]);
             }
         });

@@ -465,6 +465,7 @@ it('allows customers to review each completed purchase once', function () {
         ->get(route('product-details.show', $product))
         ->assertOk()
         ->assertSee('type="radio" name="rating"', false)
+        ->assertSee('name="is_anonymous"', false)
         ->assertDontSee('name="comment" rows="4" maxlength="2000" required', false);
 
     $this->actingAs($buyer)
@@ -631,11 +632,12 @@ it('accepts different ratings for multiple products in the same completed order'
         ->assertOk()
         ->assertSee(route('orders.reviews.batch', $order), false)
         ->assertSee('name="reviews[0][rating]"', false)
-        ->assertSee('name="reviews[1][rating]"', false);
+        ->assertSee('name="reviews[1][rating]"', false)
+        ->assertSee('name="reviews[0][is_anonymous]"', false);
 
     $this->postJson(route('orders.reviews.batch', $order), [
         'reviews' => [
-            ['product_id' => $products[0]->id, 'rating' => 2, 'comment' => 'Review 1'],
+            ['product_id' => $products[0]->id, 'rating' => 2, 'comment' => 'Review 1', 'is_anonymous' => true],
             ['product_id' => $products[1]->id, 'rating' => 4, 'comment' => 'Review 2'],
         ],
     ])
@@ -648,6 +650,7 @@ it('accepts different ratings for multiple products in the same completed order'
         'order_id' => $order->id,
         'rating' => 2,
         'comment' => 'Review 1',
+        'is_anonymous' => true,
     ]);
     $this->assertDatabaseHas('product_reviews', [
         'product_id' => $products[1]->id,
@@ -655,6 +658,44 @@ it('accepts different ratings for multiple products in the same completed order'
         'rating' => 4,
         'comment' => 'Review 2',
     ]);
+});
+
+it('hides a signed-in buyer name when a product review is submitted anonymously', function () {
+    $buyer = User::factory()->create(['name' => 'Private Review Name']);
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'completed',
+        'total' => '10000.00',
+        'completed_at' => now(),
+        'customer_completed_at' => now(),
+    ]);
+    $order->items()->create([
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'product_name' => $product->name,
+        'variant_name' => $variant->name,
+        'quantity' => 1,
+        'unit_price' => '10000.00',
+    ]);
+
+    $this->actingAs($buyer)
+        ->post(route('products.reviews.store', $product), [
+            'rating' => 5,
+            'is_anonymous' => '1',
+        ])
+        ->assertRedirect(route('product-details.show', ['product' => $product->slug]).'#reviews');
+
+    $this->assertDatabaseHas('product_reviews', [
+        'product_id' => $product->id,
+        'user_id' => $buyer->id,
+        'order_id' => $order->id,
+        'is_anonymous' => true,
+    ]);
+    $this->get(route('product-details.show', $product))
+        ->assertSee(__('store.anonymous_reviewer'))
+        ->assertDontSee('Private Review Name');
 });
 
 it('does not save any reviews when a batch includes a product outside the order', function () {

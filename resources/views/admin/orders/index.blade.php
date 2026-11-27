@@ -41,7 +41,7 @@
                         onkeydown="if (event.key === 'Enter' && !event.target.closest('a, button, form, input, select, textarea')) window.location.href = this.dataset.orderUrl;"
                     >
                         <td><input class="form-check-input order-selection" form="bulk-orders-form" type="checkbox" name="ids[]" value="{{ $order->id }}" aria-label="Select order #{{ $order->id }}"></td>
-                        <td>#{{ $order->id }}<br><small class="text-muted">{{ $order->created_at->format('M j, Y H:i') }}</small></td>
+                        <td>#{{ $order->id }} @if ($order->source === 'cashier')<span class="badge text-bg-info">Cashier</span>@endif<br><small class="text-muted">{{ $order->created_at->format('M j, Y H:i') }}</small></td>
                         <td>{{ $order->user?->name ?? 'Guest customer' }}<br><small class="text-muted">{{ $order->contact_email ?? $order->user?->email }}</small></td>
                         <td>{{ $order->items_count }}</td>
                         <td>Rp {{ number_format((float) $order->total, 0, ',', '.') }}</td>

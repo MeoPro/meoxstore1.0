@@ -17,6 +17,7 @@ class Order extends Model
         'contact_email',
         'contact_phone',
         'status',
+        'source',
         'total',
         'payment_proof_path',
         'payment_details',

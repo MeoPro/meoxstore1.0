@@ -53,7 +53,7 @@ class ShopController extends Controller
         $availableVariants = fn (Builder $query) => $query
             ->where('status', 'active')
             ->where('stock', '>', 0);
-        $gameSlug = $request->query('game');
+        $gameSlug = $request->route('game') ?? $request->query('game');
         abort_unless($gameSlug === null || is_string($gameSlug), 400);
         $hasGameFilter = is_string($gameSlug) && $gameSlug !== '';
         $selectedGameCategory = $gameSlug === null || $gameSlug === ''
@@ -79,7 +79,7 @@ class ShopController extends Controller
             })
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
-        $itemCategorySlug = $request->query('item_category');
+        $itemCategorySlug = $request->route('item_category') ?? $request->query('item_category');
         abort_unless($itemCategorySlug === null || is_string($itemCategorySlug), 400);
         $selectedItemCategory = $itemCategorySlug === null || $itemCategorySlug === ''
             ? null
@@ -108,7 +108,7 @@ class ShopController extends Controller
                 })
                 ->orderBy('name')
                 ->get(['id', 'parent_id', 'name', 'slug']);
-        $itemSubcategorySlug = $request->query('item_subcategory');
+        $itemSubcategorySlug = $request->route('item_subcategory') ?? $request->query('item_subcategory');
         abort_unless($itemSubcategorySlug === null || is_string($itemSubcategorySlug), 400);
         $selectedItemSubcategory = $itemSubcategorySlug === null || $itemSubcategorySlug === ''
             ? null

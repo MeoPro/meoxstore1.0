@@ -23,7 +23,7 @@
     <ul class="storefront-shop-dropdown" id="storefront-shop-dropdown">
         @foreach ($featuredGames as $gameCategory)
             <li>
-                <a href="{{ route('shop', ['game' => $gameCategory->slug, 'currency' => $currencyQuery]) }}"
+                <a href="{{ route('shop.category', ['game' => $gameCategory->slug, 'currency' => $currencyQuery]) }}"
                    data-shop-category-link
                    @if (request()->routeIs('shop') && (string) request('game') === (string) $gameCategory->slug) aria-current="page" @endif>
                     {{ $gameCategory->name }}

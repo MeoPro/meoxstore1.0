@@ -83,13 +83,13 @@
                                 ? \Illuminate\Support\Facades\Storage::disk('public')->url($representativeProduct->image)
                                 : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg')))
                         <article class="game-catalog-card">
-                            <a href="{{ route('shop', ['game' => $gameCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}" aria-label="Lihat produk {{ $gameCategory->name }}">
+                            <a href="{{ route('shop.category', ['game' => $gameCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}" aria-label="Lihat produk {{ $gameCategory->name }}">
                                 <img src="{{ $gameImage }}" alt="{{ $gameCategory->name }}">
                             </a>
                             <div class="game-catalog-card-content">
                                 <h2>{{ $gameCategory->name }}</h2>
                                 <p>{{ __('store.products_available', ['count' => $gameCategory->available_products_count]) }}</p>
-                                <a class="game-catalog-link" href="{{ route('shop', ['game' => $gameCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
+                                <a class="game-catalog-link" href="{{ route('shop.category', ['game' => $gameCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
                                     {{ __('store.view_products') }} <i class="fa fa-arrow-right" aria-hidden="true"></i>
                                 </a>
                             </div>

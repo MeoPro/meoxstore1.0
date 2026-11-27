@@ -257,7 +257,7 @@
                                 <label class="form-label" for="variant-bobux-amount-{{ $index }}">Bobux amount</label>
                                 <input class="form-control" id="variant-bobux-amount-{{ $index }}" name="variants[{{ $index }}][bobux_amount]" type="number" min="1" step="1" value="{{ $variant['bobux_amount'] ?? '' }}" @required($bobuxType === 'login') @disabled($bobuxType !== 'login') data-bobux-amount>
                             </div>
-                            <div class="col-6 col-md-2"><label class="form-label">Stock</label><input class="form-control" name="variants[{{ $index }}][stock]" type="number" min="0" step="1" value="{{ $variant['stock'] ?? 0 }}" data-stock-input required></div>
+                            <div class="col-6 col-md-2"><label class="form-label">Stock</label><input class="form-control" name="variants[{{ $index }}][stock]" type="text" inputmode="numeric" pattern="[0-9]*" value="{{ $variant['stock'] ?? 0 }}" data-stock-input required></div>
                             <div class="col-6 col-md-2"><label class="form-label">Minimum qty</label><input class="form-control" name="variants[{{ $index }}][minimum_quantity]" type="number" min="1" step="1" value="{{ $variant['minimum_quantity'] ?? 1 }}" required></div>
                             <div class="col-6 col-md-2"><label class="form-label">Maximum qty</label><input class="form-control" name="variants[{{ $index }}][maximum_quantity]" type="number" min="0" step="1" value="{{ $variant['stock'] ?? 0 }}" data-maximum-quantity readonly required></div>
                             <div class="col-6 col-md-2"><label class="form-label">Status</label><select class="form-select" name="variants[{{ $index }}][status]" required><option value="active" @selected(($variant['status'] ?? 'active') === 'active')>Active</option><option value="inactive" @selected(($variant['status'] ?? 'active') === 'inactive')>Inactive</option></select></div>
@@ -298,7 +298,7 @@
                     <label class="form-label" for="variant-bobux-amount-__INDEX__">Bobux amount</label>
                     <input class="form-control" id="variant-bobux-amount-__INDEX__" name="variants[__INDEX__][bobux_amount]" type="number" min="1" step="1" value="" @required($bobuxType === 'login') @disabled($bobuxType !== 'login') data-bobux-amount>
                 </div>
-                <div class="col-6 col-md-2"><label class="form-label">Stock</label><input class="form-control" name="variants[__INDEX__][stock]" type="number" min="0" step="1" value="0" data-stock-input required></div>
+                <div class="col-6 col-md-2"><label class="form-label">Stock</label><input class="form-control" name="variants[__INDEX__][stock]" type="text" inputmode="numeric" pattern="[0-9]*" value="0" data-stock-input required></div>
                 <div class="col-6 col-md-2"><label class="form-label">Minimum qty</label><input class="form-control" name="variants[__INDEX__][minimum_quantity]" type="number" min="1" step="1" value="1" required></div>
                 <div class="col-6 col-md-2"><label class="form-label">Maximum qty</label><input class="form-control" name="variants[__INDEX__][maximum_quantity]" type="number" min="0" step="1" value="0" data-maximum-quantity readonly required></div>
                 <div class="col-6 col-md-2"><label class="form-label">Status</label><select class="form-select" name="variants[__INDEX__][status]" required><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
@@ -347,6 +347,12 @@
             const list = document.getElementById('variant-list');
             const template = document.getElementById('variant-template');
             let nextIndex = {{ $nextVariantIndex }};
+
+            list.addEventListener('focusin', (event) => {
+                if (event.target.matches('[data-stock-input]')) {
+                    event.target.select();
+                }
+            });
 
             const refreshRows = (resetOrder = false) => {
                 const rows = [...list.querySelectorAll('[data-variant-row]')];

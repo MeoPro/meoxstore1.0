@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ $product->name }} | Meoxstore</title>
+  <title>{{ $product->localizedName() }} | Meoxstore</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
   @vite([
@@ -238,14 +238,14 @@
         <ol>
           <li><a href="{{ route('home') }}">{{ __('store.home') }}</a></li>
           <li><a href="{{ route('shop', ['currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ __('store.shop') }}</a></li>
-          <li><a href="{{ route('shop', ['game' => $product->gameCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->gameCategory->name }}</a></li>
+          <li><a href="{{ route('shop.category', ['game' => $product->gameCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->gameCategory->name }}</a></li>
           @if ($product->itemCategory)
-            <li><a href="{{ route('shop', ['game' => $product->gameCategory->slug, 'item_category' => $product->itemCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->itemCategory->localizedName() }}</a></li>
+            <li><a href="{{ route('shop.category', ['game' => $product->gameCategory->slug, 'item_category' => $product->itemCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->itemCategory->localizedName() }}</a></li>
           @endif
           @foreach ($product->itemSubcategories as $itemSubcategory)
-            <li><a href="{{ route('shop', ['game' => $product->gameCategory->slug, 'item_category' => $product->itemCategory->slug, 'item_subcategory' => $itemSubcategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $itemSubcategory->localizedName() }}</a></li>
+            <li><a href="{{ route('shop.category', ['game' => $product->gameCategory->slug, 'item_category' => $product->itemCategory->slug, 'item_subcategory' => $itemSubcategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $itemSubcategory->localizedName() }}</a></li>
           @endforeach
-          <li aria-current="page">{{ $product->name }}</li>
+          <li aria-current="page">{{ $product->localizedName() }}</li>
         </ol>
       </nav>
       @if ($isAccountProduct)
@@ -271,7 +271,7 @@
             <div class="row align-items-center g-4">
                 <div class="col-md-5">
                   <div class="product-detail-image">
-                    <img src="{{ $productImage }}" alt="{{ $product->name }}" data-product-gallery-main>
+                    <img src="{{ $productImage }}" alt="{{ $product->localizedName() }}" data-product-gallery-main>
                   </div>
                   @if ($isAccountProduct && count($productImages) > 1)
                     <h2 class="product-detail-gallery-heading">{{ __('store.account_image_examples') }}</h2>
@@ -287,7 +287,7 @@
                   @endif
                 </div>
                 <div class="col-md-7">
-                  <h1 class="product-detail-title">{{ $product->name }}</h1>
+                  <h1 class="product-detail-title">{{ $product->localizedName() }}</h1>
 
                   <div class="product-detail-currency" data-product-currency-toggle role="group" aria-label="Pilih mata uang">
                     <span class="text-muted">Mata uang:</span>
@@ -429,7 +429,7 @@
                   <label for="order-quantity">{{ __('store.quantity') }}</label>
                   <input id="order-quantity" name="quantity" type="number" min="{{ $selectedVariant->minimum_quantity }}" max="{{ min($selectedVariant->maximum_quantity, $selectedVariant->stock) }}" value="{{ $selectedVariant->minimum_quantity }}" required data-order-quantity data-stock="{{ $selectedVariant->stock }}" data-stock-error-label="{{ __('store.stock_not_enough') }}">
                 </div>
-                <button class="product-detail-add-cart" type="submit" aria-label="{{ __('store.add_product_to_cart', ['product' => $product->name]) }}" title="{{ __('store.add_to_cart') }}" data-order-submit @disabled($selectedVariant->stock < 1 || $robuxTransactionsDisabled)>
+                <button class="product-detail-add-cart" type="submit" aria-label="{{ __('store.add_product_to_cart', ['product' => $product->localizedName()]) }}" title="{{ __('store.add_to_cart') }}" data-order-submit @disabled($selectedVariant->stock < 1 || $robuxTransactionsDisabled)>
                   <i class="fa fa-shopping-cart" aria-hidden="true"></i>
                   <span class="visually-hidden">{{ __('store.add_to_cart') }}</span>
                 </button>

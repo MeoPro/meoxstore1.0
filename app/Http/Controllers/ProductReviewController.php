@@ -15,6 +15,7 @@ class ProductReviewController extends Controller
         $validated = $request->validate([
             'rating' => ['required', 'integer', 'between:1,5'],
             'comment' => ['nullable', 'string', 'max:2000'],
+            'is_anonymous' => ['sometimes', 'boolean'],
         ]);
 
         abort_unless($product->status === 'active', 404);
@@ -50,6 +51,7 @@ class ProductReviewController extends Controller
             'order_id' => $order->id,
             'rating' => $validated['rating'],
             'comment' => $validated['comment'] ?? null,
+            'is_anonymous' => (bool) ($validated['is_anonymous'] ?? false),
         ]);
 
         return redirect()

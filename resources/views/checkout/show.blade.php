@@ -77,12 +77,12 @@
                         <article class="checkout-item">
                             <div class="checkout-item-main">
                                 @if ($item['variant']->product->image)
-                                    <img class="checkout-product-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($item['variant']->product->image) }}" alt="{{ $item['variant']->product->name }}">
+                                    <img class="checkout-product-image" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($item['variant']->product->image) }}" alt="{{ $item['variant']->product->localizedName() }}">
                                 @else
                                     <span class="checkout-product-placeholder" aria-hidden="true"><i class="fa fa-gamepad"></i></span>
                                 @endif
                                 <div class="checkout-item-copy">
-                                    <h2>{{ $item['variant']->product->name }}</h2>
+                                    <h2>{{ $item['variant']->product->localizedName() }}</h2>
                                     <span class="text-secondary small">{{ $item['variant']->name }} × {{ $item['quantity'] }}</span>
                                     @if (filled($item['variant']->product->description))
                                         <details class="checkout-item-description">

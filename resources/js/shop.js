@@ -5,12 +5,18 @@ let activeShopRequest = null;
 let shopRequestSequence = 0;
 
 const syncItemCategory = function(url) {
-	const selectedItemCategory = url.searchParams.get('item_category');
-	const selectedSubcategory = url.searchParams.get('item_subcategory');
+	const pathSegments = url.pathname.split('/').filter(Boolean);
+	const selectedItemCategory = url.searchParams.get('item_category')
+		?? (pathSegments.length >= 3 ? pathSegments[2] : null);
+	const selectedSubcategory = url.searchParams.get('item_subcategory')
+		?? (pathSegments.length >= 4 ? pathSegments[3] : null);
 
 	document.querySelectorAll(itemCategoryLinkSelector).forEach(function(link) {
 		const linkUrl = new URL(link.href, window.location.href);
-		const isSelected = linkUrl.searchParams.get('item_category') === selectedItemCategory;
+		const linkSegments = linkUrl.pathname.split('/').filter(Boolean);
+		const linkCategory = linkUrl.searchParams.get('item_category')
+			?? (linkSegments.length >= 3 ? linkSegments[2] : null);
+		const isSelected = linkCategory === selectedItemCategory;
 		link.classList.toggle('is_active', isSelected);
 		if (isSelected) {
 			link.setAttribute('aria-current', 'page');
@@ -21,7 +27,10 @@ const syncItemCategory = function(url) {
 
 	document.querySelectorAll(itemSubcategoryLinkSelector).forEach(function(link) {
 		const linkUrl = new URL(link.href, window.location.href);
-		const isSelected = linkUrl.searchParams.get('item_subcategory') === selectedSubcategory;
+		const linkSegments = linkUrl.pathname.split('/').filter(Boolean);
+		const linkSubcategory = linkUrl.searchParams.get('item_subcategory')
+			?? (linkSegments.length >= 4 ? linkSegments[3] : null);
+		const isSelected = linkSubcategory === selectedSubcategory;
 		link.classList.toggle('is_active', isSelected);
 		if (isSelected) {
 			link.setAttribute('aria-current', 'page');
@@ -58,7 +67,7 @@ const syncItemCategory = function(url) {
 };
 
 const loadShopResults = async function(url, pushHistory) {
-	if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) {
+	if (url.origin !== window.location.origin || (url.pathname !== '/shop' && !url.pathname.startsWith('/shop/'))) {
 		return;
 	}
 
@@ -125,7 +134,7 @@ document.addEventListener('click', function(event) {
 	}
 
 	const url = new URL(link.href, window.location.href);
-	if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) {
+	if (url.origin !== window.location.origin || (url.pathname !== '/shop' && !url.pathname.startsWith('/shop/'))) {
 		return;
 	}
 

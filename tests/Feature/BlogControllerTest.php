@@ -384,7 +384,7 @@ it('renders active sidebar blocks in configured order on blog lists and articles
         ->assertSee('Available sidebar game')
         ->assertSee('Available sidebar item')
         ->assertSee($category->name)
-        ->assertSee(route('shop', ['game' => $product->gameCategory->slug]), false)
+        ->assertSee(route('shop.category', ['game' => $product->gameCategory->slug]), false)
         ->assertSee(route('shop', ['item_category' => $product->itemCategory->slug]), false)
         ->assertDontSee('Disabled promotion');
 

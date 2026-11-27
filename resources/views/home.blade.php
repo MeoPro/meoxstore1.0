@@ -259,7 +259,7 @@
                     <div class="item shop-product-card">
                         <div class="thumb">
                             <a href="{{ route('product-details.show', ['product' => $product->slug]) }}">
-                                <img src="{{ $product->image ? \Illuminate\Support\Facades\Storage::disk('public')->url($product->image) : $fallbackImage }}" alt="{{ $product->name }}">
+                                <img src="{{ $product->image ? \Illuminate\Support\Facades\Storage::disk('public')->url($product->image) : $fallbackImage }}" alt="{{ $product->localizedName() }}">
                             </a>
                             @if ($product->badges !== [])
                                 <div class="shop-product-badges">
@@ -277,7 +277,7 @@
                         </div>
                         <div class="down-content">
                             <span class="category">{{ $product->gameCategory?->name ?? $product->itemCategory?->localizedName() }}@if ($product->gameCategory && $product->itemCategory) / {{ $product->itemCategory->localizedName() }}@endif @if ($product->itemSubcategories->isNotEmpty())/ {{ $product->itemSubcategories->map(fn ($subcategory) => $subcategory->localizedName())->join(', ') }}@endif</span>
-                            <h4>{{ $product->name }}</h4>
+                            <h4>{{ $product->localizedName() }}</h4>
                             <div class="shop-product-price">
                                 @if ($product->hasDiscount())
                                     <span class="shop-product-price-before">Rp {{ rtrim(rtrim(number_format($startingPriceBeforeDiscount, 2, '.', ','), '0'), '.') }}</span>
@@ -328,13 +328,13 @@
                                         ? \Illuminate\Support\Facades\Storage::disk('public')->url($representativeProduct->image)
                                         : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg')))
                                 <article class="home-category-card">
-                                    <a class="home-category-card-image" href="{{ route('shop', ['game' => $gameCategory->slug]) }}">
+                                    <a class="home-category-card-image" href="{{ route('shop.category', ['game' => $gameCategory->slug]) }}">
                                         <img src="{{ $gameImage }}" alt="{{ $gameCategory->name }}">
                                     </a>
                                     <div class="home-category-card-content">
                                         <h3>{{ $gameCategory->name }}</h3>
                                         <p>{{ __('store.products_available', ['count' => $gameCategory->available_products_count]) }}</p>
-                                        <a class="home-category-card-link" href="{{ route('shop', ['game' => $gameCategory->slug]) }}">
+                                        <a class="home-category-card-link" href="{{ route('shop.category', ['game' => $gameCategory->slug]) }}">
                                             {{ __('store.view_products') }} <i class="fa fa-arrow-right" aria-hidden="true"></i>
                                         </a>
                                     </div>
