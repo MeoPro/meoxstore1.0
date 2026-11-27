@@ -154,17 +154,39 @@ class ApiQrisClient
         }
 
         $invoice = is_array($payload['data'] ?? null) ? $payload['data'] : $payload;
-        if (
-            ! is_string($invoice['id'] ?? null)
-            || ! is_string($invoice['order_id'] ?? null)
-            || ! is_int($invoice['amount'] ?? null)
-            || ! is_int($invoice['total_amount'] ?? null)
-            || ! is_string($invoice['status'] ?? null)
-            || ! in_array($invoice['status'], ['pending', 'paid', 'expired', 'cancelled'], true)
-            || $invoice['total_amount'] < $invoice['amount']
-        ) {
-            throw new UnexpectedValueException('APIQris returned incomplete invoice details.');
+        $amount = $this->integerValue($invoice['amount'] ?? null);
+        $totalAmount = $this->integerValue($invoice['total_amount'] ?? null);
+        $invalidFields = [];
+
+        if (! is_string($invoice['id'] ?? null)) {
+            $invalidFields[] = $this->invalidFieldDescription($invoice, 'id');
         }
+        if (! is_string($invoice['order_id'] ?? null)) {
+            $invalidFields[] = $this->invalidFieldDescription($invoice, 'order_id');
+        }
+        if ($amount === null) {
+            $invalidFields[] = $this->invalidFieldDescription($invoice, 'amount');
+        }
+        if ($totalAmount === null) {
+            $invalidFields[] = $this->invalidFieldDescription($invoice, 'total_amount');
+        }
+        if (
+            ! is_string($invoice['status'] ?? null)
+            || ! in_array($invoice['status'], ['pending', 'paid', 'expired', 'cancelled'], true)
+        ) {
+            $invalidFields[] = 'status (unsupported)';
+        }
+        if ($amount !== null && $totalAmount !== null && $totalAmount < $amount) {
+            $invalidFields[] = 'total_amount (less than amount)';
+        }
+        if ($invalidFields !== []) {
+            throw new UnexpectedValueException(
+                'APIQris returned incomplete invoice details: '.implode(', ', $invalidFields).'.',
+            );
+        }
+
+        $invoice['amount'] = $amount;
+        $invoice['total_amount'] = $totalAmount;
 
         if ($requireQr) {
             $imageUrl = $invoice['qr_image_url'] ?? null;
@@ -180,5 +202,30 @@ class ApiQrisClient
         }
 
         return $invoice;
+    }
+
+    private function integerValue(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (! is_string($value) || ! preg_match('/\A(?:0|[1-9]\d*)\z/', $value)) {
+            return null;
+        }
+
+        $integer = filter_var($value, FILTER_VALIDATE_INT);
+
+        return is_int($integer) ? $integer : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $invoice
+     */
+    private function invalidFieldDescription(array $invoice, string $field): string
+    {
+        $type = array_key_exists($field, $invoice) ? get_debug_type($invoice[$field]) : 'missing';
+
+        return $field.' ('.$type.')';
     }
 }

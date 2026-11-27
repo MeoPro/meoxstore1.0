@@ -130,6 +130,39 @@ it('creates an APIQris invoice for IDR checkout and displays the dynamic QR and 
         ->assertSee(__('store.apiqris_scan_instructions'));
 });
 
+it('accepts whole-number strings in APIQris invoice amounts', function () {
+    configureApiQrisForTests();
+    [, $variant, $paymentSetting] = createApiQrisCheckoutData();
+    Mail::fake([BuyerOrderUpdate::class]);
+    Http::preventStrayRequests();
+    Http::fake([
+        'app.apiqris.com/v1/invoices' => function (Request $request) {
+            $invoice = apiQrisCheckoutInvoice($request->data()['order_id']);
+            $invoice['amount'] = (string) $invoice['amount'];
+            $invoice['total_amount'] = (string) $invoice['total_amount'];
+
+            return Http::response($invoice, 201);
+        },
+    ]);
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+    $response = $this->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ]);
+    $order = Order::query()->sole();
+
+    $response->assertRedirect(route('orders.show', $order));
+    expect($order->payment_details['apiqris']['amount'])->toBe(12000)
+        ->and($order->payment_details['apiqris']['total_amount'])->toBe(12123)
+        ->and($order->status)->toBe('pending')
+        ->and($variant->fresh()->stock)->toBe(2);
+    Http::assertSentCount(1);
+});
+
 it('does not offer or accept APIQris for non-IDR checkout', function () {
     [$product, $variant, $paymentSetting] = createApiQrisCheckoutData('myr');
     ProductCurrencyRate::current()->update(['idr_per_myr' => '1000.0000']);
