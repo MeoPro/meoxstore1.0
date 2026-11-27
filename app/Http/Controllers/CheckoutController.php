@@ -528,7 +528,7 @@ class CheckoutController extends Controller
             } catch (ConnectionException|RequestException|UnexpectedValueException|InvalidArgumentException $exception) {
                 Log::error('APIQris invoice creation failed.', [
                     'order_id' => $order->publicNumber(),
-                    'exception' => $exception::class,
+                    ...$this->apiQrisExceptionContext($exception),
                 ]);
 
                 try {
@@ -536,7 +536,7 @@ class CheckoutController extends Controller
                 } catch (ConnectionException|RequestException|UnexpectedValueException $cancellationException) {
                     Log::critical('APIQris invoice state could not be reconciled after creation failed.', [
                         'order_id' => $order->publicNumber(),
-                        'exception' => $cancellationException::class,
+                        ...$this->apiQrisExceptionContext($cancellationException),
                     ]);
 
                     return redirect()
@@ -638,6 +638,32 @@ class CheckoutController extends Controller
         ];
 
         $order->update(['payment_details' => $paymentDetails]);
+    }
+
+    /**
+     * @return array<string, int|string>
+     */
+    private function apiQrisExceptionContext(\Throwable $exception): array
+    {
+        $context = ['exception' => $exception::class];
+
+        if ($exception instanceof RequestException) {
+            $context['http_status'] = $exception->response->status();
+            $providerErrorCode = $exception->response->json('error.code');
+            if (
+                is_string($providerErrorCode)
+                && preg_match('/\A[A-Za-z0-9_-]{1,64}\z/', $providerErrorCode)
+            ) {
+                $context['provider_error_code'] = $providerErrorCode;
+            }
+        } elseif (
+            $exception instanceof InvalidArgumentException
+            || $exception instanceof UnexpectedValueException
+        ) {
+            $context['failure_reason'] = $exception->getMessage();
+        }
+
+        return $context;
     }
 
     /**

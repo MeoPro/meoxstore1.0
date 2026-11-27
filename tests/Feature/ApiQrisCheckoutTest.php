@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
@@ -210,6 +211,51 @@ it('allows a guest to open the order page when APIQris cannot confirm invoice cr
 
     expect($order->fresh()->status)->toBe('pending')
         ->and($variant->fresh()->stock)->toBe(2);
+});
+
+it('logs safe APIQris error details when it cannot reconcile a created invoice', function () {
+    configureApiQrisForTests();
+    [, $variant, $paymentSetting] = createApiQrisCheckoutData();
+    Log::spy();
+    Http::preventStrayRequests();
+    Http::fake([
+        'app.apiqris.com/v1/invoices' => function (Request $request) {
+            $invoice = apiQrisCheckoutInvoice($request->data()['order_id']);
+            $invoice['qr_image_url'] = 'https://invalid.example/qr.png';
+
+            return Http::response($invoice, 201);
+        },
+        'app.apiqris.com/v1/invoices/*/cancel' => Http::response([
+            'error' => [
+                'code' => 'CANCEL_UNAVAILABLE',
+                'message' => 'Do not log this response body.',
+            ],
+        ], 503),
+    ]);
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('cart.checkout'), ['items' => [$variant->id => '1']])
+        ->assertRedirect(route('checkout.show'));
+    $response = $this->from(route('checkout.show'))->post(route('checkout.store'), [
+        'payment_method_id' => $paymentSetting->id,
+        'customer_email' => 'buyer@example.com',
+        'customer_phone' => '08123456789',
+    ]);
+    $order = Order::query()->sole();
+
+    $response->assertRedirect(route('orders.show', $order))
+        ->assertSessionHas('warning', __('store.apiqris_payment_initializing'));
+    Log::shouldHaveReceived('error')
+        ->once()
+        ->with('APIQris invoice creation failed.', Mockery::on(
+            fn (array $context): bool => $context['failure_reason'] === 'APIQris returned invalid QR or expiry details.',
+        ));
+    Log::shouldHaveReceived('critical')
+        ->once()
+        ->with('APIQris invoice state could not be reconciled after creation failed.', Mockery::on(
+            fn (array $context): bool => $context['http_status'] === 503
+                && $context['provider_error_code'] === 'CANCEL_UNAVAILABLE',
+        ));
 });
 
 it('cancels the provider invoice before restoring stock for a buyer cancellation', function () {
