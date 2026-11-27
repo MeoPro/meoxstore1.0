@@ -668,6 +668,8 @@ it('shows only subcategories for the selected item category and uses All labels'
     $this->withSession(['locale' => 'en'])
         ->get(route('shop', ['game' => $gameCategory->id, 'item_category' => $accountCategory->id]))
         ->assertSee('>All</a>', false)
+        ->assertSee('data-shop-item-category-link', false)
+        ->assertDontSee('data-shop-item-filter-link', false)
         ->assertSee('Premium')
         ->assertDontSee('Legendary')
         ->assertDontSee('All subcategories')

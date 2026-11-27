@@ -1,5 +1,5 @@
 const shopResultsSelector = '[data-shop-product-results]';
-const itemCategoryLinkSelector = '[data-shop-item-filter-link]';
+const itemCategoryLinkSelector = '[data-shop-item-category-link]';
 const itemSubcategoryLinkSelector = '[data-shop-subcategory-filter-link]';
 let activeShopRequest = null;
 let shopRequestSequence = 0;

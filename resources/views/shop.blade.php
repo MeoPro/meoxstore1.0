@@ -357,7 +357,7 @@ https://templatemo.com/tm-589-lugx-gaming
             <ul class="trending-filter" aria-label="{{ __('store.filter_item_category') }}">
               <li>
                 <a
-                  data-shop-item-filter-link
+                  data-shop-item-category-link
                   @class(['is_active' => $selectedItemCategory === null])
                   href="{{ route('shop', [
                       'game' => $selectedGameCategory?->id,
@@ -372,7 +372,7 @@ https://templatemo.com/tm-589-lugx-gaming
               @foreach ($itemCategories as $itemCategory)
                 <li>
                   <a
-                    data-shop-item-filter-link
+                    data-shop-item-category-link
                     @class(['is_active' => $selectedItemCategory?->localizedName() === $itemCategory->localizedName()])
                     href="{{ route('shop', [
                         'game' => $selectedGameCategory?->id,
