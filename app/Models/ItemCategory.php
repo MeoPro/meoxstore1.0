@@ -38,6 +38,32 @@ class ItemCategory extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $itemCategory): void {
+            if (! $itemCategory->isDirty('name') && filled($itemCategory->slug)) {
+                return;
+            }
+
+            $baseSlug = Str::slug($itemCategory->name) ?: 'category';
+            if (ctype_digit($baseSlug)) {
+                $baseSlug = 'category-'.$baseSlug;
+            }
+
+            $slug = $baseSlug;
+            $suffix = 2;
+            while (self::query()
+                ->where('slug', $slug)
+                ->when($itemCategory->exists, fn ($query) => $query->where('id', '!=', $itemCategory->getKey()))
+                ->exists()) {
+                $slug = $baseSlug.'-'.$suffix;
+                $suffix++;
+            }
+
+            $itemCategory->slug = $slug;
+        });
+    }
+
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);

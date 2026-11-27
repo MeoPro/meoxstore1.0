@@ -42,7 +42,7 @@
                 </div>
 
                 @if ($block->type === \App\Models\BlogSidebarBlock::TYPE_PRODUCT && $block->product)
-                    <a class="blog-sidebar-product" href="{{ route('product-details.show', $block->product) }}">
+                    <a class="blog-sidebar-product" href="{{ route('product-details.show', ['product' => $block->product->slug]) }}">
                         @if ($block->product->image)
                             <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($block->product->image) }}" alt="" loading="lazy">
                         @endif
@@ -71,7 +71,7 @@
                     <div class="content">
                         <ul class="blog-sidebar-links">
                             @foreach ($sidebarGameCategories as $category)
-                                <li><a href="{{ route('shop', ['game' => $category->id]) }}">{{ $category->name }}</a></li>
+                                <li><a href="{{ route('shop', ['game' => $category->slug]) }}">{{ $category->name }}</a></li>
                             @endforeach
                         </ul>
                     </div>
@@ -79,7 +79,7 @@
                     <div class="content">
                         <ul class="blog-sidebar-links">
                             @foreach ($sidebarItemCategories as $category)
-                                <li><a href="{{ route('shop', ['item_category' => $category->id]) }}">{{ $category->localizedName() }}</a></li>
+                                <li><a href="{{ route('shop', ['item_category' => $category->slug]) }}">{{ $category->localizedName() }}</a></li>
                             @endforeach
                         </ul>
                     </div>

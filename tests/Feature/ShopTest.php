@@ -40,8 +40,8 @@ it('shows active products with game category, image, and starting price', functi
         ->assertSee(__('store.stock_count', ['count' => '5']))
         ->assertDontSee(__('store.variants'))
         ->assertDontSee('shop-item-category', false)
-        ->assertSee(route('shop', ['game' => $gameCategory->id]), false)
-        ->assertSee(route('shop', ['item_category' => $itemCategory->id]), false)
+        ->assertSee(route('shop', ['game' => $gameCategory->slug]), false)
+        ->assertSee(route('shop', ['item_category' => $itemCategory->slug]), false)
         ->assertDontSee('data-shop-filter-group="item"', false)
         ->assertDontSee('<details class="shop-item-category-picker">', false)
         ->assertSee('data-shop-currency="idr"', false)
@@ -53,7 +53,7 @@ it('shows active products with game category, image, and starting price', functi
         ->assertSee('class="shop-sort-option"', false)
         ->assertSee('https://wa.me/6285933875292', false)
         ->assertSee('placeholder="10,000"', false)
-        ->assertSee(route('product-details.show', $product), false)
+        ->assertSee(route('product-details.show', ['product' => $product->slug]), false)
         ->assertDontSee('data-cart-add', false)
         ->assertDontSee('shop-add-cart', false)
         ->assertDontSee('shop-buy', false)
@@ -506,8 +506,8 @@ it('shows best-selling game and item categories based on completed sales', funct
             ->all() === ['Most Purchased Category', 'Second Most Purchased Category'])
         ->assertSee(__('store.best_selling_game_categories'))
         ->assertSee(__('store.best_selling_item_categories'))
-        ->assertSee(route('shop', ['game' => $secondMostPurchasedGame->id]), false)
-        ->assertSee(route('shop', ['item_category' => $mostPurchasedItemCategory->id]), false)
+        ->assertSee(route('shop', ['game' => $secondMostPurchasedGame->slug]), false)
+        ->assertSee(route('shop', ['item_category' => $mostPurchasedItemCategory->slug]), false)
         ->assertDontSee('Most Played')
         ->assertSee('Pending Only Game')
         ->assertDontSee('Pending Only Category');
@@ -603,7 +603,7 @@ it('shows other item categories on product details and links to that shop filter
         ->assertSee(__('store.explore_other_items'))
         ->assertSee(__('store.recommended_item_categories'))
         ->assertSee('Accessories')
-        ->assertSee('item_category='.$recommendedCategory->id, false)
+        ->assertSee('item_category='.$recommendedCategory->slug, false)
         ->assertDontSee('/storage/categories/fruit.jpg', false)
         ->assertDontSee('Explore more products')
         ->assertDontSee('Fruit</h3>', false);
@@ -633,13 +633,66 @@ it('filters shop products by selected game and renders server-side item category
         ->assertViewHas('selectedGameCategory', fn ($category): bool => $category?->is($bloxFruit) ?? false)
         ->assertSee('aria-current="page">Blox Fruit</span>', false)
         ->assertSee('Kitsune')
-        ->assertSee(route('shop', ['game' => $bloxFruit->id]), false)
-        ->assertSee(e(route('shop', ['game' => $bloxFruit->id, 'item_category' => $fruit->id])), false)
+        ->assertSee(route('shop', ['game' => $bloxFruit->slug]), false)
+        ->assertSee(e(route('shop', ['game' => $bloxFruit->slug, 'item_category' => $fruit->slug])), false)
         ->assertDontSee('data-shop-filter-group="item"', false)
         ->assertDontSee('<details class="shop-item-category-picker">', false)
         ->assertSee('Buah')
         ->assertDontSee('World Lock')
         ->assertDontSee('data-shop-filter-group="game"', false);
+});
+
+it('uses name-based slugs for storefront filters and product detail links', function () {
+    $gameCategory = GameCategory::factory()->create(['name' => 'Blox Fruit']);
+    $itemCategory = ItemCategory::factory()->create(['name' => 'Melee Weapon']);
+    $subcategory = ItemCategory::factory()->create([
+        'name' => 'Legendary Dragon',
+        'parent_id' => $itemCategory->id,
+    ]);
+    $product = Product::factory()->create([
+        'game_category_id' => $gameCategory->id,
+        'item_category_id' => $itemCategory->id,
+        'name' => 'Buddha Fruit',
+        'status' => 'active',
+    ]);
+    $product->itemSubcategories()->attach($subcategory);
+
+    $this->get(route('shop', [
+        'game' => 'blox-fruit',
+        'item_category' => 'melee-weapon',
+        'item_subcategory' => 'legendary-dragon',
+    ]))
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 1
+            && $products->first()->is($product))
+        ->assertViewHas('selectedGameCategory', fn ($category): bool => $category?->is($gameCategory) ?? false)
+        ->assertViewHas('selectedItemCategory', fn ($category): bool => $category?->is($itemCategory) ?? false)
+        ->assertViewHas('selectedItemSubcategory', fn ($category): bool => $category?->is($subcategory) ?? false)
+        ->assertSee('name="game" value="blox-fruit"', false)
+        ->assertSee('name="item_category" value="melee-weapon"', false)
+        ->assertSee('name="item_subcategory" value="legendary-dragon"', false)
+        ->assertSee('/product-details/buddha-fruit', false);
+
+    $this->get('/product-details/buddha-fruit')
+        ->assertSee('Buddha Fruit');
+
+    $this->get('/product-details/'.$product->id)
+        ->assertSee('Buddha Fruit');
+});
+
+it('keeps generated storefront slugs unique when names normalize to the same value', function () {
+    $firstGame = GameCategory::factory()->create(['name' => 'Game Name']);
+    $secondGame = GameCategory::factory()->create(['name' => 'Game-Name']);
+    $firstItemCategory = ItemCategory::factory()->create(['name' => 'Item Name']);
+    $secondItemCategory = ItemCategory::factory()->create(['name' => 'Item-Name']);
+    $firstProduct = Product::factory()->create(['name' => 'Product Name']);
+    $secondProduct = Product::factory()->create(['name' => 'Product-Name']);
+
+    expect($firstGame->slug)->toBe('game-name')
+        ->and($secondGame->slug)->toBe('game-name-2')
+        ->and($firstItemCategory->slug)->toBe('item-name')
+        ->and($secondItemCategory->slug)->toBe('item-name-2')
+        ->and($firstProduct->slug)->toBe('product-name')
+        ->and($secondProduct->slug)->toBe('product-name-2');
 });
 
 it('shows only subcategories for the selected item category and uses All labels', function () {
@@ -1044,7 +1097,7 @@ it('searches products only within the selected item category', function () {
         ->assertSee('Account Kitsune')
         ->assertDontSee('Golden Fruit')
         ->assertDontSee('Account Bundle')
-        ->assertSee('name="item_category" value="'.$accountCategory->id.'"', false)
+        ->assertSee('name="item_category" value="'.$accountCategory->slug.'"', false)
         ->assertSee('value="Account"', false);
 });
 
@@ -1112,7 +1165,7 @@ it('shows one filter for duplicate localized item categories across games', func
             ->assertOk()
             ->assertViewHas('itemCategories', fn ($categories): bool => $categories->count() === 1
                 && $categories->first()->localizedName() === 'Akun')
-            ->assertSee(route('shop', ['item_category' => $firstAccountCategory->id]), false)
+            ->assertSee(route('shop', ['item_category' => $firstAccountCategory->slug]), false)
             ->assertSee('Growtopia Account')
             ->assertSee('Roblox Account');
 
@@ -1177,7 +1230,7 @@ it('keeps the selected currency when switching game categories from the storefro
     ]);
 
     $this->get(route('shop', ['currency' => 'myr']))
-        ->assertSee(route('shop', ['game' => $gameCategory->id, 'currency' => 'myr']))
+        ->assertSee(route('shop', ['game' => $gameCategory->slug, 'currency' => 'myr']))
         ->assertSee(route('games.index', ['currency' => 'myr']));
 });
 
@@ -1247,7 +1300,7 @@ it('shows up to five available games in the storefront menu and links to the ful
         ->assertSee('class="storefront-shop-toggle"', false)
         ->assertSee('Game lainnya')
         ->assertSee(route('games.index'), false)
-        ->assertSee(route('shop', ['game' => $featuredGames[0]->id]), false)
+        ->assertSee(route('shop', ['game' => $featuredGames[0]->slug]), false)
         ->assertDontSee('Roblox')
         ->assertDontSee('Unavailable Game');
     $this->assertSame(
@@ -1348,7 +1401,7 @@ it('lists all available games with an image and a link to their shop products', 
         ->assertSee('2 produk tersedia')
         ->assertSee('/storage/categories/blox-fruit.webp')
         ->assertSee('/storage/products/roblox.webp')
-        ->assertSee(route('shop', ['game' => $fisch->id]), false)
+        ->assertSee(route('shop', ['game' => $fisch->slug]), false)
         ->assertDontSee('Unavailable Game');
 });
 
@@ -1360,7 +1413,7 @@ it('keeps a selected currency when choosing a game from the full game catalog', 
     ]);
 
     $this->get(route('games.index', ['currency' => 'usd']))
-        ->assertSee(route('shop', ['game' => $gameCategory->id, 'currency' => 'usd']));
+        ->assertSee(route('shop', ['game' => $gameCategory->slug, 'currency' => 'usd']));
 });
 
 it('hides active products that have no active variants', function () {
@@ -1766,7 +1819,7 @@ it('redirects the default product details page to the first active product', fun
     ]);
 
     $this->get(route('product-details'))
-        ->assertRedirect(route('product-details.show', $product));
+        ->assertRedirect(route('product-details.show', ['product' => $product->slug]));
 });
 
 it('does not show inactive products or products without active variants', function () {

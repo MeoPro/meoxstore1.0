@@ -53,22 +53,40 @@ class ShopController extends Controller
         $availableVariants = fn (Builder $query) => $query
             ->where('status', 'active')
             ->where('stock', '>', 0);
-        $selectedGameCategoryId = $request->integer('game');
-        $selectedGameCategory = $selectedGameCategoryId > 0
-            ? GameCategory::query()->where('status', 'active')->find($selectedGameCategoryId)
-            : null;
+        $gameSlug = $request->query('game');
+        abort_unless($gameSlug === null || is_string($gameSlug), 400);
+        $hasGameFilter = is_string($gameSlug) && $gameSlug !== '';
+        $selectedGameCategory = $gameSlug === null || $gameSlug === ''
+            ? null
+            : GameCategory::query()
+                ->where('status', 'active')
+                ->where('slug', $gameSlug)
+                ->first();
+        if ($selectedGameCategory === null && is_string($gameSlug) && ctype_digit($gameSlug)) {
+            $selectedGameCategory = GameCategory::query()
+                ->where('status', 'active')
+                ->find((int) $gameSlug);
+        }
+        $selectedGameCategoryId = $selectedGameCategory?->id ?? ($gameSlug === null || $gameSlug === '' ? 0 : -1);
 
         $availableItemCategories = ItemCategory::query()
             ->whereNull('parent_id')
             ->where('status', 'active')
-            ->whereHas('products', function (Builder $query) use ($availableVariants, $selectedGameCategoryId): void {
+            ->whereHas('products', function (Builder $query) use ($availableVariants, $selectedGameCategoryId, $hasGameFilter): void {
                 $query->where('status', 'active')
-                    ->when($selectedGameCategoryId > 0, fn (Builder $productQuery) => $productQuery->where('game_category_id', $selectedGameCategoryId))
+                    ->when($hasGameFilter, fn (Builder $productQuery) => $productQuery->where('game_category_id', $selectedGameCategoryId))
                     ->whereHas('variants', $availableVariants);
             })
             ->orderBy('name')
-            ->get(['id', 'name']);
-        $selectedItemCategory = $availableItemCategories->firstWhere('id', $request->integer('item_category'));
+            ->get(['id', 'name', 'slug']);
+        $itemCategorySlug = $request->query('item_category');
+        abort_unless($itemCategorySlug === null || is_string($itemCategorySlug), 400);
+        $selectedItemCategory = $itemCategorySlug === null || $itemCategorySlug === ''
+            ? null
+            : $availableItemCategories->firstWhere('slug', $itemCategorySlug);
+        if ($selectedItemCategory === null && is_string($itemCategorySlug) && ctype_digit($itemCategorySlug)) {
+            $selectedItemCategory = $availableItemCategories->firstWhere('id', (int) $itemCategorySlug);
+        }
         $selectedItemCategoryIds = $selectedItemCategory === null
             ? []
             : $availableItemCategories
@@ -83,14 +101,21 @@ class ShopController extends Controller
             : ItemCategory::query()
                 ->whereIn('parent_id', $selectedItemCategoryIds)
                 ->where('status', 'active')
-                ->whereHas('subcategoryProducts', function (Builder $query) use ($availableVariants, $selectedGameCategoryId): void {
+                ->whereHas('subcategoryProducts', function (Builder $query) use ($availableVariants, $selectedGameCategoryId, $hasGameFilter): void {
                     $query->where('status', 'active')
-                        ->when($selectedGameCategoryId > 0, fn (Builder $productQuery) => $productQuery->where('game_category_id', $selectedGameCategoryId))
+                        ->when($hasGameFilter, fn (Builder $productQuery) => $productQuery->where('game_category_id', $selectedGameCategoryId))
                         ->whereHas('variants', $availableVariants);
                 })
                 ->orderBy('name')
-                ->get(['id', 'parent_id', 'name']);
-        $selectedItemSubcategory = $availableItemSubcategories->firstWhere('id', $request->integer('item_subcategory'));
+                ->get(['id', 'parent_id', 'name', 'slug']);
+        $itemSubcategorySlug = $request->query('item_subcategory');
+        abort_unless($itemSubcategorySlug === null || is_string($itemSubcategorySlug), 400);
+        $selectedItemSubcategory = $itemSubcategorySlug === null || $itemSubcategorySlug === ''
+            ? null
+            : $availableItemSubcategories->firstWhere('slug', $itemSubcategorySlug);
+        if ($selectedItemSubcategory === null && is_string($itemSubcategorySlug) && ctype_digit($itemSubcategorySlug)) {
+            $selectedItemSubcategory = $availableItemSubcategories->firstWhere('id', (int) $itemSubcategorySlug);
+        }
         $itemSubcategories = $availableItemSubcategories
             ->unique(fn (ItemCategory $itemCategory): string => $itemCategory->localizedName())
             ->values();
@@ -103,7 +128,7 @@ class ShopController extends Controller
 
         $productQuery = Product::query()
             ->where('status', 'active')
-            ->when($selectedGameCategoryId > 0, fn (Builder $query) => $query->where('game_category_id', $selectedGameCategoryId))
+            ->when($hasGameFilter, fn (Builder $query) => $query->where('game_category_id', $selectedGameCategoryId))
             ->when($selectedItemCategory !== null, fn (Builder $query) => $query->whereIn('item_category_id', $selectedItemCategoryIds))
             ->when($selectedItemSubcategory !== null, fn (Builder $query) => $query
                 ->whereHas(
@@ -137,9 +162,9 @@ class ShopController extends Controller
 
         $productQuery = $productQuery
             ->with([
-                'gameCategory:id,name',
-                'itemCategory:id,name,bobux_type,uses_robux',
-                'itemSubcategories:id,parent_id,name',
+                'gameCategory:id,name,slug',
+                'itemCategory:id,name,slug,bobux_type,uses_robux',
+                'itemSubcategories:id,parent_id,name,slug',
                 'variants' => fn ($query) => $activeVariants($query)
                     ->select(['id', 'product_id', 'name', 'price', 'stock', 'minimum_quantity', 'maximum_quantity', 'sort_order'])
                     ->orderBy('sort_order')

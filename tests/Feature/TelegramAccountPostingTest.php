@@ -978,7 +978,7 @@ it('sends product photos and formatted account details to the configured Telegra
         ->toContain('"caption"')
         ->toContain('RM 20.00 | $6.00')
         ->toContain('jokibloxfruit.roblox')
-        ->toContain(str_replace('/', '\/', route('product-details.show', $product)));
+        ->toContain(str_replace('/', '\/', route('product-details.show', ['product' => $product->slug])));
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/sendMediaGroup'));
     Http::assertSentCount(2);
 });

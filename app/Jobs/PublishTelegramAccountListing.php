@@ -58,7 +58,7 @@ class PublishTelegramAccountListing implements ShouldBeUnique, ShouldQueue
                 $caption = $formatter->telegramHtml(
                     $draft->data,
                     $telegramRates,
-                    route('product-details.show', $product),
+                    route('product-details.show', ['product' => $product->slug]),
                 );
             }
 
@@ -74,7 +74,7 @@ class PublishTelegramAccountListing implements ShouldBeUnique, ShouldQueue
             $text = $formatter->telegramHtml(
                 $draft->data,
                 $telegramRates,
-                route('product-details.show', $product),
+                route('product-details.show', ['product' => $product->slug]),
             );
             $telegram->sendMessage($channelId, $text, parseMode: 'HTML');
             $draft->update(['channel_text_sent' => true]);
@@ -82,7 +82,7 @@ class PublishTelegramAccountListing implements ShouldBeUnique, ShouldQueue
 
         $telegram->sendMessage(
             $draft->chat_id,
-            'Posting selesai. Produk website dan channel sudah tayang: '.route('product-details.show', $product),
+            'Posting selesai. Produk website dan channel sudah tayang: '.route('product-details.show', ['product' => $product->slug]),
         );
         $draft->update(['status' => 'published']);
     }

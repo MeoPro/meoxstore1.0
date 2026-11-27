@@ -580,7 +580,7 @@ it('preserves the selected shop currency when opening product details', function
 
     $this->get(route('shop', ['currency' => 'myr']))
         ->assertSee('data-shop-currency="myr" aria-pressed="true"', false)
-        ->assertSee(route('product-details.show', ['product' => $product, 'currency' => 'myr']), false);
+        ->assertSee(route('product-details.show', ['product' => $product->slug, 'currency' => 'myr']), false);
 
     $this->get(route('product-details.show', ['product' => $product, 'currency' => 'myr']))
         ->assertSee('data-product-currency="myr" aria-pressed="true"', false)

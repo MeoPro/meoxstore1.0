@@ -120,7 +120,7 @@
                                 <div>
                                     <h2 class="store-review-product">
                                         @if ($review->product->status === 'active')
-                                            <a href="{{ route('product-details.show', $review->product) }}">{{ $review->product->name }}</a>
+                                            <a href="{{ route('product-details.show', ['product' => $review->product->slug]) }}">{{ $review->product->name }}</a>
                                         @else
                                             {{ $review->product->name }}
                                         @endif

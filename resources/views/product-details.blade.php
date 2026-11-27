@@ -238,12 +238,12 @@
         <ol>
           <li><a href="{{ route('home') }}">{{ __('store.home') }}</a></li>
           <li><a href="{{ route('shop', ['currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ __('store.shop') }}</a></li>
-          <li><a href="{{ route('shop', ['game' => $product->game_category_id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->gameCategory->name }}</a></li>
+          <li><a href="{{ route('shop', ['game' => $product->gameCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->gameCategory->name }}</a></li>
           @if ($product->itemCategory)
-            <li><a href="{{ route('shop', ['game' => $product->game_category_id, 'item_category' => $product->item_category_id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->itemCategory->localizedName() }}</a></li>
+            <li><a href="{{ route('shop', ['game' => $product->gameCategory->slug, 'item_category' => $product->itemCategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $product->itemCategory->localizedName() }}</a></li>
           @endif
           @foreach ($product->itemSubcategories as $itemSubcategory)
-            <li><a href="{{ route('shop', ['game' => $product->game_category_id, 'item_category' => $product->item_category_id, 'item_subcategory' => $itemSubcategory->id, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $itemSubcategory->localizedName() }}</a></li>
+            <li><a href="{{ route('shop', ['game' => $product->gameCategory->slug, 'item_category' => $product->itemCategory->slug, 'item_subcategory' => $itemSubcategory->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">{{ $itemSubcategory->localizedName() }}</a></li>
           @endforeach
           <li aria-current="page">{{ $product->name }}</li>
         </ol>
@@ -476,7 +476,7 @@
               @endphp
               <div class="product-recommendation-item">
                 <article class="product-recommendation-card">
-                  <a href="{{ route('product-details.show', ['product' => $recommendedProduct, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
+                  <a href="{{ route('product-details.show', ['product' => $recommendedProduct->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
                     <img src="{{ $recommendedImage }}" alt="{{ $recommendedProduct->name }}">
                     <div class="product-recommendation-copy">
                       <span>{{ $recommendedProduct->gameCategory->name }}</span>
@@ -519,7 +519,7 @@
               @endphp
               <div class="product-recommendation-item">
                 <article class="product-recommendation-card">
-                  <a href="{{ route('product-details.show', ['product' => $recommendedProduct, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
+                  <a href="{{ route('product-details.show', ['product' => $recommendedProduct->slug, 'currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency]) }}">
                     <img src="{{ $recommendedImage }}" alt="{{ $recommendedProduct->name }}">
                     <div class="product-recommendation-copy">
                       <span>{{ $recommendedProduct->gameCategory->name }}</span>
@@ -560,7 +560,7 @@
                         : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg'));
               @endphp
               <div class="category-recommendation-item">
-                <a class="category-recommendation-card d-block text-decoration-none" href="{{ route('shop', ['currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency, 'item_category' => $recommendedCategory->id]) }}">
+                <a class="category-recommendation-card d-block text-decoration-none" href="{{ route('shop', ['currency' => $selectedCurrency === 'idr' ? null : $selectedCurrency, 'item_category' => $recommendedCategory->slug]) }}">
                   <img src="{{ $categoryImage }}" alt="{{ $recommendedCategory->localizedName() }}">
                   <h3>{{ $recommendedCategory->localizedName() }}</h3>
                 </a>

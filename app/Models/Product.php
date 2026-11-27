@@ -39,6 +39,32 @@ class Product extends Model
         'badges' => '[]',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $product): void {
+            if (! $product->isDirty('name') && filled($product->slug)) {
+                return;
+            }
+
+            $baseSlug = Str::slug($product->name) ?: 'product';
+            if (ctype_digit($baseSlug)) {
+                $baseSlug = 'product-'.$baseSlug;
+            }
+
+            $slug = $baseSlug;
+            $suffix = 2;
+            while (self::query()
+                ->where('slug', $slug)
+                ->when($product->exists, fn ($query) => $query->where('id', '!=', $product->getKey()))
+                ->exists()) {
+                $slug = $baseSlug.'-'.$suffix;
+                $suffix++;
+            }
+
+            $product->slug = $slug;
+        });
+    }
+
     protected function casts(): array
     {
         return [

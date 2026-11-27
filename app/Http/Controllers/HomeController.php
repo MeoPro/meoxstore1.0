@@ -78,7 +78,7 @@ class HomeController extends Controller
                 ->select(['id', 'game_category_id', 'image'])
                 ->orderBy('name')
                 ->limit(1)])
-            ->get(['id', 'name', 'image'])
+            ->get(['id', 'name', 'slug', 'image'])
             ->keyBy('id');
 
         $bestSellingGameCategories = $bestSellingGameCategoryIds
@@ -111,7 +111,7 @@ class HomeController extends Controller
                 ->select(['id', 'item_category_id', 'image'])
                 ->orderBy('name')
                 ->limit(1)])
-            ->get(['id', 'name', 'image'])
+            ->get(['id', 'name', 'slug', 'image'])
             ->keyBy('id');
 
         $bestSellingItemCategories = $bestSellingItemCategoryIds

@@ -74,7 +74,7 @@ class AppServiceProvider extends ServiceProvider
                 ->orderByDesc('game_sales.sold_quantity')
                 ->orderBy('game_categories.name')
                 ->limit(5)
-                ->get(['game_categories.id', 'game_categories.name']);
+                ->get(['game_categories.id', 'game_categories.name', 'game_categories.slug']);
 
             $view->with([
                 'storefrontFeaturedGames' => $featuredGames,

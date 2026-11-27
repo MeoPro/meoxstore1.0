@@ -53,7 +53,7 @@ class ProductReviewController extends Controller
         ]);
 
         return redirect()
-            ->to(route('product-details.show', ['product' => $product->id]).'#reviews')
+            ->to(route('product-details.show', ['product' => $product->slug]).'#reviews')
             ->with('success', 'Terima kasih atas ulasan Anda.');
     }
 }

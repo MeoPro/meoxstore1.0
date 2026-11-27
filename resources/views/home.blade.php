@@ -258,7 +258,7 @@
                 <div class="col-6 col-md-6 col-lg-3 trending-items">
                     <div class="item shop-product-card">
                         <div class="thumb">
-                            <a href="{{ route('product-details.show', $product) }}">
+                            <a href="{{ route('product-details.show', ['product' => $product->slug]) }}">
                                 <img src="{{ $product->image ? \Illuminate\Support\Facades\Storage::disk('public')->url($product->image) : $fallbackImage }}" alt="{{ $product->name }}">
                             </a>
                             @if ($product->badges !== [])
@@ -328,13 +328,13 @@
                                         ? \Illuminate\Support\Facades\Storage::disk('public')->url($representativeProduct->image)
                                         : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg')))
                                 <article class="home-category-card">
-                                    <a class="home-category-card-image" href="{{ route('shop', ['game' => $gameCategory->id]) }}">
+                                    <a class="home-category-card-image" href="{{ route('shop', ['game' => $gameCategory->slug]) }}">
                                         <img src="{{ $gameImage }}" alt="{{ $gameCategory->name }}">
                                     </a>
                                     <div class="home-category-card-content">
                                         <h3>{{ $gameCategory->name }}</h3>
                                         <p>{{ __('store.products_available', ['count' => $gameCategory->available_products_count]) }}</p>
-                                        <a class="home-category-card-link" href="{{ route('shop', ['game' => $gameCategory->id]) }}">
+                                        <a class="home-category-card-link" href="{{ route('shop', ['game' => $gameCategory->slug]) }}">
                                             {{ __('store.view_products') }} <i class="fa fa-arrow-right" aria-hidden="true"></i>
                                         </a>
                                     </div>
@@ -370,13 +370,13 @@
                                     ? \Illuminate\Support\Facades\Storage::disk('public')->url($representativeProduct->image)
                                     : asset('images/categories-0'.(($loop->index % 5) + 1).'.jpg')))
                             <article class="home-category-card">
-                                <a class="home-category-card-image" href="{{ route('shop', ['item_category' => $itemCategory->id]) }}">
+                                <a class="home-category-card-image" href="{{ route('shop', ['item_category' => $itemCategory->slug]) }}">
                                     <img src="{{ $itemImage }}" alt="{{ $itemCategory->localizedName() }}">
                                 </a>
                                 <div class="home-category-card-content">
                                     <h3>{{ $itemCategory->localizedName() }}</h3>
                                     <p>{{ __('store.products_available', ['count' => $itemCategory->available_products_count]) }}</p>
-                                    <a class="home-category-card-link" href="{{ route('shop', ['item_category' => $itemCategory->id]) }}">
+                                    <a class="home-category-card-link" href="{{ route('shop', ['item_category' => $itemCategory->slug]) }}">
                                         {{ __('store.view_products') }} <i class="fa fa-arrow-right" aria-hidden="true"></i>
                                     </a>
                                 </div>

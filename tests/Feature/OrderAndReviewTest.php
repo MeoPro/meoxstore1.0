@@ -469,7 +469,7 @@ it('allows customers to review each completed purchase once', function () {
 
     $this->actingAs($buyer)
         ->post(route('products.reviews.store', $product), ['rating' => 5, 'comment' => 'Great fruit!'])
-        ->assertRedirect(route('product-details.show', $product).'#reviews');
+        ->assertRedirect(route('product-details.show', ['product' => $product->slug]).'#reviews');
 
     $this->assertDatabaseHas('product_reviews', [
         'product_id' => $product->id,
@@ -509,7 +509,7 @@ it('allows customers to review each completed purchase once', function () {
         ->assertSee('class="review-form"', false);
 
     $this->post(route('products.reviews.store', $product), ['rating' => 3, 'comment' => 'Second purchase'])
-        ->assertRedirect(route('product-details.show', $product).'#reviews');
+        ->assertRedirect(route('product-details.show', ['product' => $product->slug]).'#reviews');
 
     $this->assertDatabaseHas('product_reviews', [
         'product_id' => $product->id,
@@ -832,7 +832,7 @@ it('allows a buyer to submit a five-star rating without a review comment', funct
 
     $this->actingAs($buyer)
         ->post(route('products.reviews.store', $product), ['rating' => 5])
-        ->assertRedirect(route('product-details.show', $product).'#reviews');
+        ->assertRedirect(route('product-details.show', ['product' => $product->slug]).'#reviews');
 
     $this->assertDatabaseHas('product_reviews', [
         'product_id' => $product->id,

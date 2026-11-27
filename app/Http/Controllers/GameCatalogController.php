@@ -39,7 +39,7 @@ class GameCatalogController extends Controller
                 ->orderBy('name')
                 ->limit(1)])
             ->orderBy('name')
-            ->get(['id', 'name', 'image']);
+            ->get(['id', 'name', 'slug', 'image']);
 
         return view('games.index', [
             'games' => $games,

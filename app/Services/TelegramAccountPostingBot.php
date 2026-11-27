@@ -1560,7 +1560,7 @@ class TelegramAccountPostingBot
             $product = $this->createProduct->execute($draft->fresh());
             $draft->update(['last_update_id' => $updateId]);
             PublishTelegramAccountListing::dispatch($draft->fresh()->id);
-            $productUrl = route('product-details.show', $product);
+            $productUrl = route('product-details.show', ['product' => $product->slug]);
 
             $this->sendDraftMessage(
                 $draft,

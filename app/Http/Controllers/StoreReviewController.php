@@ -31,7 +31,7 @@ class StoreReviewController extends Controller
 
         $reviews = $this->visibleCompletedPurchaseReviews()
             ->with([
-                'product:id,name,status',
+                'product:id,name,slug,status',
                 'user:id,name',
             ])
             ->latest()

@@ -35,20 +35,26 @@ class ProductDetailsController extends Controller
             return redirect()->route('shop');
         }
 
-        return redirect()->route('product-details.show', $product);
+        return redirect()->route('product-details.show', ['product' => $product->slug]);
     }
 
-    public function show(Request $request, Product $product): View
+    public function show(Request $request, string $productKey): View
     {
+        $product = Product::query()->where('slug', $productKey)->first();
+        if ($product === null && ctype_digit($productKey)) {
+            $product = Product::query()->findOrFail((int) $productKey);
+        }
+        abort_if($product === null, 404);
+
         $selectedCurrency = $request->query('currency', 'idr');
         if (! in_array($selectedCurrency, ['idr', 'myr', 'usd'], true)) {
             $selectedCurrency = 'idr';
         }
 
         $product->load([
-            'gameCategory:id,name',
-            'itemCategory:id,name,bobux_type,uses_robux',
-            'itemSubcategories:id,parent_id,name',
+            'gameCategory:id,name,slug',
+            'itemCategory:id,name,slug,bobux_type,uses_robux',
+            'itemSubcategories:id,parent_id,name,slug',
             'reviews' => fn ($query) => $query->where('is_hidden', false)->with('user:id,name')->latest()->limit(20),
             'variants' => fn ($query) => $query
                 ->where('status', 'active')
@@ -112,7 +118,7 @@ class ProductDetailsController extends Controller
             ->where('id', '!=', $product->id)
             ->whereHas('variants', $availableVariantsQuery)
             ->with([
-                'gameCategory:id,name',
+                'gameCategory:id,name,slug',
                 'itemCategory:id,bobux_type,uses_robux',
                 'variants' => fn ($query) => $query
                     ->where('status', 'active')
@@ -160,7 +166,7 @@ class ProductDetailsController extends Controller
                 ->limit(1)])
             ->orderByDesc('category_sales.sold_quantity')
             ->orderBy('item_categories.name')
-            ->get(['item_categories.id', 'item_categories.name', 'item_categories.image'])
+            ->get(['item_categories.id', 'item_categories.name', 'item_categories.slug', 'item_categories.image'])
             ->unique(fn (ItemCategory $itemCategory): string => $itemCategory->localizedName())
             ->values();
 

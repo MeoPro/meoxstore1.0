@@ -191,7 +191,7 @@ class BlogController extends Controller
                 ->whereHas('variants', fn ($variantQuery) => $variantQuery
                     ->where('status', 'active')
                     ->where('stock', '>', 0))
-                ->with(['gameCategory:id,name', 'itemCategory:id,name'])])
+                ->with(['gameCategory:id,name,slug', 'itemCategory:id,name,slug'])])
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
@@ -221,7 +221,7 @@ class BlogController extends Controller
                         ->where('status', 'active')
                         ->where('stock', '>', 0)))
                 ->orderBy('name')
-                ->get(['id', 'name'])
+                ->get(['id', 'name', 'slug'])
             : collect();
 
         $sidebarItemCategories = $types->contains(BlogSidebarBlock::TYPE_ITEM_CATEGORIES)
@@ -233,7 +233,7 @@ class BlogController extends Controller
                         ->where('status', 'active')
                         ->where('stock', '>', 0)))
                 ->orderBy('name')
-                ->get(['id', 'name'])
+                ->get(['id', 'name', 'slug'])
             : collect();
 
         return compact(
