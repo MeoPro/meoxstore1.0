@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\CancelOrder;
 use App\Actions\QueueBuyerOrderUpdate;
 use App\Actions\UpdateCouponOrderUsage;
 use App\Enums\BuyerOrderUpdateType;
@@ -26,6 +27,7 @@ class OrderController extends Controller
 
     public function __construct(
         private QueueBuyerOrderUpdate $queueBuyerOrderUpdate,
+        private CancelOrder $cancelOrder,
         private UpdateCouponOrderUsage $updateCouponOrderUsage,
     ) {}
 
@@ -193,14 +195,12 @@ class OrderController extends Controller
     private function applyStatusTransition(Order $order, string $nextStatus): void
     {
         if ($nextStatus === 'cancelled') {
-            foreach ($order->items as $item) {
-                if ($item->product_variant_id !== null) {
-                    $item->variant()->lockForUpdate()->first()?->increment('stock', $item->quantity);
-                }
-            }
+            $this->cancelOrder->handle($order);
 
-            $this->updateCouponOrderUsage->release($order);
-        } elseif ($nextStatus === 'payment_confirmed') {
+            return;
+        }
+
+        if ($nextStatus === 'payment_confirmed') {
             $this->updateCouponOrderUsage->redeem($order);
         }
 

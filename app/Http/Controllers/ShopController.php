@@ -12,6 +12,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ShopController extends Controller
 {
@@ -175,7 +176,7 @@ class ShopController extends Controller
             ->withSum([
                 'orderItems as sold_quantity' => fn (Builder $query) => $query
                     ->whereHas('order', fn (Builder $orders) => $orders->where('status', 'completed')),
-            ], 'quantity');
+            ], DB::raw('COALESCE(order_items.robux_amount, order_items.quantity)'));
 
         if ($selectedSort === 'price_asc') {
             $productQuery->orderBy($this->minimumDisplayedPriceQuery($selectedCurrency, $currencyRates));

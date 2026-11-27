@@ -260,6 +260,23 @@ it('checks out only the selected cart products and keeps the other items in the 
         ->assertSee(Storage::disk('public')->url('products/selected-product.webp'), false);
 });
 
+it('keeps product purchase actions sticky on mobile and places the description after the purchase form', function () {
+    $product = Product::factory()->create(['status' => 'active']);
+
+    $response = $this->get(route('product-details.show', $product))
+        ->assertOk()
+        ->assertSee('data-mobile-purchase-bar', false)
+        ->assertSee('.product-detail-buy-actions[data-mobile-purchase-bar] {', false)
+        ->assertSee('position: fixed;', false);
+    $html = $response->getContent();
+    $purchaseFormPosition = strpos($html, '<form class="purchase-details-panel product-purchase-card"');
+    $descriptionPosition = strpos($html, '<section class="product-detail-description-card"');
+
+    expect($purchaseFormPosition)->toBeInt();
+    expect($descriptionPosition)->toBeInt();
+    expect($purchaseFormPosition)->toBeLessThan($descriptionPosition);
+});
+
 it('records Bobux value multiplied by quantity as soon as checkout creates an order', function () {
     $gameCategory = GameCategory::factory()->create(['name' => 'Roblox']);
     $robuxCategory = ItemCategory::factory()->create([

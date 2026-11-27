@@ -84,6 +84,9 @@ Route::delete('/checkout/coupon', [CheckoutController::class, 'removeCoupon'])->
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::post('/orders/{order}/payment-proof', [OrderController::class, 'submitPaymentProof'])->name('orders.payment-proof');
+Route::get('/orders/{order}/messages', [OrderMessageController::class, 'poll'])
+    ->middleware('throttle:60,1')
+    ->name('orders.messages.poll');
 Route::post('/orders/{order}/messages', [OrderMessageController::class, 'store'])
     ->middleware('throttle:30,1')
     ->name('orders.messages.store');
@@ -112,6 +115,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [ProfileController::class, 'settings'])->name('profile.settings');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::post('/products/{product}/reviews', [ProductReviewController::class, 'store'])->name('products.reviews.store');
 });
 
@@ -119,6 +123,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('performance', PerformanceController::class)->name('performance.index');
     Route::get('cashier', [CashierController::class, 'index'])->name('cashier.index');
     Route::post('cashier', [CashierController::class, 'store'])->name('cashier.store');
+    Route::get('cashier/history', [CashierController::class, 'history'])->name('cashier.history');
+    Route::patch('cashier/{order}/revenue', [CashierController::class, 'updateRevenue'])->name('cashier.revenue.update');
+    Route::delete('cashier/{order}', [CashierController::class, 'destroy'])->name('cashier.destroy');
     Route::get('expenses', [ExpenseController::class, 'index'])->name('expenses.index');
     Route::post('expenses', [ExpenseController::class, 'store'])->name('expenses.store');
     Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
@@ -131,6 +138,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('orders/queue', [AdminOrderController::class, 'queue'])->name('orders.queue');
     Route::post('orders/bulk-status', [AdminOrderController::class, 'bulkUpdateStatus'])->name('orders.bulk-status');
+    Route::get('orders/{order}/messages', [OrderMessageController::class, 'poll'])
+        ->middleware('throttle:60,1')
+        ->name('orders.messages.poll');
     Route::post('orders/{order}/messages', [OrderMessageController::class, 'store'])
         ->middleware('throttle:30,1')
         ->name('orders.messages.store');

@@ -303,6 +303,106 @@ it('restores reserved stock when an administrator cancels an order', function ()
         ->and($variant->fresh()->stock)->toBe(4);
 });
 
+it('allows a buyer to cancel an unpaid order and releases its stock and coupon reservation', function () {
+    $buyer = User::factory()->create();
+    $product = Product::factory()->create(['status' => 'active']);
+    $variant = $product->variants()->firstOrFail();
+    $variant->update(['stock' => 0, 'maximum_quantity' => 1]);
+    $coupon = Coupon::factory()->create([
+        'stock' => 1,
+        'reserved_uses' => 1,
+    ]);
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'pending',
+        'total' => '9000.00',
+        'coupon_id' => $coupon->id,
+        'coupon_code' => $coupon->code,
+        'coupon_discount_amount' => '1000.00',
+        'coupon_usage_status' => 'reserved',
+    ]);
+    $order->items()->create([
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'product_name' => $product->name,
+        'variant_name' => $variant->name,
+        'quantity' => 1,
+        'unit_price' => '10000.00',
+    ]);
+
+    $this->actingAs($buyer)
+        ->get(route('profile.edit'))
+        ->assertSee('action="'.route('orders.cancel', $order).'"', false)
+        ->assertSee(__('store.cancel_order'));
+    $this->post(route('orders.cancel', $order))
+        ->assertRedirect(route('profile.edit'))
+        ->assertSessionHas('success', __('store.order_cancelled'));
+
+    expect($order->fresh()->status)->toBe('cancelled')
+        ->and($order->fresh()->coupon_usage_status)->toBe('released')
+        ->and($variant->fresh()->stock)->toBe(1)
+        ->and($coupon->fresh()->reserved_uses)->toBe(0);
+});
+
+it('requires the order owner to be authenticated before cancellation', function () {
+    $buyer = User::factory()->create();
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'pending',
+        'total' => '10000.00',
+    ]);
+
+    $this->post(route('orders.cancel', $order))
+        ->assertRedirectToRoute('login');
+    $this->actingAs(User::factory()->create())
+        ->post(route('orders.cancel', $order))
+        ->assertNotFound();
+
+    expect($order->fresh()->status)->toBe('pending');
+});
+
+it('does not allow buyers to cancel an order after payment is submitted', function () {
+    $buyer = User::factory()->create();
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'payment_submitted',
+        'total' => '10000.00',
+    ]);
+
+    $this->actingAs($buyer)
+        ->from(route('profile.edit'))
+        ->post(route('orders.cancel', $order))
+        ->assertSessionHasErrors('order');
+
+    expect($order->fresh()->status)->toBe('payment_submitted');
+});
+
+it('shows copy controls and an enlarged downloadable QR for unpaid orders', function () {
+    $buyer = User::factory()->create();
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'pending',
+        'total' => '12000.00',
+        'payment_details' => [
+            'currency' => 'idr',
+            'name' => 'BCA transfer',
+            'account_name' => 'Meoxstore',
+            'account_number' => '1234567890',
+            'qr_code_path' => 'payment-methods/bca-qr.png',
+        ],
+    ]);
+
+    $this->actingAs($buyer)
+        ->get(route('orders.show', $order))
+        ->assertSee('data-copy-payment="BCA transfer"', false)
+        ->assertSee('data-copy-payment="Meoxstore"', false)
+        ->assertSee('data-copy-payment="1234567890"', false)
+        ->assertSee('data-payment-qr-open', false)
+        ->assertSee('<dialog class="payment-qr-dialog"', false)
+        ->assertSee('download="bca-qr.png"', false)
+        ->assertSee(Storage::disk('public')->url('payment-methods/bca-qr.png'), false);
+});
+
 it('updates selected order statuses together and returns stock when cancelling them', function () {
     $admin = User::factory()->create(['is_admin' => true]);
     $product = Product::factory()->create(['status' => 'active']);

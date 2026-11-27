@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\AuthorizeOrderAccess;
+use App\Actions\CancelOrder;
 use App\Actions\QueueAdminPaymentSubmittedNotification;
 use App\Actions\QueueBuyerOrderUpdate;
 use App\Enums\BuyerOrderUpdateType;
@@ -84,6 +85,33 @@ class OrderController extends Controller
         return redirect()
             ->route('orders.show', $order)
             ->with('success', __('store.order_created'));
+    }
+
+    public function cancel(Request $request, Order $order, CancelOrder $cancelOrder): RedirectResponse
+    {
+        $userId = $request->user()->id;
+        abort_unless($order->user_id === $userId, 404);
+
+        DB::transaction(function () use ($order, $userId, $cancelOrder): void {
+            $lockedOrder = Order::query()
+                ->with('items')
+                ->lockForUpdate()
+                ->findOrFail($order->id);
+
+            abort_unless($lockedOrder->user_id === $userId, 404);
+
+            if ($lockedOrder->status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'order' => __('store.order_cancel_not_allowed'),
+                ]);
+            }
+
+            $cancelOrder->handle($lockedOrder);
+        });
+
+        return redirect()
+            ->route('profile.edit')
+            ->with('success', __('store.order_cancelled'));
     }
 
     public function show(Request $request, Order $order): View

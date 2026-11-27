@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductDetailsController extends Controller
 {
@@ -78,7 +79,7 @@ class ProductDetailsController extends Controller
 
         $soldCount = $product->orderItems()
             ->whereHas('order', fn ($query) => $query->where('status', 'completed'))
-            ->sum('quantity');
+            ->sum(DB::raw('COALESCE(order_items.robux_amount, order_items.quantity)'));
         $reviewSummary = $product->reviews()
             ->where('is_hidden', false)
             ->selectRaw(
@@ -226,7 +227,7 @@ class ProductDetailsController extends Controller
             ->join('order_items', 'order_items.product_id', '=', 'products.id')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.status', 'completed')
-            ->selectRaw('products.id as product_id, SUM(order_items.quantity) as sold_quantity')
+            ->selectRaw('products.id as product_id, SUM(COALESCE(order_items.robux_amount, order_items.quantity)) as sold_quantity')
             ->groupBy('products.id');
     }
 
@@ -240,7 +241,7 @@ class ProductDetailsController extends Controller
             ->whereHas('variants', fn ($query) => $query
                 ->where('status', 'active')
                 ->where('stock', '>', 0))
-            ->selectRaw('products.'.$categoryForeignKey.' as category_id, SUM(order_items.quantity) as sold_quantity')
+            ->selectRaw('products.'.$categoryForeignKey.' as category_id, SUM(COALESCE(order_items.robux_amount, order_items.quantity)) as sold_quantity')
             ->groupBy('products.'.$categoryForeignKey);
     }
 }

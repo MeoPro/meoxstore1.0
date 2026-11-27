@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Builder;
 
 class PerformanceController extends Controller
 {
@@ -20,17 +19,18 @@ class PerformanceController extends Controller
             ->whereBetween('payment_confirmed_at', [$monthStart, $periodEnd]);
 
         $salesSummary = (clone $paidOrders)
-            ->selectRaw('COUNT(*) AS paid_order_count, COALESCE(SUM(total), 0) AS sales_revenue')
+            ->selectRaw("COUNT(*) AS paid_order_count, COALESCE(SUM(CASE WHEN source = 'cashier' THEN COALESCE(cashier_actual_revenue, total) ELSE total END), 0) AS sales_revenue")
             ->first();
 
         $topProducts = OrderItem::query()
-            ->select(['product_id', 'product_name'])
-            ->selectRaw('SUM(quantity) AS units_sold, SUM(quantity * unit_price) AS product_revenue')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->select(['order_items.product_id', 'order_items.product_name'])
+            ->selectRaw('SUM(COALESCE(order_items.robux_amount, order_items.quantity)) AS units_sold')
+            ->selectRaw('SUM(CASE WHEN orders.source = ? THEN CASE WHEN orders.total > 0 THEN order_items.quantity * order_items.unit_price * COALESCE(orders.cashier_actual_revenue, orders.total) / orders.total ELSE 0 END ELSE order_items.quantity * order_items.unit_price END) AS product_revenue', ['cashier'])
             ->with('product:id,image')
-            ->whereHas('order', fn (Builder $orders) => $orders
-                ->whereIn('status', ['payment_confirmed', 'completed'])
-                ->whereBetween('payment_confirmed_at', [$monthStart, $periodEnd]))
-            ->groupBy('product_id', 'product_name')
+            ->whereIn('orders.status', ['payment_confirmed', 'completed'])
+            ->whereBetween('orders.payment_confirmed_at', [$monthStart, $periodEnd])
+            ->groupBy('order_items.product_id', 'order_items.product_name')
             ->orderByDesc('units_sold')
             ->orderByDesc('product_revenue')
             ->limit(5)

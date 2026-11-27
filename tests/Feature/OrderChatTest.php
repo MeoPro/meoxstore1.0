@@ -37,6 +37,8 @@ it('allows buyers to manage their own messages after submitting payment proof', 
         ->assertSee('data-order-chat-compose', false)
         ->assertSee('data-order-chat-send', false)
         ->assertSee('data-sending-label="'.__('store.order_chat_sending').'"', false)
+        ->assertSee('data-order-chat-poller', false)
+        ->assertSee('data-messages-url="'.route('orders.messages.poll', $order).'"', false)
         ->assertSee('name="body"', false);
 
     $this->actingAs($buyer)
@@ -53,6 +55,43 @@ it('allows buyers to manage their own messages after submitting payment proof', 
         ->assertRedirect(route('orders.show', $order));
 
     $this->assertDatabaseMissing('order_messages', ['id' => $message->id]);
+});
+
+it('provides newly received messages to authorized order chat polling requests', function () {
+    $buyer = User::factory()->create(['is_admin' => false]);
+    $admin = User::factory()->create(['is_admin' => true]);
+    $order = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'payment_confirmed',
+        'total' => '10000.00',
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.orders.messages.store', $order), ['body' => 'Admin replied while buyer page stayed open.'])
+        ->assertRedirect(route('admin.orders.show', $order));
+
+    $response = $this->actingAs($buyer)
+        ->getJson(route('orders.messages.poll', $order))
+        ->assertOk();
+
+    expect($response->json('html'))->toContain('Admin replied while buyer page stayed open.');
+
+    $otherOrder = Order::query()->create([
+        'user_id' => $buyer->id,
+        'status' => 'payment_confirmed',
+        'total' => '15000.00',
+    ]);
+    $otherOrder->messages()->create([
+        'user_id' => $admin->id,
+        'sender_type' => 'admin',
+        'body' => 'This message belongs to a different order.',
+    ]);
+
+    $otherOrderResponse = $this->actingAs($buyer)
+        ->getJson(route('orders.messages.poll', $order))
+        ->assertOk();
+
+    expect($otherOrderResponse->json('html'))->not->toContain('This message belongs to a different order.');
 });
 
 it('lets admins reply and moderate buyer messages but only edit their own', function () {

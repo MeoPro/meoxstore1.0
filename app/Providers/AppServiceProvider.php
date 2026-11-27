@@ -57,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
                 ->whereHas('variants', fn (Builder $query) => $query
                     ->where('status', 'active')
                     ->where('stock', '>', 0))
-                ->selectRaw('products.game_category_id, SUM(order_items.quantity) as sold_quantity')
+                ->selectRaw('products.game_category_id, SUM(COALESCE(order_items.robux_amount, order_items.quantity)) as sold_quantity')
                 ->groupBy('products.game_category_id');
 
             $featuredGames = GameCategory::query()

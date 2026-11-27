@@ -60,22 +60,36 @@ it('shows active products with game category, image, and starting price', functi
         ->assertDontSee('Draft Product');
 });
 
-it('shows page numbers with arrow-only pagination controls on the shop page', function () {
-    Product::factory()->count(13)->create()->each(
+it('limits mobile shop pagination to five page numbers with arrow-only controls', function () {
+    Product::factory()->count(84)->create()->each(
         fn (Product $product) => $product->variants()->update(['stock' => 5, 'maximum_quantity' => 5]),
     );
+    $mobilePageNumbers = static function (string $content): array {
+        preg_match('/<ul class="pagination shop-pagination-mobile" data-shop-pagination-mobile>(.*?)<\/ul>/s', $content, $paginationMatch);
+        expect($paginationMatch)->not->toBeEmpty();
+        preg_match_all('/data-page-number="(\d+)"/', $paginationMatch[1], $pageMatches);
 
-    $this->get(route('shop'))
+        return $pageMatches[1];
+    };
+
+    $firstPage = $this->get(route('shop'))
         ->assertOk()
-        ->assertViewHas('products', fn ($products): bool => $products->total() === 13)
+        ->assertViewHas('products', fn ($products): bool => $products->total() === 84)
         ->assertSee('aria-label="Navigasi halaman"', false)
         ->assertSee('aria-label="&laquo; Previous"', false)
         ->assertSee('aria-label="Next &raquo;"', false)
         ->assertSee(route('shop', ['page' => 2]), false)
-        ->assertSee('aria-current="page"', false)
         ->assertSee('&rsaquo;</a>', false)
         ->assertDontSee('>Previous</a>', false)
         ->assertDontSee('>Next</a>', false);
+
+    expect($mobilePageNumbers($firstPage->getContent()))->toBe(['1', '2', '3', '4', '7']);
+
+    $middlePage = $this->get(route('shop', ['page' => 4]))->assertOk();
+    expect($mobilePageNumbers($middlePage->getContent()))->toBe(['1', '3', '4', '5', '7']);
+
+    $lastPage = $this->get(route('shop', ['page' => 7]))->assertOk();
+    expect($mobilePageNumbers($lastPage->getContent()))->toBe(['1', '4', '5', '6', '7']);
 });
 
 it('uses the cheapest available variant for shop prices and price filters', function () {

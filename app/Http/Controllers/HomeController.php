@@ -12,6 +12,7 @@ use App\Models\StoreSetting;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
@@ -40,7 +41,10 @@ class HomeController extends Controller
             ])
             ->withCount(['reviews' => fn (Builder $query) => $query->where('is_hidden', false)])
             ->withAvg(['reviews' => fn (Builder $query) => $query->where('is_hidden', false)], 'rating')
-            ->withSum(['orderItems as sold_quantity' => $completedOrderItems], 'quantity')
+            ->withSum(
+                ['orderItems as sold_quantity' => $completedOrderItems],
+                DB::raw('COALESCE(order_items.robux_amount, order_items.quantity)'),
+            )
             ->orderByDesc('sold_quantity')
             ->orderByDesc('id')
             ->limit(5)
@@ -60,7 +64,7 @@ class HomeController extends Controller
             ->where('orders.status', 'completed')
             ->whereHas('variants', $availableVariants)
             ->whereHas('gameCategory', fn (Builder $query) => $query->where('status', 'active'))
-            ->selectRaw('products.game_category_id as category_id, SUM(order_items.quantity) as sold_quantity')
+            ->selectRaw('products.game_category_id as category_id, SUM(COALESCE(order_items.robux_amount, order_items.quantity)) as sold_quantity')
             ->groupBy('products.game_category_id')
             ->orderByDesc('sold_quantity')
             ->orderByDesc('category_id')
@@ -93,7 +97,7 @@ class HomeController extends Controller
             ->where('orders.status', 'completed')
             ->whereHas('variants', $availableVariants)
             ->whereHas('itemCategory', fn (Builder $query) => $query->where('status', 'active'))
-            ->selectRaw('products.item_category_id as category_id, SUM(order_items.quantity) as sold_quantity')
+            ->selectRaw('products.item_category_id as category_id, SUM(COALESCE(order_items.robux_amount, order_items.quantity)) as sold_quantity')
             ->groupBy('products.item_category_id')
             ->orderByDesc('sold_quantity')
             ->orderByDesc('category_id')

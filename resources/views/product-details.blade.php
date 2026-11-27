@@ -90,11 +90,13 @@
     .product-detail-description-card h5 { margin-bottom: 6px; }
     .product-detail-description-card .product-detail-description { margin-top: 0; }
     .product-detail-buy { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr); margin-top: 26px; }
+    .product-detail-buy-actions { display: contents; }
     .product-detail-buy > div { min-width: 0; }
     .product-detail-buy label { color: #1e1e1e; display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
     .single-product .product-detail-buy button { align-items: center; background: #ee626b; border: 0; border-radius: 16px; box-sizing: border-box; color: #fff; cursor: pointer; display: inline-flex; height: 56px; justify-content: center; line-height: 1; font-weight: 700; padding: 10px; text-align: center; transition: background-color .2s, box-shadow .2s, transform .2s; vertical-align: middle; }
     .single-product .product-detail-buy .product-detail-add-cart { font-size: 20px; padding: 0; width: 56px; }
     .single-product .product-detail-buy .product-detail-add-cart i { display: block; line-height: 1; margin: 0; }
+    .product-detail-cart-label { display: none; }
     .single-product .product-detail-buy .product-detail-buy-now { box-shadow: 0 8px 18px rgba(238, 98, 107, .2); font-size: 16px; min-width: 0; padding: 10px 16px; width: 100%; }
     .product-detail-buy button:hover { background: #0071f8; }
     .product-detail-buy button:disabled { cursor: not-allowed; opacity: .55; }
@@ -200,6 +202,26 @@
     @media (max-width: 767.98px) {
       .product-detail-panel { padding: 18px; }
       .product-detail-description-card { padding: 20px; }
+      .product-detail-page { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+      .product-detail-buy { grid-template-columns: minmax(0, 1fr); padding-bottom: 90px; }
+      .product-detail-buy-actions[data-mobile-purchase-bar] {
+        background: #fff;
+        border-top: 1px solid #e6eaf2;
+        bottom: 0;
+        box-shadow: 0 -8px 24px rgba(30, 56, 90, .12);
+        display: grid;
+        gap: 10px;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+        left: 0;
+        padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+        position: fixed;
+        right: 0;
+        z-index: 1050;
+      }
+      .single-product .product-detail-buy .product-detail-add-cart { font-size: 12px; gap: 6px; padding: 8px; width: 100%; }
+      .product-detail-cart-label { display: inline; line-height: 1.1; }
+      .single-product .product-detail-buy .product-detail-buy-now { font-size: 14px; padding: 8px 12px; }
+      .product-detail-page .storefront-whatsapp-float { bottom: calc(88px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -310,27 +332,6 @@
                   </div>
 
                 </div>
-                <section class="product-detail-description-card" aria-labelledby="product-description-heading">
-                  <h5 id="product-description-heading">{{ __('store.description') }}</h5>
-                  <div
-                    id="product-description-copy"
-                    class="product-detail-description-copy {{ \Illuminate\Support\Str::length($productDescription) > 320 ? '' : 'is-expanded' }}"
-                    data-product-description
-                  >
-                    <p class="product-detail-description mb-0">{{ $productDescription }}</p>
-                  </div>
-                  @if (\Illuminate\Support\Str::length($productDescription) > 320)
-                    <button
-                      class="product-detail-description-toggle"
-                      type="button"
-                      aria-expanded="false"
-                      aria-controls="product-description-copy"
-                      data-product-description-toggle
-                      data-show-more-label="{{ __('store.show_more') }}"
-                      data-show-less-label="{{ __('store.show_less') }}"
-                    >{{ __('store.show_more') }}</button>
-                  @endif
-                </section>
             </div>
           </div>
         </div>
@@ -429,13 +430,39 @@
                   <label for="order-quantity">{{ __('store.quantity') }}</label>
                   <input id="order-quantity" name="quantity" type="number" min="{{ $selectedVariant->minimum_quantity }}" max="{{ min($selectedVariant->maximum_quantity, $selectedVariant->stock) }}" value="{{ $selectedVariant->minimum_quantity }}" required data-order-quantity data-stock="{{ $selectedVariant->stock }}" data-stock-error-label="{{ __('store.stock_not_enough') }}">
                 </div>
-                <button class="product-detail-add-cart" type="submit" aria-label="{{ __('store.add_product_to_cart', ['product' => $product->localizedName()]) }}" title="{{ __('store.add_to_cart') }}" data-order-submit @disabled($selectedVariant->stock < 1 || $robuxTransactionsDisabled)>
-                  <i class="fa fa-shopping-cart" aria-hidden="true"></i>
-                  <span class="visually-hidden">{{ __('store.add_to_cart') }}</span>
-                </button>
-                <button class="product-detail-buy-now" type="submit" formaction="{{ route('checkout.direct') }}" data-checkout-submit data-order-submit @disabled($selectedVariant->stock < 1 || $robuxTransactionsDisabled)>{{ __('store.buy_now') }}</button>
+                <div class="product-detail-buy-actions" data-mobile-purchase-bar>
+                  <button class="product-detail-add-cart" type="submit" aria-label="{{ __('store.add_product_to_cart', ['product' => $product->localizedName()]) }}" title="{{ __('store.add_to_cart') }}" data-order-submit @disabled($selectedVariant->stock < 1 || $robuxTransactionsDisabled)>
+                    <i class="fa fa-shopping-cart" aria-hidden="true"></i>
+                    <span class="product-detail-cart-label">{{ __('store.add_to_cart') }}</span>
+                    <span class="visually-hidden">{{ __('store.add_to_cart') }}</span>
+                  </button>
+                  <button class="product-detail-buy-now" type="submit" formaction="{{ route('checkout.direct') }}" data-checkout-submit data-order-submit @disabled($selectedVariant->stock < 1 || $robuxTransactionsDisabled)>{{ __('store.buy_now') }}</button>
+                </div>
               </div>
             </form>
+        </div>
+        <div class="col-lg-7">
+          <section class="product-detail-description-card" aria-labelledby="product-description-heading">
+            <h5 id="product-description-heading">{{ __('store.description') }}</h5>
+            <div
+              id="product-description-copy"
+              class="product-detail-description-copy {{ \Illuminate\Support\Str::length($productDescription) > 320 ? '' : 'is-expanded' }}"
+              data-product-description
+            >
+              <p class="product-detail-description mb-0">{{ $productDescription }}</p>
+            </div>
+            @if (\Illuminate\Support\Str::length($productDescription) > 320)
+              <button
+                class="product-detail-description-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="product-description-copy"
+                data-product-description-toggle
+                data-show-more-label="{{ __('store.show_more') }}"
+                data-show-less-label="{{ __('store.show_less') }}"
+              >{{ __('store.show_more') }}</button>
+            @endif
+          </section>
         </div>
       </div>
 

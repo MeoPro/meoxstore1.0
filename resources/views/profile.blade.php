@@ -41,8 +41,12 @@
         .profile-orders-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 12px; }
         .profile-orders-heading h2 { font-size: 17px; font-weight: 650; margin: 0; }
         .profile-show-all { color: #2877c9; font-size: 13px; font-weight: 600; text-decoration: none; }
-        .profile-order { align-items: center; animation: profile-order-enter .35s ease both; background: #fff; border: 1px solid #e8edf3; border-radius: 12px; color: inherit; display: flex; gap: 14px; justify-content: space-between; margin-top: 10px; padding: 16px; text-decoration: none; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+        .profile-order-row { align-items: center; display: flex; gap: 10px; margin-top: 10px; }
+        .profile-order { align-items: center; animation: profile-order-enter .35s ease both; background: #fff; border: 1px solid #e8edf3; border-radius: 12px; color: inherit; display: flex; flex: 1 1 auto; gap: 14px; justify-content: space-between; min-width: 0; padding: 16px; text-decoration: none; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
         .profile-order:hover { border-color: #c8dcf8; box-shadow: 0 8px 22px rgba(33, 83, 140, .08); transform: translateY(-2px); }
+        .profile-order-cancel-form { flex: 0 0 auto; margin: 0; }
+        .profile-order-cancel { background: #fff; border: 1px solid #f0b5b8; border-radius: 10px; color: #b4232c; font-size: 13px; font-weight: 600; min-height: 42px; padding: 8px 12px; }
+        .profile-order-cancel:hover { background: #fff3f3; border-color: #e58b91; }
         @keyframes profile-order-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .profile-order-name { font-weight: 600; }
         .profile-order-meta { color: #758092; font-size: 12px; margin-top: 3px; }
@@ -56,6 +60,8 @@
             .profile-status:nth-child(2) { border-right: 0; }
             .profile-status:nth-child(n+3) { border-top: 1px solid #e7ebef; }
             .profile-orders { padding: 18px 15px; }
+            .profile-order-row { align-items: stretch; flex-direction: column; }
+            .profile-order-cancel-form { align-self: flex-end; }
         }
     </style>
 </head>
@@ -64,6 +70,9 @@
     <main class="container profile-page">
         @if (session('success'))
             <div class="alert alert-success" role="status">{{ session('success') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
         @endif
         <section class="profile-hero">
             <div class="profile-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</div>
@@ -109,14 +118,22 @@
                     </div>
                 </div>
                 @forelse ($orders as $order)
-                    <a class="profile-order" href="{{ route('orders.show', $order) }}">
-                        <span>
-                            <span class="profile-order-name">{{ __('store.order') }} {{ $order->publicNumber() }}</span>
-                            <span class="profile-order-meta d-block">{{ $order->created_at->format('d M Y, H:i') }} · {{ $order->items_count }} {{ __('store.product') }}</span>
-                            <span class="profile-order-meta d-block">{{ __('store.status_'.$order->status) }}</span>
-                        </span>
-                        <span class="profile-order-total">Rp {{ number_format((float) $order->total, 0, ',', '.') }} <i class="fa fa-angle-right ms-1" aria-hidden="true"></i></span>
-                    </a>
+                    <div class="profile-order-row">
+                        <a class="profile-order" href="{{ route('orders.show', $order) }}">
+                            <span>
+                                <span class="profile-order-name">{{ __('store.order') }} {{ $order->publicNumber() }}</span>
+                                <span class="profile-order-meta d-block">{{ $order->created_at->format('d M Y, H:i') }} · {{ $order->items_count }} {{ __('store.product') }}</span>
+                                <span class="profile-order-meta d-block">{{ __('store.status_'.$order->status) }}</span>
+                            </span>
+                            <span class="profile-order-total">Rp {{ number_format((float) $order->total, 0, ',', '.') }} <i class="fa fa-angle-right ms-1" aria-hidden="true"></i></span>
+                        </a>
+                        @if ($order->status === 'pending')
+                            <form class="profile-order-cancel-form" method="POST" action="{{ route('orders.cancel', $order) }}">
+                                @csrf
+                                <button class="profile-order-cancel" type="submit">{{ __('store.cancel_order') }}</button>
+                            </form>
+                        @endif
+                    </div>
                 @empty
                     <p class="text-secondary mb-0">{{ __('store.no_orders') }}</p>
                 @endforelse

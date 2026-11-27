@@ -19,6 +19,8 @@ class Order extends Model
         'status',
         'source',
         'total',
+        'cashier_actual_revenue',
+        'cashier_history_deleted_at',
         'payment_proof_path',
         'payment_details',
         'delivery_details',
@@ -39,6 +41,8 @@ class Order extends Model
     {
         return [
             'total' => 'decimal:2',
+            'cashier_actual_revenue' => 'decimal:2',
+            'cashier_history_deleted_at' => 'datetime',
             'coupon_discount_amount' => 'decimal:2',
             'payment_details' => 'array',
             'delivery_details' => 'encrypted:array',

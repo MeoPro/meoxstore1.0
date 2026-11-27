@@ -78,6 +78,15 @@
         .payment-detail-row { align-items: start; border-bottom: 1px solid #e8edf3; display: grid; gap: 10px; grid-template-columns: minmax(105px, .75fr) minmax(0, 1.25fr); padding: 10px 0; }
         .payment-detail-label { color: #778397; }
         .payment-detail-value { font-weight: 650; overflow-wrap: anywhere; text-align: right; }
+        .payment-detail-copy { align-items: center; background: #fff; border: 1px solid #d5dfeb; border-radius: 7px; color: #2877c9; display: inline-flex; font-size: 11px; gap: 5px; line-height: 1; padding: 6px 8px; }
+        .payment-detail-copy:hover { background: #edf5ff; border-color: #a9c8ef; }
+        .payment-copy-status { display: block; }
+        .payment-qr-preview { cursor: zoom-in; display: block; margin: 0 auto 12px; max-width: 100%; width: fit-content; }
+        .payment-qr-image { border-radius: 10px; height: auto; max-height: 360px; max-width: 100%; object-fit: contain; }
+        .payment-qr-dialog { border: 0; border-radius: 16px; box-shadow: 0 24px 80px rgba(0, 0, 0, .3); max-height: 90vh; max-width: 90vw; overflow: visible; padding: 24px; position: relative; }
+        .payment-qr-dialog::backdrop { background: rgba(15, 23, 42, .76); }
+        .payment-qr-dialog img { display: block; height: auto; max-height: 82vh; max-width: 84vw; object-fit: contain; }
+        .payment-qr-dialog-close { align-items: center; background: #fff; border: 1px solid #d5dfeb; border-radius: 50%; color: #344054; display: inline-flex; height: 38px; justify-content: center; position: absolute; right: 8px; top: 8px; width: 38px; z-index: 1; }
         .order-delivery-details-list { display: grid; margin: 12px 0 0; }
         .order-delivery-detail-row { align-items: baseline; border-bottom: 1px solid #e8edf3; display: flex; gap: 8px; padding: 10px 0; }
         .order-delivery-detail-label { color: #778397; flex: 0 0 auto; }
@@ -309,16 +318,53 @@
                     @if ($paymentDetails && (($paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? null) || ($paymentDetails['qr_code_path'] ?? null)))
                         <p class="mb-1">{{ __('store.transfer_to') }}:</p>
                         <div class="payment-details-list">
-                            <div class="payment-detail-row"><span class="payment-detail-label">{{ __('store.payment') }}</span><span class="payment-detail-value">{{ $paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? '—' }}</span></div>
+                            <div class="payment-detail-row">
+                                <span class="payment-detail-label">{{ __('store.payment') }}</span>
+                                <span class="payment-detail-value">
+                                    {{ $paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? '—' }}
+                                    <button class="payment-detail-copy" type="button" data-copy-payment="{{ $paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? '—' }}" data-copied-label="{{ __('store.copied') }}" data-copy-failed-label="{{ __('store.copy_failed') }}" aria-label="{{ __('store.copy_payment_detail', ['label' => __('store.payment')]) }}">
+                                        <i class="fa fa-copy" aria-hidden="true"></i><span>{{ __('store.copy') }}</span>
+                                    </button>
+                                    <span class="payment-copy-status visually-hidden" data-payment-copy-status aria-live="polite"></span>
+                                </span>
+                            </div>
                             @if ($paymentDetails['account_name'] ?? null)
-                                <div class="payment-detail-row"><span class="payment-detail-label">{{ __('store.account_name') }}</span><span class="payment-detail-value">{{ $paymentDetails['account_name'] }}</span></div>
+                                <div class="payment-detail-row">
+                                    <span class="payment-detail-label">{{ __('store.account_name') }}</span>
+                                    <span class="payment-detail-value">
+                                        {{ $paymentDetails['account_name'] }}
+                                        <button class="payment-detail-copy" type="button" data-copy-payment="{{ $paymentDetails['account_name'] }}" data-copied-label="{{ __('store.copied') }}" data-copy-failed-label="{{ __('store.copy_failed') }}" aria-label="{{ __('store.copy_payment_detail', ['label' => __('store.account_name')]) }}">
+                                            <i class="fa fa-copy" aria-hidden="true"></i><span>{{ __('store.copy') }}</span>
+                                        </button>
+                                        <span class="payment-copy-status visually-hidden" data-payment-copy-status aria-live="polite"></span>
+                                    </span>
+                                </div>
                             @endif
                             @if ($paymentDetails['account_number'] ?? null)
-                                <div class="payment-detail-row"><span class="payment-detail-label">{{ __('store.payment_to') }}</span><strong class="payment-detail-value">{{ $paymentDetails['account_number'] }}</strong></div>
+                                <div class="payment-detail-row">
+                                    <span class="payment-detail-label">{{ __('store.payment_to') }}</span>
+                                    <strong class="payment-detail-value">
+                                        {{ $paymentDetails['account_number'] }}
+                                        <button class="payment-detail-copy" type="button" data-copy-payment="{{ $paymentDetails['account_number'] }}" data-copied-label="{{ __('store.copied') }}" data-copy-failed-label="{{ __('store.copy_failed') }}" aria-label="{{ __('store.copy_payment_detail', ['label' => __('store.payment_to')]) }}">
+                                            <i class="fa fa-copy" aria-hidden="true"></i><span>{{ __('store.copy') }}</span>
+                                        </button>
+                                        <span class="payment-copy-status visually-hidden" data-payment-copy-status aria-live="polite"></span>
+                                    </strong>
+                                </div>
                             @endif
                         </div>
                         @if ($paymentDetails['qr_code_path'] ?? null)
-                            <img class="d-block mx-auto mb-3 rounded border p-2" src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($paymentDetails['qr_code_path']) }}" alt="{{ __('store.payment') }} QR code" style="height: auto; max-height: 240px; max-width: 100%; object-fit: contain; width: auto">
+                            @php($paymentQrUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($paymentDetails['qr_code_path']))
+                            <a class="payment-qr-preview" href="{{ $paymentQrUrl }}" data-payment-qr-open aria-haspopup="dialog" aria-controls="payment-qr-dialog" aria-label="{{ __('store.enlarge_payment_qr') }}">
+                                <img class="payment-qr-image rounded border p-2" src="{{ $paymentQrUrl }}" alt="{{ __('store.payment') }} QR code">
+                            </a>
+                            <dialog class="payment-qr-dialog" id="payment-qr-dialog" data-payment-qr-dialog aria-label="{{ __('store.enlarge_payment_qr') }}">
+                                <button class="payment-qr-dialog-close" type="button" data-payment-qr-close aria-label="{{ __('store.close') }}"><i class="fa fa-times" aria-hidden="true"></i></button>
+                                <img src="{{ $paymentQrUrl }}" alt="{{ __('store.payment') }} QR code">
+                            </dialog>
+                            <a class="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-2 mx-auto mb-3" href="{{ $paymentQrUrl }}" download="{{ basename($paymentDetails['qr_code_path']) }}" aria-label="{{ __('store.download_payment_qr') }}">
+                                <i class="fa fa-download" aria-hidden="true"></i><span>{{ __('store.download_qr') }}</span>
+                            </a>
                         @endif
                         @if ($paymentDetails['instructions'] ?? null)
                             <details class="order-details-disclosure payment-instructions-disclosure">
@@ -391,6 +437,54 @@
                 input.remove();
             }
             this.innerHTML = '<i class="fa fa-check" aria-hidden="true"></i>';
+        });
+
+        document.querySelectorAll('[data-copy-payment]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const status = button.parentElement.querySelector('[data-payment-copy-status]');
+
+                try {
+                    if (navigator.clipboard?.writeText) {
+                        await navigator.clipboard.writeText(button.dataset.copyPayment);
+                    } else {
+                        const input = document.createElement('textarea');
+                        input.value = button.dataset.copyPayment;
+                        input.style.position = 'fixed';
+                        input.style.opacity = '0';
+                        document.body.append(input);
+                        input.select();
+                        const copied = document.execCommand('copy');
+                        input.remove();
+
+                        if (!copied) {
+                            throw new Error('The browser did not copy the payment detail.');
+                        }
+                    }
+
+                    status.textContent = button.dataset.copiedLabel;
+                } catch (error) {
+                    console.error('Unable to copy payment detail.', error);
+                    status.textContent = button.dataset.copyFailedLabel;
+                }
+            });
+        });
+
+        const paymentQrDialog = document.querySelector('[data-payment-qr-dialog]');
+        document.querySelector('[data-payment-qr-open]')?.addEventListener('click', (event) => {
+            if (!paymentQrDialog || typeof paymentQrDialog.showModal !== 'function') {
+                return;
+            }
+
+            event.preventDefault();
+            paymentQrDialog.showModal();
+        });
+        document.querySelector('[data-payment-qr-close]')?.addEventListener('click', () => {
+            paymentQrDialog?.close();
+        });
+        paymentQrDialog?.addEventListener('click', (event) => {
+            if (event.target === paymentQrDialog) {
+                paymentQrDialog.close();
+            }
         });
 
         const orderReviewForm = document.querySelector('[data-order-review-form]');

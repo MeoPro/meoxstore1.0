@@ -112,6 +112,7 @@
       .shop-product-rating-value { color: #727b89; }
       .shop-product-rating .shop-rating-empty { color: #d8dde3; }
       .shop-page-section .shop-product-results ul.pagination { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 32px 0 0; padding-left: 0; width: 100%; }
+      .shop-page-section .shop-product-results .shop-pagination-mobile { display: none !important; }
       .shop-page-section .shop-product-results ul.pagination > li { display: block; flex: 0 0 auto; margin: 0; }
       .shop-page-section .shop-product-results ul.pagination .page-link { align-items: center; background: #f1f3f5; border: 1px solid #e4e7ec; border-radius: 10px; color: #344054; display: inline-flex; font-size: 14px; font-weight: 600; height: 42px; justify-content: center; line-height: 1; min-width: 42px; padding: 0 12px; transition: background .18s ease, border-color .18s ease, color .18s ease; white-space: nowrap; }
       .shop-page-section .shop-product-results ul.pagination .page-item.active .page-link { background: #0071f8; border-color: #0071f8; color: #fff; }
@@ -119,8 +120,10 @@
       .shop-page-section .shop-product-results ul.pagination .page-item.disabled .page-link { background: #f8fafc; border-color: #e4e7ec; color: #98a2b3; }
       .shop-page-section .shop-product-results ul.pagination .page-link:focus-visible { box-shadow: 0 0 0 3px rgba(0, 113, 248, .2); outline: 0; position: relative; z-index: 2; }
       @media (max-width: 575.98px) {
-        .shop-page-section .shop-product-results ul.pagination { gap: 6px; margin-top: 24px; }
-        .shop-page-section .shop-product-results ul.pagination .page-link { height: 38px; min-width: 38px; padding: 0 8px; }
+        .shop-page-section .shop-product-results ul.pagination { gap: 4px; margin-top: 24px; }
+        .shop-page-section .shop-product-results .shop-pagination-desktop { display: none !important; }
+        .shop-page-section .shop-product-results .shop-pagination-mobile { display: flex !important; }
+        .shop-page-section .shop-product-results ul.pagination .page-link { height: 34px; min-width: 34px; padding: 0 6px; }
       }
       .shop-product-list .trending-items { display: flex; }
       .shop-product-list > .trending-items { margin-bottom: 30px; }

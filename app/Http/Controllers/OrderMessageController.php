@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\AuthorizeOrderAccess;
 use App\Models\Order;
 use App\Models\OrderMessage;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,22 @@ use Illuminate\Support\Facades\DB;
 class OrderMessageController extends Controller
 {
     public function __construct(private AuthorizeOrderAccess $authorizeOrderAccess) {}
+
+    public function poll(Request $request, Order $order): JsonResponse
+    {
+        $isAdminRoute = $request->routeIs('admin.orders.messages.*');
+        $this->authorizeParticipant($request, $order, $isAdminRoute);
+
+        return response()->json([
+            'html' => view('components.order-chat-messages', [
+                'order' => $order,
+                'messages' => $order->messages()->get(),
+                'isAdmin' => $isAdminRoute,
+                'canSendMessages' => in_array($order->status, ['payment_submitted', 'payment_confirmed'], true),
+                'messageRoutePrefix' => $isAdminRoute ? 'admin.orders.messages' : 'orders.messages',
+            ])->render(),
+        ]);
+    }
 
     public function store(Request $request, Order $order): RedirectResponse
     {
