@@ -1076,6 +1076,24 @@ it('prints the race once and keeps Blox Fruit values after colons in normal weig
         ->and(substr_count($telegramHtml, '𝙍𝘼𝘾𝙀'))->toBe(1);
 });
 
+it('prints Awaken once when the account also has Awaken catalog items', function () {
+    $html = app(AccountListingFormatter::class)->telegramHtml([
+        'username' => 'Example account',
+        'level' => '1',
+        'items' => [['category' => 'Awaken', 'name' => 'Dough']],
+        'awaken' => 'Fully Awakened',
+        'price_idr' => 50000,
+        'post_chat' => '',
+        'post_instagram' => '',
+    ], [
+        'idr_per_myr' => '4000.0000',
+        'idr_per_usd' => '15000.0000',
+    ]);
+
+    expect(substr_count($html, '<b>𝘼𝙒'))->toBe(1)
+        ->and($html)->toContain('Fully Awakened, Dough');
+});
+
 it('escapes generic account details in Telegram listings', function () {
     $html = app(AccountListingFormatter::class)->telegramHtml([
         'account_template' => 'generic',

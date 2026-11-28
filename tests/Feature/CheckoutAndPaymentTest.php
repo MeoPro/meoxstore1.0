@@ -267,6 +267,7 @@ it('keeps product purchase actions sticky on mobile and places the description a
         ->assertOk()
         ->assertSee('data-mobile-purchase-bar', false)
         ->assertSee('.product-detail-buy-actions[data-mobile-purchase-bar] {', false)
+        ->assertSee('align-items: end;', false)
         ->assertSee('position: fixed;', false)
         ->assertSeeInOrder([
             '<div class="product-detail-buy-actions" data-mobile-purchase-bar>',

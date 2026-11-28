@@ -74,15 +74,25 @@ class AccountListingFormatter
         $headlineItems = array_map(fn (array $item): string => $this->escape($item['name']), $items);
         $headline = $headlineItems === [] ? $this->escape($data['username']) : implode(' + ', $headlineItems);
         $race = (string) ($data['race'] ?? 'V3 HUMAN');
+        $awakenItems = [];
         foreach ($items as $item) {
             if (mb_strtolower(trim($item['category'])) === 'race') {
                 if ($race === 'V3 HUMAN') {
                     $race = $item['name'];
                 }
 
-                break;
+                continue;
+            }
+
+            if (mb_strtolower(trim($item['category'])) === 'awaken') {
+                $awakenItems[] = $this->escape($item['name']);
             }
         }
+        $awakenValues = array_values(array_unique(array_filter(
+            array_merge([$this->escape((string) ($data['awaken'] ?? '-'))], $awakenItems),
+            static fn (string $value): bool => $value !== '' && $value !== '-',
+        )));
+        $awaken = $awakenValues === [] ? '-' : implode(', ', $awakenValues);
 
         $price = (float) $data['price_idr'];
         $priceInThousands = number_format($price / 1000, 2, '.', ',');
@@ -109,7 +119,7 @@ class AccountListingFormatter
         ];
 
         foreach ($this->itemsByCategory($items) as $category => $categoryItems) {
-            if (mb_strtolower(trim($category)) === 'race') {
+            if (in_array(mb_strtolower(trim($category)), ['race', 'awaken'], true)) {
                 continue;
             }
 
@@ -122,7 +132,7 @@ class AccountListingFormatter
             '➡️<b>𝙁𝙍𝘼𝙂𝙈𝙀𝙉𝙏 :</b> '.$this->escape($data['fragment'] ?? '-'),
             '➡️<b>𝙃𝘼𝙆𝙄 :</b> '.$this->escape($data['haki'] ?? 'SKY JUMP, BODY, FLASH STEP'),
             '➡️<b>𝙍𝘼𝘾𝙀 :</b> '.$this->escape($race),
-            '➡️<b>𝘼𝙒𝙀𝙆𝙀𝙉 :</b> '.$this->escape($data['awaken'] ?? '-'),
+            '➡️<b>'.$this->stylizeCategoryName('Awaken').' :</b> '.$awaken,
             '➡️<b>𝙋𝙀𝙍𝙈𝘼𝙉𝙀𝙉𝙏 :</b> '.$this->escape($data['permanent'] ?? '-'),
             '➡️<b>𝙂𝘼𝙈𝙀𝙋𝘼𝙎𝙎 :</b> '.$this->escape($data['gamepass'] ?? '-'),
             '➡️<b>𝙎𝙏𝘼𝙏 𝙍𝙀𝙁𝙐𝙉𝘿 :</b> '.(int) ($data['stat_refund'] ?? 2).' (KODE)',

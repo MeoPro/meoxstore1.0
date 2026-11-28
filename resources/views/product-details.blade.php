@@ -216,6 +216,7 @@
       .product-detail-buy { grid-template-columns: minmax(0, 1fr); padding-bottom: 100px; }
       .product-detail-buy label { font-size: 11px; margin-bottom: 4px; }
       .product-detail-buy-actions[data-mobile-purchase-bar] {
+        align-items: end;
         background: #fff;
         border-top: 1px solid #e6eaf2;
         bottom: 0;
