@@ -10,7 +10,7 @@ class ProcessQueueWorker extends Command
 {
     protected $signature = 'app:process-queue {--single : Process at most one queued job}';
 
-    protected $description = 'Process a bounded batch of queued jobs.';
+    protected $description = 'Drain queued jobs until empty, or process one job when requested.';
 
     public function handle(): int
     {
@@ -22,37 +22,29 @@ class ProcessQueueWorker extends Command
             return self::SUCCESS;
         }
 
-        $lock = Cache::lock('app:queue-worker', 480);
-        if (! $lock->get()) {
-            $this->info('A queue worker is already running.');
+        Cache::put('admin.system-status.queue-last-run', now()->timestamp, now()->addDays(30));
 
-            return self::SUCCESS;
+        $options = [
+            'connection' => $connection,
+            '--stop-when-empty' => true,
+            '--timeout' => max(1, (int) config("queue.connections.{$connection}.retry_after", 90) - 10),
+        ];
+        if ($this->option('single')) {
+            $options['--max-jobs'] = 1;
+            $options['--max-time'] = 20;
         }
 
-        try {
-            Cache::put('admin.system-status.queue-last-run', now()->timestamp, now()->addDays(30));
-
-            $options = [
-                'connection' => $connection,
-                '--stop-when-empty' => true,
-                '--max-jobs' => $this->option('single') ? 1 : 10,
-                '--max-time' => $this->option('single') ? 20 : 50,
-                '--timeout' => max(1, (int) config("queue.connections.{$connection}.retry_after", 90) - 10),
-            ];
-            $queueName = config("queue.connections.{$connection}.queue");
-            if (is_string($queueName) && $queueName !== '') {
-                $options['--queue'] = $queueName;
-            }
-
-            $exitCode = Artisan::call('queue:work', $options);
-            $output = trim(Artisan::output());
-            if ($output !== '') {
-                $this->line($output);
-            }
-
-            return $exitCode;
-        } finally {
-            $lock->release();
+        $queueName = config("queue.connections.{$connection}.queue");
+        if (is_string($queueName) && $queueName !== '') {
+            $options['--queue'] = $queueName;
         }
+
+        $exitCode = Artisan::call('queue:work', $options);
+        $output = trim(Artisan::output());
+        if ($output !== '') {
+            $this->line($output);
+        }
+
+        return $exitCode;
     }
 }

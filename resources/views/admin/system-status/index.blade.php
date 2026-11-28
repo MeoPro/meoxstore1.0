@@ -134,7 +134,7 @@
                     <p class="text-muted mb-2">Add this command in cPanel → Cron Jobs and set it to run once every minute:</p>
                     <code class="d-block text-break user-select-all">{{ $cronCommand }}</code>
                     <p class="small text-muted mt-2 mb-0">
-                        The scheduler processes up to 10 jobs per run and stops automatically. It does not keep a permanent worker running.
+                        Cron drains the queue until it is empty, then stops. It does not keep a permanent worker running. Long backlogs may run for an extended time; shared-hosting process limits can still interrupt a run.
                     </p>
                 </div>
             </section>

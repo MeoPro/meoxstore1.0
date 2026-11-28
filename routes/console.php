@@ -24,4 +24,4 @@ Schedule::call(static function (): void {
 
 Schedule::command(ProcessQueueWorker::class)
     ->everyMinute()
-    ->withoutOverlapping(8);
+    ->withoutOverlapping();

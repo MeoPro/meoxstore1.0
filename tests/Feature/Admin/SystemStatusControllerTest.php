@@ -196,7 +196,7 @@ it('limits a manual queue run to one job', function () {
     $this->assertDatabaseCount('jobs', 1);
 });
 
-it('limits scheduled queue runs to ten jobs', function () {
+it('drains all queued jobs when run by the scheduler', function () {
     config(['queue.default' => 'database']);
     $cacheKey = 'system-status-scheduled-queue-worker-test';
     Cache::forget($cacheKey);
@@ -210,6 +210,6 @@ it('limits scheduled queue runs to ten jobs', function () {
     $this->artisan('app:process-queue')
         ->assertExitCode(0);
 
-    expect(Cache::get($cacheKey))->toBe(10);
-    $this->assertDatabaseCount('jobs', 1);
+    expect(Cache::get($cacheKey))->toBe(11);
+    $this->assertDatabaseCount('jobs', 0);
 });
