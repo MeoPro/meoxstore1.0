@@ -30,7 +30,7 @@ class SystemStatusController extends Controller
             'mailStatus' => $this->mailStatus(),
             'telegramStatus' => $this->telegramStatus($telegramBotApi),
             'queueStatus' => $this->queueStatus(),
-            'cronCommand' => '* * * * * cd '.escapeshellarg(base_path()).' && php artisan schedule:run >> /dev/null 2>&1',
+            'cronCommand' => '* * * * * cd "'.str_replace('"', '\\"', base_path()).'" && php artisan schedule:run >> /dev/null 2>&1',
         ]);
     }
 

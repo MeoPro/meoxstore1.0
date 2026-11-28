@@ -31,7 +31,8 @@ it('restricts the system status page and its actions to administrators', functio
         ->assertOk()
         ->assertSee('System Status')
         ->assertSee('Send test email')
-        ->assertSee('Automatic processing on cPanel');
+        ->assertSee('Automatic processing on cPanel')
+        ->assertSee('php artisan schedule:run');
 });
 
 it('shows Telegram connectivity and webhook details without exposing the bot token', function () {
