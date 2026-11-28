@@ -32,6 +32,8 @@ it('restricts the system status page and its actions to administrators', functio
         ->assertSee('System Status')
         ->assertSee('Send test email')
         ->assertSee('Automatic processing on cPanel')
+        ->assertSee('processed automatically')
+        ->assertSee('run a terminal command between steps.')
         ->assertSee('php artisan schedule:run');
 });
 

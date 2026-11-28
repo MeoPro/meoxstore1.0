@@ -131,6 +131,11 @@
 
                 <div class="border-top pt-3">
                     <h3 class="h6">Automatic processing on cPanel</h3>
+                    <p>
+                        Set this up once: after the webhook is registered and cPanel Cron is active, each Telegram message
+                        (<code>/new</code>, game selection, and later replies) is processed automatically. You do not need
+                        to run a terminal command between steps. Replies may take up to one minute to start.
+                    </p>
                     <p class="text-muted mb-2">Add this command in cPanel → Cron Jobs and set it to run once every minute:</p>
                     <code class="d-block text-break user-select-all">{{ $cronCommand }}</code>
                     <p class="small text-muted mt-2 mb-0">
