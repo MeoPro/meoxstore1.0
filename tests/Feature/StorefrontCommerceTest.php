@@ -263,7 +263,7 @@ it('shows a Malaysia QRIS warning for IDR checkout when QRIS is available', func
     $product = Product::factory()->create(['status' => 'active']);
     $variant = $product->variants()->firstOrFail();
     $variant->update(['stock' => 3, 'maximum_quantity' => 3]);
-    PaymentSetting::query()->create([
+    $paymentSetting = PaymentSetting::query()->create([
         'type' => 'qris',
         'currency' => 'idr',
         'name' => 'QRIS',
@@ -276,7 +276,8 @@ it('shows a Malaysia QRIS warning for IDR checkout when QRIS is available', func
         ->assertRedirect(route('checkout.show'));
 
     $this->get(route('checkout.show'))
-        ->assertSee(__('store.checkout_idr_qris_warning'));
+        ->assertSee(__('store.checkout_malaysia_qris_warning'))
+        ->assertSee('value="'.$paymentSetting->id.'"', false);
 });
 
 it('keeps guest cart items and checks out them together after sign in', function () {
