@@ -172,7 +172,7 @@
                                                     @endforeach
                                                     <div class="mb-3">
                                                         <label class="form-label" for="seller-note-{{ $variant->id }}">{{ __('store.seller_note') }}</label>
-                                                        <textarea class="form-control" id="seller-note-{{ $variant->id }}" name="seller_note" rows="2" maxlength="1000">{{ $sellerNote }}</textarea>
+                                                        <textarea class="form-control" id="seller-note-{{ $variant->id }}" name="seller_note" rows="2">{{ $sellerNote }}</textarea>
                                                     </div>
                                                     <button class="btn btn-outline-primary btn-sm" type="submit">{{ __('store.save_details') }}</button>
                                                 </form>

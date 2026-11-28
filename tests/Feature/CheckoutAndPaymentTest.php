@@ -360,6 +360,7 @@ it('sends a product detail buy-now request to checkout with only that product', 
         'is_active' => true,
     ]);
     Mail::fake();
+    $sellerNote = str_repeat('D', 1001);
 
     $this->get(route('product-details.show', $product))
         ->assertSee('formaction="'.route('checkout.direct').'"', false)
@@ -375,7 +376,7 @@ it('sends a product detail buy-now request to checkout with only that product', 
                 'game_username' => 'roblox-player',
                 'game_password' => 'PrivateRobloxPassword',
             ],
-            'seller_note' => 'Please deliver this after 6 PM.',
+            'seller_note' => $sellerNote,
         ])
         ->assertRedirect(route('checkout.show'));
 
@@ -400,7 +401,7 @@ it('sends a product detail buy-now request to checkout with only that product', 
             'game_username' => 'roblox-player',
             'game_password' => 'PrivateRobloxPassword',
         ])
-        ->and($item->customer_details['seller_note'])->toBe('Please deliver this after 6 PM.');
+        ->and($item->customer_details['seller_note'])->toBe($sellerNote);
     expect($order->user_id)->toBeNull()
         ->and($order->contact_email)->toBe('guest@example.com')
         ->and($order->contact_phone)->toBe('08123456789')
@@ -419,7 +420,7 @@ it('sends a product detail buy-now request to checkout with only that product', 
     $admin = User::factory()->create(['is_admin' => true]);
     $this->actingAs($admin)
         ->get(route('admin.orders.show', $order))
-        ->assertSee('Please deliver this after 6 PM.');
+        ->assertSee($sellerNote);
 });
 
 it('converts Bobux category prices to IDR across product listing and checkout', function () {
@@ -570,22 +571,26 @@ it('saves and updates a seller note from the cart details form', function () {
     ]);
     $variant = $product->variants()->firstOrFail();
     $variant->update(['stock' => 2, 'maximum_quantity' => 2]);
+    $initialNote = str_repeat('I', 1001);
+    $updatedNote = str_repeat('U', 1200);
 
     $this->post(route('cart.items.store'), [
         'variant_id' => $variant->id,
         'quantity' => 1,
-        'seller_note' => 'Initial note',
+        'seller_note' => $initialNote,
     ])->assertRedirect(route('cart.index'));
 
     $this->get(route('cart.index'))
-        ->assertSee('Initial note')
+        ->assertSee($initialNote)
         ->assertSee('name="seller_note"', false);
 
     $this->patch(route('cart.items.details.update', $variant), [
-        'seller_note' => 'Updated delivery note',
+        'seller_note' => $updatedNote,
     ])->assertRedirect(route('cart.index'));
 
-    $this->get(route('cart.index'))->assertSee('Updated delivery note');
+    $this->get(route('cart.index'))
+        ->assertSee($updatedNote)
+        ->assertDontSee('maxlength="1000"', false);
 
     $paymentSetting = PaymentSetting::query()->create([
         'type' => 'bank_transfer',
@@ -602,7 +607,7 @@ it('saves and updates a seller note from the cart details form', function () {
     ])->assertRedirect();
 
     expect(Order::query()->with('items')->sole()->items->sole()->customer_details['seller_note'])
-        ->toBe('Updated delivery note');
+        ->toBe($updatedNote);
 });
 
 it('preserves the selected shop currency when opening product details', function () {

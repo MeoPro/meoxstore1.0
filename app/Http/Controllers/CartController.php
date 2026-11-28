@@ -111,7 +111,7 @@ class CartController extends Controller
         $validated = $request->validate(array_merge([
             'quantity' => ['required', 'integer', 'min:1'],
             'currency' => ['sometimes', 'string', Rule::in(['idr', 'myr', 'usd'])],
-            'seller_note' => ['nullable', 'string', 'max:1000'],
+            'seller_note' => ['nullable', 'string'],
         ], $this->purchaseFieldRules($purchaseFields)));
         $cart = $request->session()->get('cart', []);
         $quantity = (int) ($cart[$variant->id] ?? 0) + (int) $validated['quantity'];
@@ -191,7 +191,7 @@ class CartController extends Controller
         }
 
         $validated = $request->validate(array_merge($purchaseRules, [
-            'seller_note' => ['nullable', 'string', 'max:1000'],
+            'seller_note' => ['nullable', 'string'],
         ]));
 
         $updatedDetails = [];

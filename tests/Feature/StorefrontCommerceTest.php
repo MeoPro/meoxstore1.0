@@ -277,6 +277,7 @@ it('shows a Malaysia QRIS warning for IDR checkout when QRIS is available', func
 
     $this->get(route('checkout.show'))
         ->assertSee(__('store.checkout_malaysia_qris_warning'))
+        ->assertSee('class="alert alert-danger" role="status"', false)
         ->assertSee('value="'.$paymentSetting->id.'"', false);
 });
 

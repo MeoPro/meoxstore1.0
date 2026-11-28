@@ -169,7 +169,7 @@
                     @if ($total > 0)
                         <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>
                         @if ($totalCurrency === 'idr' && $paymentSettings->contains(fn ($paymentSetting) => $paymentSetting->type === 'qris'))
-                            <div class="alert alert-info" role="status">{{ __('store.checkout_malaysia_qris_warning') }}</div>
+                            <div class="alert alert-danger" role="status">{{ __('store.checkout_malaysia_qris_warning') }}</div>
                         @endif
                         <div>
                             @foreach ($paymentSettings as $paymentSetting)

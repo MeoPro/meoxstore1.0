@@ -431,11 +431,8 @@
                   id="seller-note"
                   name="seller_note"
                   rows="3"
-                  maxlength="1000"
                   placeholder="{{ __('store.seller_note_placeholder') }}"
-                  aria-describedby="seller-note-help"
                 ></textarea>
-                <small class="form-text" id="seller-note-help">{{ __('store.seller_note_help') }}</small>
               </div>
 
               @if ($robuxTransactionsDisabled)
@@ -444,7 +441,7 @@
               <div class="product-detail-buy">
                 <div class="product-detail-buy-actions" data-mobile-purchase-bar>
                   <div class="product-detail-quantity" data-quantity-stepper>
-                    <label for="order-quantity">{{ __('store.quantity') }}</label>
+                    <label class="visually-hidden" for="order-quantity">{{ __('store.quantity') }}</label>
                     <div class="product-detail-quantity-control">
                       <button class="product-detail-quantity-button" type="button" aria-label="{{ __('store.decrease_quantity') }}" data-quantity-step="decrease" data-quantity-decrement disabled>
                         <i class="fa fa-minus" aria-hidden="true"></i>

@@ -94,7 +94,7 @@ class CheckoutController extends Controller
         $validated = $request->validate(array_merge([
             'quantity' => ['required', 'integer', 'min:1'],
             'currency' => ['sometimes', 'string', Rule::in(['idr', 'myr', 'usd'])],
-            'seller_note' => ['nullable', 'string', 'max:1000'],
+            'seller_note' => ['nullable', 'string'],
         ], $this->purchaseFieldRules($purchaseFields)));
 
         $quantity = (int) $validated['quantity'];
