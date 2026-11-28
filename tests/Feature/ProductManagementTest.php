@@ -1528,6 +1528,9 @@ it('renders multi-select and delete controls for products and categories', funct
         ->assertSee('id="bulk-product-form"', false)
         ->assertSee('id="select-all-products"', false)
         ->assertSee('name="ids[]"', false)
+        ->assertSee('value="set_purchase_fields"', false)
+        ->assertSee('name="purchase_fields[0][key]"', false)
+        ->assertSee('same fields will replace the existing buyer fields', false)
         ->assertSee('Permanently delete', false);
 
     $this->get(route('admin.game-categories.index'))
@@ -1552,6 +1555,59 @@ it('archives selected products without changing unselected products', function (
         expect($product->fresh()->status)->toBe('inactive');
     }
     expect($unselectedProduct->fresh()->status)->toBe('active');
+});
+
+it('replaces buyer fields on all selected products without changing unselected products', function () {
+    $this->actingAs(User::factory()->create());
+    $existingFields = [['key' => 'old_field', 'label' => 'Old field', 'type' => 'text']];
+    $firstProduct = Product::factory()->create(['purchase_fields' => $existingFields]);
+    $secondProduct = Product::factory()->create(['purchase_fields' => $existingFields]);
+    $unselectedProduct = Product::factory()->create(['purchase_fields' => $existingFields]);
+    $newFields = [
+        ['key' => 'game_id', 'label' => 'Game ID', 'type' => 'text'],
+        ['key' => 'server_id', 'label' => 'Server ID', 'type' => 'text'],
+    ];
+
+    $this->post(route('admin.products.bulk'), [
+        'action' => 'set_purchase_fields',
+        'ids' => [$firstProduct->id, $secondProduct->id],
+        'purchase_fields' => $newFields,
+    ])->assertRedirect()
+        ->assertSessionHas('success', 'Customer fields replaced for selected products.');
+
+    expect($firstProduct->fresh()->purchaseFields())->toBe($newFields)
+        ->and($secondProduct->fresh()->purchaseFields())->toBe($newFields)
+        ->and($unselectedProduct->fresh()->purchaseFields())->toBe($existingFields);
+});
+
+it('requires buyer fields when bulk replacing product fields', function () {
+    $this->actingAs(User::factory()->create());
+    $existingFields = [['key' => 'old_field', 'label' => 'Old field', 'type' => 'text']];
+    $product = Product::factory()->create(['purchase_fields' => $existingFields]);
+
+    $this->post(route('admin.products.bulk'), [
+        'action' => 'set_purchase_fields',
+        'ids' => [$product->id],
+    ])->assertInvalid(['purchase_fields']);
+
+    expect($product->fresh()->purchaseFields())->toBe($existingFields);
+});
+
+it('rejects duplicate buyer fields when bulk replacing product fields', function () {
+    $this->actingAs(User::factory()->create());
+    $existingFields = [['key' => 'old_field', 'label' => 'Old field', 'type' => 'text']];
+    $product = Product::factory()->create(['purchase_fields' => $existingFields]);
+
+    $this->post(route('admin.products.bulk'), [
+        'action' => 'set_purchase_fields',
+        'ids' => [$product->id],
+        'purchase_fields' => [
+            ['key' => 'game_id', 'label' => 'Game ID', 'type' => 'text'],
+            ['key' => 'game_id', 'label' => 'Duplicate ID', 'type' => 'text'],
+        ],
+    ])->assertInvalid(['purchase_fields.1.key']);
+
+    expect($product->fresh()->purchaseFields())->toBe($existingFields);
 });
 
 it('permanently deletes selected products and their images when they have no order history', function () {

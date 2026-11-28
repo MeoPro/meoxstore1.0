@@ -307,7 +307,6 @@
             @if ($order->status === 'pending')
                 <section class="order-card">
                     <h2 class="h5">{{ __('store.payment') }}</h2>
-                    @php($apiQrisInvoice = $paymentDetails['apiqris'] ?? null)
                     @if ($order->contact_email || $order->contact_phone)
                         <div class="mb-3">
                             <strong>{{ __('store.customer_contact') }}</strong>
@@ -342,10 +341,7 @@
                                 </div>
                             @endif
                         </div>
-                        @if (filled($apiQrisInvoice['qr_image_url'] ?? null))
-                            @php($paymentQrUrl = $apiQrisInvoice['qr_image_url'])
-                            @php($paymentQrFilename = 'apiqris-'.$order->publicNumber().'.png')
-                        @elseif ($paymentDetails['qr_code_path'] ?? null)
+                        @if ($paymentDetails['qr_code_path'] ?? null)
                             @php($paymentQrUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($paymentDetails['qr_code_path']))
                             @php($paymentQrFilename = basename($paymentDetails['qr_code_path']))
                         @else
@@ -364,15 +360,6 @@
                                 <i class="fa fa-download" aria-hidden="true"></i><span>{{ __('store.download_qr') }}</span>
                             </a>
                         @endif
-                        @if ($apiQrisInvoice)
-                            <p class="order-note mb-2">{{ __('store.apiqris_scan_instructions') }}</p>
-                            @if ($apiQrisInvoice['expires_at'] ?? null)
-                                @php($apiQrisExpiresAt = \Carbon\Carbon::parse($apiQrisInvoice['expires_at'])->utc())
-                                <p class="order-note mb-2">{{ __('store.apiqris_payment_deadline') }} <time datetime="{{ $apiQrisExpiresAt->toIso8601String() }}" data-local-time>{{ $apiQrisExpiresAt->format('d M Y, H:i') }} UTC</time></p>
-                            @endif
-                        @elseif (($paymentDetails['apiqris_required'] ?? false) && ! filled($apiQrisInvoice['qr_image_url'] ?? null))
-                            <div class="alert alert-warning" role="status">{{ __('store.apiqris_payment_initializing') }}</div>
-                        @endif
                         @if ($paymentDetails['instructions'] ?? null)
                             <details class="order-details-disclosure payment-instructions-disclosure">
                                 <summary>{{ __('store.payment_instructions') }}</summary>
@@ -382,7 +369,7 @@
                         <div class="payment-details-list">
                             <div class="payment-detail-row">
                                 <span class="payment-detail-label">{{ __('store.total') }}</span>
-                                <strong class="payment-detail-value">{{ $paymentCurrencySymbol }} {{ number_format($apiQrisInvoice['total_amount'] ?? $order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
+                                <strong class="payment-detail-value">{{ $paymentCurrencySymbol }} {{ number_format($order->paymentAmount($paymentDetails), $paymentCurrency === 'idr' ? 0 : 2, ',', '.') }}</strong>
                             </div>
                         </div>
                     @else
@@ -391,7 +378,6 @@
                     @if (
                         $paymentDetails
                         && (($paymentDetails['name'] ?? $paymentDetails['bank_name'] ?? null) || ($paymentDetails['qr_code_path'] ?? null))
-                        && ! ($paymentDetails['apiqris_required'] ?? false)
                     )
                         <form method="POST" action="{{ route('orders.payment-proof', $order) }}" enctype="multipart/form-data">
                             @csrf

@@ -13,6 +13,22 @@ use RuntimeException;
 class TelegramBotApi
 {
     /**
+     * @return array<string, mixed>
+     */
+    public function getMe(): array
+    {
+        return $this->call('getMe', [], 8);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getWebhookInfo(): array
+    {
+        return $this->call('getWebhookInfo', [], 8);
+    }
+
+    /**
      * @param  array<string, mixed>|null  $replyMarkup
      * @return array<string, mixed>
      */
@@ -206,10 +222,10 @@ class TelegramBotApi
      * @param  array<string, mixed>  $parameters
      * @return array<string, mixed>
      */
-    private function call(string $method, array $parameters): array
+    private function call(string $method, array $parameters, int $timeout = 60): array
     {
         $result = $this->responseResult(
-            $this->post($this->http(), $this->apiUrl($method), $parameters, $method),
+            $this->post($this->http($timeout), $this->apiUrl($method), $parameters, $method),
             $method,
         );
 
@@ -233,9 +249,9 @@ class TelegramBotApi
         return $body['result'] ?? [];
     }
 
-    private function http(): PendingRequest
+    private function http(int $timeout = 60): PendingRequest
     {
-        return Http::connectTimeout(5)->timeout(60);
+        return Http::connectTimeout(min(5, $timeout))->timeout($timeout);
     }
 
     /**

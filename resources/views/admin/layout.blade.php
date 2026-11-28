@@ -704,6 +704,9 @@
                 <a href="{{ route('admin.payment-settings.index') }}" class="{{ request()->routeIs('admin.payment-settings.*') ? 'active' : '' }}">
                     <x-admin-icon name="payment" class="admin-nav-icon" /><span class="admin-nav-text">Payment Methods</span>
                 </a>
+                <a href="{{ route('admin.system-status.index') }}" class="{{ request()->routeIs('admin.system-status.*') ? 'active' : '' }}">
+                    <x-admin-icon name="settings" class="admin-nav-icon" /><span class="admin-nav-text">System Status</span>
+                </a>
                 <a href="{{ route('admin.social-links.index') }}" class="{{ request()->routeIs('admin.social-links.*') ? 'active' : '' }}">
                     <x-admin-icon name="social" class="admin-nav-icon" /><span class="admin-nav-text">Social Media</span>
                 </a>

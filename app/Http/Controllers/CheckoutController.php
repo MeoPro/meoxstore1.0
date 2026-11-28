@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Actions\CancelOrder;
-use App\Actions\ProcessApiQrisWebhook;
 use App\Actions\QueueBuyerOrderUpdate;
 use App\Enums\BuyerOrderUpdateType;
 use App\Models\Coupon;
@@ -12,28 +11,20 @@ use App\Models\PaymentSetting;
 use App\Models\ProductCurrencyRate;
 use App\Models\ProductVariant;
 use App\Models\StoreSetting;
-use App\Services\ApiQrisClient;
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use InvalidArgumentException;
-use UnexpectedValueException;
 
 class CheckoutController extends Controller
 {
     public function __construct(
         private QueueBuyerOrderUpdate $queueBuyerOrderUpdate,
-        private ApiQrisClient $apiQrisClient,
         private CancelOrder $cancelOrder,
-        private ProcessApiQrisWebhook $processApiQrisWebhook,
     ) {}
 
     public function fromCart(Request $request): RedirectResponse
@@ -242,7 +233,7 @@ class CheckoutController extends Controller
             'customerPhone' => $buyer?->phone ?? '',
             'storeSetting' => StoreSetting::current(),
             'paymentSettings' => $paymentSettings,
-            'apiQrisUnavailableForCurrency' => $totalCurrency !== 'idr'
+            'qrisUnavailableForCurrency' => $totalCurrency !== 'idr'
                 && PaymentSetting::query()
                     ->where('is_active', true)
                     ->where('type', 'qris')
@@ -408,28 +399,9 @@ class CheckoutController extends Controller
                 if ($paymentSetting->type === 'qris') {
                     if ($checkoutCurrency !== 'idr') {
                         throw ValidationException::withMessages([
-                            'payment_method_id' => __('store.apiqris_idr_only'),
+                            'payment_method_id' => __('store.checkout_idr_qris_warning'),
                         ]);
                     }
-
-                    if (! $this->apiQrisClient->isConfigured()) {
-                        throw ValidationException::withMessages([
-                            'payment_method_id' => __('store.apiqris_payment_unavailable'),
-                        ]);
-                    }
-
-                    $roundedPaymentAmount = (int) round($paymentAmount);
-                    if (
-                        $roundedPaymentAmount < 1000
-                        || $roundedPaymentAmount > 10000000
-                        || abs($paymentAmount - $roundedPaymentAmount) > 0.00001
-                    ) {
-                        throw ValidationException::withMessages([
-                            'payment_method_id' => __('store.apiqris_amount_invalid'),
-                        ]);
-                    }
-
-                    $paymentAmount = $roundedPaymentAmount;
                 }
             }
 
@@ -458,7 +430,6 @@ class CheckoutController extends Controller
                     'account_number' => $paymentSetting?->account_number,
                     'qr_code_path' => $paymentSetting?->qr_code_path,
                     'instructions' => $paymentSetting?->instructions,
-                    'apiqris_required' => $paymentSetting?->type === 'qris',
                     'buyer_timezone' => $validated['buyer_timezone'] ?? config('app.timezone'),
                 ],
             ]);
@@ -517,79 +488,6 @@ class CheckoutController extends Controller
             $request->session()->put('guest_orders', $guestOrders);
         }
 
-        $apiQrisPaymentConfirmed = false;
-        if (($order->payment_details['type'] ?? null) === 'qris') {
-            try {
-                $invoice = $this->apiQrisClient->createInvoice(
-                    (int) $order->payment_details['payment_amount'],
-                    $order->publicNumber(),
-                    'Meoxstore order '.$order->publicNumber(),
-                );
-            } catch (ConnectionException|RequestException|UnexpectedValueException|InvalidArgumentException $exception) {
-                Log::error('APIQris invoice creation failed.', [
-                    'order_id' => $order->publicNumber(),
-                    ...$this->apiQrisExceptionContext($exception),
-                ]);
-
-                try {
-                    $invoice = $this->apiQrisClient->cancelInvoice($order->publicNumber());
-                } catch (ConnectionException|RequestException|UnexpectedValueException $cancellationException) {
-                    Log::critical('APIQris invoice state could not be reconciled after creation failed.', [
-                        'order_id' => $order->publicNumber(),
-                        ...$this->apiQrisExceptionContext($cancellationException),
-                    ]);
-
-                    return redirect()
-                        ->route('orders.show', $order)
-                        ->with('warning', __('store.apiqris_payment_initializing'));
-                }
-
-                if (($invoice['status'] ?? null) === 'paid') {
-                    $this->saveApiQrisInvoice($order, $invoice);
-                    $invoice['event'] = 'invoice.paid';
-                    $this->processApiQrisWebhook->handle($invoice);
-                    $apiQrisPaymentConfirmed = true;
-                } elseif (
-                    in_array($invoice['status'] ?? null, ['cancelled', 'expired', 'not_found'], true)
-                ) {
-                    DB::transaction(function () use ($order): void {
-                        $lockedOrder = Order::query()
-                            ->with('items')
-                            ->lockForUpdate()
-                            ->findOrFail($order->id);
-
-                        if ($lockedOrder->status === 'pending') {
-                            $this->cancelOrder->handle($lockedOrder);
-                        }
-                    });
-
-                    return redirect()->route('checkout.show')->withErrors([
-                        'payment_method_id' => __('store.apiqris_payment_unavailable'),
-                    ]);
-                } elseif (
-                    ($invoice['status'] ?? null) === 'pending'
-                    && isset($invoice['qr_image_url'], $invoice['expires_at'])
-                ) {
-                    // The initial response may have been lost after the provider created the invoice.
-                } else {
-                    Log::critical('APIQris returned an unresolved invoice state after creation failed.', [
-                        'order_id' => $order->publicNumber(),
-                        'provider_status' => $invoice['status'] ?? null,
-                    ]);
-
-                    return redirect()
-                        ->route('orders.show', $order)
-                        ->with('warning', __('store.apiqris_payment_initializing'));
-                }
-            }
-
-            if (! $apiQrisPaymentConfirmed) {
-                $this->saveApiQrisInvoice($order, $invoice);
-            }
-
-            $order->refresh();
-        }
-
         if ($checkout['source'] === 'cart') {
             $cart = $request->session()->get('cart', []);
             $cartDetails = $request->session()->get('cart_details', []);
@@ -608,62 +506,14 @@ class CheckoutController extends Controller
 
         $request->session()->forget(['checkout', 'checkout_coupon_code']);
 
-        if (! $apiQrisPaymentConfirmed) {
-            $this->queueBuyerOrderUpdate->handle(
-                $order,
-                $order->status === 'payment_confirmed'
-                    ? BuyerOrderUpdateType::PaymentConfirmed
-                    : BuyerOrderUpdateType::PaymentRequired,
-            );
-        }
+        $this->queueBuyerOrderUpdate->handle(
+            $order,
+            $order->status === 'payment_confirmed'
+                ? BuyerOrderUpdateType::PaymentConfirmed
+                : BuyerOrderUpdateType::PaymentRequired,
+        );
 
         return redirect()->route('orders.show', $order)->with('success', __('store.order_created'));
-    }
-
-    /**
-     * @param  array<string, mixed>  $invoice
-     */
-    private function saveApiQrisInvoice(Order $order, array $invoice): void
-    {
-        $paymentDetails = $order->payment_details ?? [];
-        $paymentDetails['apiqris'] = [
-            'invoice_id' => $invoice['id'],
-            'amount' => $invoice['amount'],
-            'unique_code' => $invoice['unique_code'] ?? ($invoice['total_amount'] - $invoice['amount']),
-            'total_amount' => $invoice['total_amount'],
-            'qr_image_url' => $invoice['qr_image_url'] ?? null,
-            'qris_string' => $invoice['qris_string'] ?? null,
-            'expires_at' => $invoice['expires_at'] ?? null,
-            'status' => $invoice['status'],
-        ];
-
-        $order->update(['payment_details' => $paymentDetails]);
-    }
-
-    /**
-     * @return array<string, int|string>
-     */
-    private function apiQrisExceptionContext(\Throwable $exception): array
-    {
-        $context = ['exception' => $exception::class];
-
-        if ($exception instanceof RequestException) {
-            $context['http_status'] = $exception->response->status();
-            $providerErrorCode = $exception->response->json('error.code');
-            if (
-                is_string($providerErrorCode)
-                && preg_match('/\A[A-Za-z0-9_-]{1,64}\z/', $providerErrorCode)
-            ) {
-                $context['provider_error_code'] = $providerErrorCode;
-            }
-        } elseif (
-            $exception instanceof InvalidArgumentException
-            || $exception instanceof UnexpectedValueException
-        ) {
-            $context['failure_reason'] = $exception->getMessage();
-        }
-
-        return $context;
     }
 
     /**

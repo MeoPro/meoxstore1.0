@@ -139,8 +139,8 @@
                 <a class="btn btn-link px-0 mt-2 text-decoration-none" href="{{ route('cart.index') }}">← {{ __('store.back_to_cart') }}</a>
             </section>
             <section class="checkout-section">
-            @if ($apiQrisUnavailableForCurrency)
-                <div class="alert alert-info" role="status">{{ __('store.apiqris_idr_only') }}</div>
+            @if ($qrisUnavailableForCurrency)
+                <div class="alert alert-info" role="status">{{ __('store.checkout_idr_qris_warning') }}</div>
             @endif
             @if ($total > 0 && $paymentSettings->isEmpty())
                 <h2 class="h5 mb-3">{{ __('store.choose_payment_method') }}</h2>

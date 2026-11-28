@@ -3,6 +3,15 @@
 @section('title', 'Products')
 
 @section('content')
+    @php
+        $bulkAction = old('action', '');
+        $bulkPurchaseFieldRows = old('purchase_fields', [['key' => '', 'label' => '', 'type' => 'text']]);
+        $bulkPurchaseFieldRows = is_array($bulkPurchaseFieldRows)
+            ? array_map(fn ($field) => is_array($field) ? $field : [], array_values($bulkPurchaseFieldRows))
+            : [];
+        $selectedBulkProductIds = array_map('strval', (array) old('ids', []));
+    @endphp
+
     <div class="page-heading">
         <div><h1>Products</h1></div>
         <a class="btn btn-accent" href="{{ route('admin.products.create') }}">Add product</a>
@@ -85,11 +94,57 @@
                     <option value="">Choose an action</option>
                     <option value="archive">Archive / deactivate</option>
                     <option value="delete">Permanently delete</option>
+                    <option value="set_purchase_fields" @selected($bulkAction === 'set_purchase_fields')>Set buyer fields</option>
                 </select>
+                @error('action')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
             </div>
-            <button class="btn btn-outline-danger" type="submit">Apply to selected</button>
+            <button class="btn btn-outline-secondary" type="submit">Apply to selected</button>
             <span class="small text-muted">Selections apply to products on this page.</span>
         </div>
+        <fieldset class="border-0 mt-3 p-0" id="bulk-purchase-fields" @if($bulkAction !== 'set_purchase_fields') disabled hidden @endif>
+            <div class="border-top pt-3">
+                <div class="align-items-start d-flex flex-wrap justify-content-between gap-2 mb-2">
+                    <div>
+                        <h2 class="fs-6 fw-semibold mb-1">Buyer fields for selected products</h2>
+                        <p class="form-text mb-0">The same fields will replace the existing buyer fields on every selected product.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" id="add-bulk-purchase-field" type="button">Add buyer field</button>
+                </div>
+                <div class="d-grid gap-2" id="bulk-purchase-field-list">
+                    @foreach ($bulkPurchaseFieldRows as $index => $field)
+                        <div class="variant-row" data-bulk-purchase-field-row>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-12 col-md-3">
+                                    <label class="form-label" for="bulk-purchase-field-key-{{ $index }}">Field key</label>
+                                    <input class="form-control" id="bulk-purchase-field-key-{{ $index }}" name="purchase_fields[{{ $index }}][key]" value="{{ $field['key'] ?? '' }}" pattern="[a-z][a-z0-9_]*" maxlength="50" required>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label" for="bulk-purchase-field-label-{{ $index }}">Customer label</label>
+                                    <input class="form-control" id="bulk-purchase-field-label-{{ $index }}" name="purchase_fields[{{ $index }}][label]" value="{{ $field['label'] ?? '' }}" maxlength="100" required>
+                                </div>
+                                <div class="col-8 col-md-3">
+                                    <label class="form-label" for="bulk-purchase-field-type-{{ $index }}">Input type</label>
+                                    <select class="form-select" id="bulk-purchase-field-type-{{ $index }}" name="purchase_fields[{{ $index }}][type]" required>
+                                        @foreach (['text' => 'Text', 'email' => 'Email', 'password' => 'Password'] as $type => $typeLabel)
+                                            <option value="{{ $type }}" @selected(($field['type'] ?? 'text') === $type)>{{ $typeLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-4 col-md-2">
+                                    <button class="btn btn-outline-danger w-100" type="button" data-remove-bulk-purchase-field>Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+                @error('purchase_fields')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
+                @foreach ($errors->get('purchase_fields.*') as $fieldErrors)
+                    @foreach ($fieldErrors as $message)
+                        <div class="text-danger small mt-2">{{ $message }}</div>
+                    @endforeach
+                @endforeach
+            </div>
+        </fieldset>
     </form>
 
     <div class="panel overflow-hidden">
@@ -99,7 +154,7 @@
                 <tbody>
                 @forelse ($products as $product)
                     <tr>
-                        <td><input class="form-check-input" form="bulk-product-form" name="ids[]" type="checkbox" value="{{ $product->id }}" aria-label="Select {{ $product->name }}"></td>
+                        <td><input class="form-check-input" form="bulk-product-form" name="ids[]" type="checkbox" value="{{ $product->id }}" aria-label="Select {{ $product->name }}" @checked(in_array((string) $product->id, $selectedBulkProductIds, true))></td>
                         <td>
                             <div class="align-items-center d-flex gap-2">
                                 @if ($product->image)
@@ -216,6 +271,31 @@
             <div class="border-top p-3">{{ $products->links('pagination::bootstrap-5') }}</div>
         @endif
     </div>
+    <template id="bulk-purchase-field-template">
+        <div class="variant-row" data-bulk-purchase-field-row>
+            <div class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="bulk-purchase-field-key-__INDEX__">Field key</label>
+                    <input class="form-control" id="bulk-purchase-field-key-__INDEX__" name="purchase_fields[__INDEX__][key]" pattern="[a-z][a-z0-9_]*" maxlength="50" required>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="bulk-purchase-field-label-__INDEX__">Customer label</label>
+                    <input class="form-control" id="bulk-purchase-field-label-__INDEX__" name="purchase_fields[__INDEX__][label]" maxlength="100" required>
+                </div>
+                <div class="col-8 col-md-3">
+                    <label class="form-label" for="bulk-purchase-field-type-__INDEX__">Input type</label>
+                    <select class="form-select" id="bulk-purchase-field-type-__INDEX__" name="purchase_fields[__INDEX__][type]" required>
+                        <option value="text">Text</option>
+                        <option value="email">Email</option>
+                        <option value="password">Password</option>
+                    </select>
+                </div>
+                <div class="col-4 col-md-2">
+                    <button class="btn btn-outline-danger w-100" type="button" data-remove-bulk-purchase-field>Remove</button>
+                </div>
+            </div>
+        </div>
+    </template>
     @include('admin.products._price-behavior')
     <script>
         (() => {
@@ -232,6 +312,20 @@
             const form = document.getElementById('bulk-product-form');
             const selectAll = document.getElementById('select-all-products');
             const checkboxes = [...document.querySelectorAll('input[name="ids[]"][form="bulk-product-form"]')];
+            const actionSelect = document.getElementById('bulk-product-action');
+            const purchaseFields = document.getElementById('bulk-purchase-fields');
+            const purchaseFieldList = document.getElementById('bulk-purchase-field-list');
+            const purchaseFieldTemplate = document.getElementById('bulk-purchase-field-template');
+            const addPurchaseFieldButton = document.getElementById('add-bulk-purchase-field');
+            let nextPurchaseFieldIndex = purchaseFieldList.querySelectorAll('[data-bulk-purchase-field-row]').length;
+
+            const refreshPurchaseFieldControls = () => {
+                const isPurchaseFieldAction = actionSelect.value === 'set_purchase_fields';
+                const fieldCount = purchaseFieldList.querySelectorAll('[data-bulk-purchase-field-row]').length;
+                purchaseFields.hidden = !isPurchaseFieldAction;
+                purchaseFields.disabled = !isPurchaseFieldAction;
+                addPurchaseFieldButton.disabled = !isPurchaseFieldAction || fieldCount >= 10;
+            };
 
             selectAll?.addEventListener('change', () => {
                 checkboxes.forEach((checkbox) => { checkbox.checked = selectAll.checked; });
@@ -246,6 +340,26 @@
                 });
             });
 
+            actionSelect.addEventListener('change', refreshPurchaseFieldControls);
+            addPurchaseFieldButton.addEventListener('click', () => {
+                if (purchaseFieldList.querySelectorAll('[data-bulk-purchase-field-row]').length >= 10) {
+                    return;
+                }
+
+                purchaseFieldList.insertAdjacentHTML(
+                    'beforeend',
+                    purchaseFieldTemplate.innerHTML.replaceAll('__INDEX__', nextPurchaseFieldIndex++),
+                );
+                refreshPurchaseFieldControls();
+            });
+            purchaseFieldList.addEventListener('click', (event) => {
+                if (event.target.closest('[data-remove-bulk-purchase-field]')) {
+                    event.target.closest('[data-bulk-purchase-field-row]').remove();
+                    refreshPurchaseFieldControls();
+                }
+            });
+            refreshPurchaseFieldControls();
+
             form?.addEventListener('submit', (event) => {
                 if (!checkboxes.some((checkbox) => checkbox.checked)) {
                     event.preventDefault();
@@ -253,8 +367,12 @@
                     return;
                 }
 
-                if (document.getElementById('bulk-product-action').value === 'delete' &&
-                    !window.confirm('Permanently delete the selected products? Products with order history will be kept.')) {
+                if (actionSelect.value === 'delete') {
+                    if (!window.confirm('Permanently delete the selected products? Products with order history will be kept.')) {
+                        event.preventDefault();
+                    }
+                } else if (actionSelect.value === 'set_purchase_fields' &&
+                    !window.confirm('Replace the buyer fields for every selected product?')) {
                     event.preventDefault();
                 }
             });

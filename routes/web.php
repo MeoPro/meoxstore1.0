@@ -17,7 +17,7 @@ use App\Http\Controllers\Admin\ProductCurrencyRateController;
 use App\Http\Controllers\Admin\ProductReviewController as AdminProductReviewController;
 use App\Http\Controllers\Admin\SocialLinkController;
 use App\Http\Controllers\Admin\StoreStatusController;
-use App\Http\Controllers\ApiQrisWebhookController;
+use App\Http\Controllers\Admin\SystemStatusController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BlogController;
@@ -68,8 +68,6 @@ Route::view('/about', 'about');
 Route::view('/contact', 'contact')->name('contact');
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 Route::post('/telegram/webhook', TelegramWebhookController::class)->name('telegram.webhook');
-Route::post('/webhook/qris', ApiQrisWebhookController::class)->middleware('throttle:120,1')->name('apiqris.webhook');
-
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart/items', [CartController::class, 'store'])->name('cart.items.store');
 Route::patch('/cart/items/{variant}', [CartController::class, 'update'])->name('cart.items.update');
@@ -126,6 +124,16 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+    Route::get('system-status', [SystemStatusController::class, 'index'])->name('system-status.index');
+    Route::post('system-status/email-test', [SystemStatusController::class, 'sendTestEmail'])
+        ->middleware('throttle:3,1')
+        ->name('system-status.email-test');
+    Route::post('system-status/telegram-webhook', [SystemStatusController::class, 'registerTelegramWebhook'])
+        ->middleware('throttle:3,1')
+        ->name('system-status.telegram-webhook');
+    Route::post('system-status/process-queue', [SystemStatusController::class, 'processQueue'])
+        ->middleware('throttle:2,1')
+        ->name('system-status.process-queue');
     Route::get('performance', PerformanceController::class)->name('performance.index');
     Route::get('cashier', [CashierController::class, 'index'])->name('cashier.index');
     Route::post('cashier', [CashierController::class, 'store'])->name('cashier.store');

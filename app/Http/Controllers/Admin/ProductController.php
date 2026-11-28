@@ -381,13 +381,20 @@ class ProductController extends Controller
 
     public function bulk(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'action' => ['required', Rule::in(['archive', 'delete'])],
+        $rules = [
+            'action' => ['required', Rule::in(['archive', 'delete', 'set_purchase_fields'])],
             'ids' => ['required', 'array', 'min:1', 'max:100'],
             'ids.*' => ['required', 'integer', 'distinct', Rule::exists('products', 'id')],
-        ]);
+        ];
 
-        $imagePaths = DB::transaction(function () use ($validated): array {
+        if ($request->input('action') === 'set_purchase_fields') {
+            $rules = array_merge($rules, $this->purchaseFieldRules(true));
+        }
+
+        $validated = $request->validate($rules);
+        $purchaseFields = array_values($validated['purchase_fields'] ?? []);
+
+        $imagePaths = DB::transaction(function () use ($validated, $purchaseFields): array {
             $products = Product::query()
                 ->whereKey($validated['ids'])
                 ->orderBy('id')
@@ -398,6 +405,15 @@ class ProductController extends Controller
                 throw ValidationException::withMessages([
                     'ids' => 'One or more selected products no longer exist.',
                 ]);
+            }
+
+            if ($validated['action'] === 'set_purchase_fields') {
+                foreach ($products as $product) {
+                    $product->purchase_fields = $purchaseFields;
+                    $product->save();
+                }
+
+                return [];
             }
 
             if ($validated['action'] === 'archive') {
@@ -424,9 +440,11 @@ class ProductController extends Controller
             Storage::disk('public')->delete($imagePaths);
         }
 
-        $message = $validated['action'] === 'archive'
-            ? 'Selected products deactivated.'
-            : 'Selected products permanently deleted.';
+        $message = match ($validated['action']) {
+            'archive' => 'Selected products deactivated.',
+            'delete' => 'Selected products permanently deleted.',
+            'set_purchase_fields' => 'Customer fields replaced for selected products.',
+        };
 
         return back()->with('success', $message);
     }
@@ -463,17 +481,13 @@ class ProductController extends Controller
                 Rule::when($hasDiscountBadge, ['required', 'numeric', 'gt:0', 'max:99.99'], ['prohibited']),
             ],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'purchase_fields' => ['nullable', 'array', 'max:10'],
-            'purchase_fields.*' => ['required', 'array:key,label,type'],
-            'purchase_fields.*.key' => ['required', 'string', 'alpha_dash:ascii', 'max:50', 'distinct:ignore_case', 'not_in:purchase_details'],
-            'purchase_fields.*.label' => ['required', 'string', 'max:100'],
-            'purchase_fields.*.type' => ['required', Rule::in(['text', 'email', 'password'])],
             'status' => $product === null
                 ? ['sometimes', Rule::in(['draft', 'active', 'inactive'])]
                 : ['required', Rule::in(['draft', 'active', 'inactive'])],
             'is_featured' => ['sometimes', 'boolean'],
             'variants' => ['required', 'array', 'min:1'],
         ];
+        $rules = array_merge($rules, $this->purchaseFieldRules());
 
         foreach ((array) $request->input('variants', []) as $index => $variant) {
             $variant = is_array($variant) ? $variant : [];
@@ -535,6 +549,19 @@ class ProductController extends Controller
         $validated['purchase_fields'] = array_values($validated['purchase_fields'] ?? []);
 
         return $validated;
+    }
+
+    private function purchaseFieldRules(bool $required = false): array
+    {
+        return [
+            'purchase_fields' => $required
+                ? ['required', 'array', 'min:1', 'max:10']
+                : ['nullable', 'array', 'max:10'],
+            'purchase_fields.*' => ['required', 'array:key,label,type'],
+            'purchase_fields.*.key' => ['required', 'string', 'alpha_dash:ascii', 'max:50', 'distinct:ignore_case', 'not_in:purchase_details'],
+            'purchase_fields.*.label' => ['required', 'string', 'max:100'],
+            'purchase_fields.*.type' => ['required', Rule::in(['text', 'email', 'password'])],
+        ];
     }
 
     /**

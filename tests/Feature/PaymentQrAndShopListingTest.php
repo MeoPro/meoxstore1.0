@@ -11,14 +11,14 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
-it('shows payment logos in checkout while keeping QR instructions on the order page', function () {
+it('shows payment logos in checkout while keeping static QR instructions on the order page', function () {
     Storage::fake('public');
     Storage::fake('local');
     $admin = User::factory()->create(['is_admin' => true]);
 
     $this->actingAs($admin)
         ->post(route('admin.payment-settings.store'), [
-            'type' => 'qris',
+            'type' => 'e_wallet',
             'currency' => 'idr',
             'name' => 'Scan to pay',
             'account_name' => 'Example owner',
@@ -37,7 +37,7 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
         ->assertRedirect(route('admin.payment-settings.index'));
 
     $paymentSetting = PaymentSetting::query()->sole();
-    expect($paymentSetting->type)->toBe('qris');
+    expect($paymentSetting->type)->toBe('e_wallet');
     Storage::disk('public')->assertExists($paymentSetting->qr_code_path);
     Storage::disk('public')->assertExists($paymentSetting->logo_path);
 
@@ -79,7 +79,7 @@ it('shows payment logos in checkout while keeping QR instructions on the order p
 
     $this->actingAs($admin)
         ->put(route('admin.payment-settings.update', $paymentSetting), [
-            'type' => 'qris',
+            'type' => 'e_wallet',
             'currency' => 'idr',
             'name' => 'Scan to pay updated',
             'logo' => UploadedFile::fake()->createWithContent(
@@ -166,34 +166,41 @@ it('keeps the selected payment type when a QR image is uploaded', function () {
         ->assertSee('E-wallet');
 });
 
-it('allows APIQris payment methods without a static QR image', function () {
+it('allows administrators to configure QRIS with a static payment QR image', function () {
     Storage::fake('public');
     $admin = User::factory()->create(['is_admin' => true]);
+    $qrImage = UploadedFile::fake()->createWithContent(
+        'store-qris.png',
+        base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true),
+    );
 
     $this->actingAs($admin)
         ->get(route('admin.payment-settings.create'))
-        ->assertSee('Optional. APIQris QRIS payments generate a dynamic QR at checkout.');
+        ->assertSee('Use a static QR image for manual payments.');
     $this->post(route('admin.payment-settings.store'), [
         'type' => 'qris',
         'currency' => 'idr',
-        'name' => 'QRIS APIQris',
+        'name' => 'Store QRIS',
+        'qr_code' => $qrImage,
         'is_active' => '1',
     ])->assertRedirect(route('admin.payment-settings.index'));
 
     $paymentSetting = PaymentSetting::query()->sole();
     expect($paymentSetting->type)->toBe('qris')
-        ->and($paymentSetting->qr_code_path)->toBeNull();
+        ->and($paymentSetting->qr_code_path)->not->toBeNull();
+    Storage::disk('public')->assertExists($paymentSetting->qr_code_path);
 
     $this->put(route('admin.payment-settings.update', $paymentSetting), [
         'type' => 'qris',
         'currency' => 'idr',
-        'name' => 'QRIS APIQris updated',
+        'name' => 'Store QRIS updated',
         'is_active_present' => '1',
         'is_active' => '1',
     ])->assertRedirect(route('admin.payment-settings.index'));
 
     expect($paymentSetting->fresh()->type)->toBe('qris')
-        ->and($paymentSetting->fresh()->qr_code_path)->toBeNull();
+        ->and($paymentSetting->fresh()->qr_code_path)->toBe($paymentSetting->qr_code_path);
+    Storage::disk('public')->assertExists($paymentSetting->qr_code_path);
 });
 
 it('shows product rating and only completed sales in the shop listing', function () {

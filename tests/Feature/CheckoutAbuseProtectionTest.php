@@ -4,6 +4,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -68,7 +69,9 @@ it('hides unpaid orders from the admin list but keeps them in the buyer history'
         ->assertSee('data-local-time', false);
 });
 
-it('renders order and QRIS expiry timestamps for local browser formatting', function () {
+it('renders static QR payment details and the order timestamp', function () {
+    Storage::fake('public');
+    Storage::disk('public')->put('payment-methods/store-qris.png', 'static QR code');
     $buyer = User::factory()->create();
     $order = Order::query()->create([
         'user_id' => $buyer->id,
@@ -77,16 +80,10 @@ it('renders order and QRIS expiry timestamps for local browser formatting', func
         'payment_details' => [
             'type' => 'qris',
             'currency' => 'idr',
-            'name' => 'APIQris',
+            'name' => 'Store QRIS',
             'payment_amount' => 12000,
-            'apiqris_required' => true,
-            'apiqris' => [
-                'invoice_id' => 'qr_test_123',
-                'amount' => 12000,
-                'total_amount' => 12123,
-                'status' => 'pending',
-                'expires_at' => '2026-11-28T00:00:00+00:00',
-            ],
+            'qr_code_path' => 'payment-methods/store-qris.png',
+            'instructions' => 'Scan the static QR and upload your payment proof.',
         ],
     ]);
 
@@ -94,6 +91,7 @@ it('renders order and QRIS expiry timestamps for local browser formatting', func
         ->get(route('orders.show', $order))
         ->assertOk()
         ->assertSee('datetime="'.$order->created_at->utc()->toIso8601String().'" data-local-time', false)
-        ->assertSee('datetime="2026-11-28T00:00:00+00:00" data-local-time', false)
-        ->assertSee(__('store.apiqris_payment_deadline'));
+        ->assertSee(Storage::disk('public')->url('payment-methods/store-qris.png'), false)
+        ->assertSee('Scan the static QR and upload your payment proof.')
+        ->assertSee(route('orders.payment-proof', $order), false);
 });
